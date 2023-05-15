@@ -36,12 +36,12 @@ class User(Base):
 class ScheduleCalendar(Base):
     __tablename__ = "schedule_calendar"
     id: Mapped[int] = mapped_column(primary_key=True)
-    schedule_id: Mapped[Optional[str]]
-    start_time: Mapped[Optional[str]]
-    end_time: Mapped[Optional[str]]
-    date: Mapped[Optional[datetime]]
-    status: Mapped[Optional[str]]
-    event_type: Mapped[Optional[str]]
+    schedule_id:    Mapped[Optional[str]]
+    start_time:     Mapped[Optional[str]]
+    end_time:       Mapped[Optional[str]]
+    date:           Mapped[Optional[datetime]]
+    status:         Mapped[Optional[str]]
+    event_type:     Mapped[Optional[str]]
     
     def __repr__(self) -> dict:
         return {
@@ -264,7 +264,21 @@ class TattooOrderPriceList(Base):
         }
 
 
+class SchedulePhoto(Base):
+    __tablename__ = "schedule_photo"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[Optional[str]]
+    photo: Mapped[Optional[str]]
+    
+    def __repr__(self) -> dict:
+        return {
+            "id":    self.id, 
+            "name":  self.name,
+            "photo": self.photo,
+        }
+
+
 
 Base.metadata.create_all(engine)
-session = scoped_session(sessionmaker(bind=engine))
-Base.query = session.query_property()
+# session = scoped_session(sessionmaker(bind=engine))
+# Base.query = session.query_property()

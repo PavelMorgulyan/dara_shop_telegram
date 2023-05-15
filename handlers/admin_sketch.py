@@ -17,8 +17,9 @@ from handlers.other import *
 
 from validate import check_pdf_document_payment, check_photo_payment
 
-#from diffusers import StableDiffusionPipeline
-#import torch
+from sqlalchemy.orm import Session
+from sqlalchemy import select, ScalarResult
+from db.sqlalchemy_base.db_classes import *
 
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from datetime import datetime, date, time, timedelta
@@ -43,11 +44,11 @@ async def get_tattoo_sketch_order_and_item_command_list(message: types.Message):
 
 
 #--------------------------------------  SKETCH COMMANDS -----------------------------------
-async def send_to_view_sketch_order(message: types.Message, orders: list):
+async def send_to_view_sketch_order(message: types.Message, orders):#: Sequence[Orders]):
     username_telegram, username_phone, username = '', '', []
     for order in orders:
         try:
-            username = await get_info_many_from_table('clients', 'telegram', order[3])
+            username = await get_info_many_from_table('clients', 'telegram', order.username)
             username_telegram = list(username[0])[1]
             username_phone = list(username[0])[2]
         except:
@@ -57,10 +58,10 @@ async def send_to_view_sketch_order(message: types.Message, orders: list):
             
         '''
         message_to_send = \
-            f'№ Заказа эскиза {order[0]} от {order[4]}\n'\
-            f'- Описание эскиза: {order[1]}\n' \
-            f'- Состояние заказа: {order[5]}\n'\
-            f'- Имя пользователя: {order[3]}\n'\
+            f'№ Заказа эскиза {order.order_number} от {order.creation_date}\n'\
+            f'- Описание эскиза: {order.order_note}\n' \
+            f'- Состояние заказа: {order.order_state}\n'\
+            f'- Имя пользователя: {order.username}\n'\
             f'- Telegram пользователя: {username_telegram}\n'\
             f'- Телефон пользователя: {username_phone}\n'
         
@@ -68,18 +69,11 @@ async def send_to_view_sketch_order(message: types.Message, orders: list):
             if '|' not in order[2]:
                 await bot.send_photo(message.from_user.id, order[2], message_to_send)
             else:
-                '''
-                media = [types.InputMediaPhoto('media/Starbucks_Logo.jpg', 'Превосходная фотография'),
-                    types.InputMediaPhoto('media/Starbucks_Logo_2.jpg')]  
-                    # Показываем, где фото и как её подписать
-                    
-                await bot.send_chat_action(call.message.chat.id, types.ChatActions.UPLOAD_DOCUMENT)  # Устанавливаем action "Uploading a document..."
-                await bot.send_media_group(call.message.chat.id, media=media)  # Отправка фото
-                '''
+                
                 media = []
                 
                 for i in range(len(order[2].split('|'))-1):
-                    media.append(types.InputMediaPhoto( order[2].split('|')[i], message_to_send))
+                    media.append(types.InputMediaPhoto(order[2].split('|')[i], message_to_send))
                 # print(f'media: {media}\n\norder[2]:{order[2]}')
                 await bot.send_chat_action(message.chat.id, types.ChatActions.UPLOAD_DOCUMENT)
                 await bot.send_media_group(message.chat.id, media=media)
@@ -221,22 +215,18 @@ async def command_get_info_opened_sketch_orders(message: types.Message):
     if message.text in ['посмотреть активные эскиз заказы', '/посмотреть_активные_эскиз_заказы'] \
         and str(message.from_user.username) in ADMIN_NAMES:
 
-        sqlite_connection = sqlite3.connect(DB_NAME)
-        cursor = sqlite_connection.cursor()
-        sqlite_select_query = \
-            f"""SELECT * from tattoo_sketch_orders WHERE state in (\'Активный, оплачен\',\
-            \'Активный, неоплачен\') """
-        cursor.execute(sqlite_select_query)
-        orders_into_table = cursor.fetchall()
-        if (sqlite_connection):
-            sqlite_connection.close()
+        with Session(engine) as session:
+            orders = session.scalars(select(Orders).where(
+                Orders.order_type == 'эскиз').where(
+                Orders.order_state.in_(['Открыт', 'Обработан'])
+                )).all()
         
-        if orders_into_table is None or orders_into_table == []:
+        if orders == []:
             await bot.send_message(message.from_user.id, MSG_NO_ORDER_IN_TABLE)
         else:
-            await send_to_view_sketch_order(message, orders_into_table)
+            await send_to_view_sketch_order(message, orders)
             await bot.send_message(message.from_user.id,
-                f'Всего активных заказов: {len(orders_into_table)}',
+                f'Всего активных заказов: {len(orders)}',
                 reply_markup=kb_admin.kb_tattoo_order_commands)
 
 
@@ -333,7 +323,7 @@ async def get_new_sketch_description(message: types.Message, state: FSMContext):
         data['first_photo'] = False
         data['tattoo_sketch_order'] = tattoo_sketch_order
         data['sketch_photo_list'] = ''
-        data['state'] =  'Активный, неоплачен'
+        data['state'] =  'Открыт'
         data['check_document'] = 'Без чека'
         
     if message.text in LIST_CANCEL_COMMANDS:

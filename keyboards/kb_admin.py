@@ -113,16 +113,6 @@ clients_commands = [
     'посмотреть пользователя',
     'удалить пользователя'
 ]
-''' statuses_order = [
-    'Активный, оплачен',
-    'Активный, неоплачен',
-    'Подтвержден, оплачен',
-    'Подтвержден, неоплачен',
-    'Закрыт',
-    'Закрыт, неоплачен',
-    'Закрыт, оплачен'
-] '''
-
 
 
 '''
@@ -249,7 +239,7 @@ phone_answer = ['Я не знаю его телефона']
 
 price_lst = [str(i) for i in range(1000, 20000, 1000)]
 
-another_price = [str(i) for i in range(1000, 50000, 1000)]
+another_price_full_lst = [str(i) for i in range(1000, 50000, 1000)]
 
 sizes_lst = [i for i in range(1, 100)]
 
@@ -284,7 +274,7 @@ kb_back_home = create_kb(LIST_BACK_TO_HOME)
 kb_price = create_kb_with_interval(price_lst, 5).add(another_price_btn).add(back_btn).add(cancel_btn)
 
 kb_change_price_list = ReplyKeyboardMarkup(resize_keyboard=True
-    ).row(KeyboardButton('Минимальный размер'), KeyboardButton('Макимальный размер'),\
+    ).row(KeyboardButton('Минимальный размер'), KeyboardButton('Макcимальный размер'),\
     KeyboardButton('Цена')).add(back_btn).add(cancel_btn)
 
 
@@ -310,7 +300,7 @@ kb_admin_choice_watch_order_or_change_order = \
     create_kb(list(admin_choice_watch_order_or_change_order.values()) + cancel_lst)
 kb_tattoo_order_change_info_list = \
     create_kb(list(tattoo_order_change_info_list.keys()) + back_lst + cancel_lst)
-kb_another_price = create_kb(another_price)                
+kb_another_price_full = create_kb(another_price_full_lst)                
 kb_sizes = create_kb_with_interval(sizes_lst + LIST_BACK_TO_HOME, 5)                            
 kb_no_note = create_kb(no_note + back_lst + LIST_BACK_TO_HOME)
 kb_creator_lst = create_kb(creator_lst)

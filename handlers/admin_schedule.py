@@ -62,7 +62,7 @@ async def command_get_schedule_command_list(message: types.Message):
         await message.reply('Какие комманды хочешь сделать?',
             reply_markup=kb_admin.kb_schedule_commands)
 
-
+#-------------------------------------- ADD NEW PHOTO SCHEDULE DATE -----------------------------------
 # /добавить фото расписания
 class FSM_Admin_create_new_photo_to_schedule(StatesGroup):
     number_month_year_for_photo = State()
@@ -107,20 +107,31 @@ async def get_name_for_photo_to_schedule(message: types.Message, state: FSMConte
 
 
 async def get_photo_to_schedule(message: types.Message, state: FSMContext):
-    photo = message.photo[0].file_id
-    async with state.proxy() as data:
-        photo_name = data['name_schedule_photo']
-    new_schedule_photo = {
-        "name"  : photo_name,
-        "photo" : photo
-    }
-    await set_to_table( tuple(new_schedule_photo.values()), 'schedule_photo')
-    await message.reply(f'Отлично! Ты добавила фото календаря! \n\n'\
-        f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
-        reply_markup= kb_admin.kb_schedule_commands)
-    await state.finish()
+    if message.content_type == 'photo':
+        async with state.proxy() as data:
+            photo_name = data['name_schedule_photo']
+            
+        with Session(engine) as session:
+            new_schedule_photo = SchedulePhoto(
+                name=  photo_name,
+                photo= message.photo[0].file_id
+            )
+            session.add(new_schedule_photo)
+            session.commit()
+        
+        await bot.send_message(message.from_id, f'Отлично! Ты добавила фото календаря! \n\n'\
+            f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
+            reply_markup= kb_admin.kb_schedule_commands)
+        await state.finish()
+        
+    elif message.content_type == 'text':
+        if message.text in LIST_CANCEL_COMMANDS:
+            await state.finish()
+            await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
+                reply_markup= kb_admin.kb_price_list_commands)
+        
 
-
+#-------------------------------------- ADD NEW SCHEDULE DATE -----------------------------------
 class FSM_Admin_create_new_date_to_schedule(StatesGroup):
     event_type_choice = State()
     date_choice = State()
@@ -155,22 +166,24 @@ async def choice_event_type_in_schedule(message: types.Message, state: FSMContex
             reply_markup= kb_admin.kb_new_date_choice)
     else:
         await message.reply('Выбери, пожалуйста, слова из представленного \
-            выбора кнопок - тату заказ или консультация.', 
-            reply_markup= kb_admin.kb_event_type_schedule)
+            выбора - тату заказ или консультация.')
 
 
-async def choice_how_to_create_new_date_to_schedule(
-    message: types.Message, state: FSMContext):
+async def choice_how_to_create_new_date_to_schedule(message: types.Message, state: FSMContext):
     await FSM_Admin_create_new_date_to_schedule.next()
     if message.text == 'Хочу ввести конкретную дату':
         async with state.proxy() as data:
             data['user_id'] = message.from_user.id
+            data['schedule_type'] = 'one date'
         
         for i in range(2):
             await FSM_Admin_create_new_date_to_schedule.next() # -> get_day_by_date_for_schedule
         await message.reply('Давай выберем конкретную дату. Введи ее',
             reply_markup=await DialogCalendar().start_calendar())
     else:
+        async with state.proxy() as data:
+            data['user_id'] = message.from_user.id
+            data['schedule_type'] = 'many date'
         await message.reply('Давай выберем месяц. Выбери имя месяца из списка',
             reply_markup= kb_admin.kb_month_for_schedule)
 
@@ -180,7 +193,7 @@ async def get_month_for_schedule(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['month_name'] = message.text
         data['month_number'] = await get_month_number_from_name(message.text)
-        data['user_id'] = message.from_user.id
+
     await FSM_Admin_create_new_date_to_schedule.next() # -> get_day_for_schedule
     await message.reply('Хорошо. Какой это день недели?',
         reply_markup = kb_admin.kb_days_for_schedule)
@@ -207,23 +220,21 @@ async def get_day_for_schedule(message: types.Message, state: FSMContext):
     state=FSM_Admin_create_new_date_to_schedule.day_by_date)
 async def get_day_by_date_for_schedule(callback_query: CallbackQuery,
     callback_data: dict, state: FSMContext):
+    
     selected, date = await DialogCalendar().process_selection(callback_query, callback_data) # type: ignore
     username_id = 0
     async with state.proxy() as data:
         username_id = data['user_id']
+        
     if selected:
         await callback_query.message.answer(
-            f'Вы выбрали {date.strftime("%d/%m/%Y")}'
+            f'Вы выбрали {date}'
         )
-        if datetime(
-            year=int(date.strftime("%Y")),
-            month=int(date.strftime("%m")),
-            day=int(date.strftime("%d"))) > datetime.now():
+        if date > datetime.now():
             # async def load_datemiting(message: types.Message, state: FSMContext):
             async with state.proxy() as data:
-                data['date'] =  f'{date.strftime("%d/%m/%Y")}' #  message.text
-                data['month_name'] = await get_month_from_number(int(date.strftime("%m")), 'ru')
-                data['month_number'] = int(date.strftime("%m"))
+                data['date'] = datetime(date) # f'{date.strftime("%d/%m/%Y")}' #  message.text
+                
             await FSM_Admin_create_new_date_to_schedule.next()
             await bot.send_message(username_id,
                 'Отлично, давай определимся со временем. '\
@@ -310,40 +321,38 @@ async def process_hour_timepicker_end_time(callback_query: CallbackQuery,
                     new_event_to_schedule_bool = True
             
                 if new_event_to_schedule_bool:
-                    schedule_id = await generate_random_order_number(CODE_LENTH)
                     if '/' in date:
-                        new_schedule_event = {
-                            'id': int(schedule_id),
-                            "start_time" :      start_time,
-                            "end_time" :        end_time,
-                            "date" :            date,
-                            "month_name" :      month_name,
-                            "month_number":     month_number,
-                            "status":          'Свободен',
-                            "event_type":       data['event_type']
-                            }
-                        await set_to_table( tuple(new_schedule_event.values()), 'schedule_calendar')
+                        with Session(engine) as session:
+                            new_schedule_event = ScheduleCalendar(
+                                start_time=     start_time,
+                                end_time=       end_time,
+                                date=           date,
+                                status=         'Свободен',
+                                event_type=     data['event_type']
+                            )
+                            session.add(new_schedule_event)
+                            session.commit()
+                            
                         await bot.send_message(username_id,
                             f'Отлично, теперь в {month_name} в {date} c {start_time} ' \
                             f'по {end_time} у тебя рабочее время!',
                             reply_markup = kb_admin.kb_schedule_commands)
                     else:
                         dates = await get_dates_from_month_and_day_of_week(month = month_name, day = date)
-                        dates_str, i = '', 1
+                        dates_str = ''
                         for iter_date in dates:
-                            new_schedule_event = {
-                                'id': int(schedule_id) + i,
-                                "start_time" :      start_time,
-                                "end_time" :        end_time,
-                                "date" :            iter_date,
-                                "month_name" :      month_name,
-                                "month_number" :    month_number,
-                                "status":           'Свободен',
-                                "event_type":       data['event_type']
-                                }
-                            i += 1
+                            with Session(engine) as session:
+                                new_schedule_event = ScheduleCalendar(
+                                    start_time=     start_time,
+                                    end_time=       end_time,
+                                    date=           date,
+                                    status=         'Свободен',
+                                    event_type=     data['event_type']
+                                )
+                                session.add(new_schedule_event)
+                                session.commit()
+                            
                             dates_str += f'{iter_date}, '
-                            await set_to_table(tuple(new_schedule_event.values()), 'schedule_calendar') 
                         await bot.send_message(username_id,
                             f'Отлично, теперь в {month_name} все {date}'\
                             f' ({dates_str[:len(dates_str)-2]})'\
@@ -357,6 +366,7 @@ async def process_hour_timepicker_end_time(callback_query: CallbackQuery,
                     reply_markup= await FullTimePicker().start_picker())
 
 
+# TODO разобраться с функцией
 @dp.callback_query_handler(dialog_cal_callback.filter(), 
     state=FSM_Admin_create_new_date_to_schedule.get_date_if_wrong_month)
 async def get_day_by_date_for_schedule_if_wrong_month_and_date(callback_query: CallbackQuery, 
@@ -365,20 +375,17 @@ async def get_day_by_date_for_schedule_if_wrong_month_and_date(callback_query: C
     username_id = 0
     new_event_to_schedule_bool = False
     if selected:
-        await callback_query.message.answer(
-            f'Вы выбрали {date.strftime("%d/%m/%Y")}'
-        )
-        # async def load_datemiting(message: types.Message, state: FSMContext):
+        await callback_query.message.answer(f'Вы выбрали {date.strftime("%d/%m/%Y")}')
+        
         async with state.proxy() as data:
             data['date'] =  f'{date.strftime("%d/%m/%Y")}' #  message.text
             username_id = data['user_id']
             date = data['date']
-            month_name = data['month_name']
-            month_number = data['month_number']
+
             start_time = data['start_time_in_schedule']
             end_time = data['end_time_in_schedule']
             if '/' in data['date']:    
-                if date.strftime("%m") != month_number:
+                if date.strftime("%m") != data['date'].strftime("%m"):
                     await bot.send_message(username_id, f'Дата {date} не совпадает.'\
                         ' Введите месяц и дату в этом месяце корректно',
                         reply_markup=await DialogCalendar().start_calendar())
@@ -388,10 +395,8 @@ async def get_day_by_date_for_schedule_if_wrong_month_and_date(callback_query: C
                 new_event_to_schedule_bool = True
             
             if new_event_to_schedule_bool:
-                schedule_id = await generate_random_order_number(CODE_LENTH)
                 with Session(engine) as session:
                         new_schedule_event = ScheduleCalendar(
-                            schedule_id=   int(schedule_id),
                             start_time=    start_time,
                             end_time=      end_time,
                             date=          date,
@@ -1046,7 +1051,7 @@ def register_handlers_admin_schedule(dp: Dispatcher):
         Text(equals='добавить фото расписания', ignore_case=True), state=None)
     dp.register_message_handler(get_name_for_photo_to_schedule,
         state=FSM_Admin_create_new_photo_to_schedule.number_month_year_for_photo)
-    dp.register_message_handler(get_photo_to_schedule, content_types=['photo'],
+    dp.register_message_handler(get_photo_to_schedule, content_types=['photo', 'text'],
         state=FSM_Admin_create_new_photo_to_schedule.photo_to_schedule)
 
     dp.register_message_handler(command_create_new_date_to_schedule, commands=['добавить_дату_в_расписание'])

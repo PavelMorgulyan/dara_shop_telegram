@@ -97,7 +97,7 @@ async def command_get_info_active_paid_giftbox_orders(message: types.Message):
 async def command_get_info_active_nopaid_giftbox_orders(message: types.Message): 
     if message.text.lower() == 'посмотреть активные неоплаченные гифтбокс заказы' and \
         str(message.from_user.username) in ADMIN_NAMES:
-        giftbox_orders = await get_info_many_from_table('giftbox_orders', 'order_state', 'Активный, неоплачен')
+        giftbox_orders = await get_info_many_from_table('giftbox_orders', 'order_state', 'Открыт')
         if giftbox_orders is None:
             await message.reply('Пока у вас нет заказов в таблице', reply_markup=kb_admin.kb_main)
         else:

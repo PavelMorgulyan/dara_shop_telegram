@@ -71,7 +71,8 @@ async def check_pdf_document_payment(user_id: int, price: str, file_name: str, f
 
 
 # document - message.document, message.document.file_name, message.document.file_id
-async def check_photo_payment(message:types.Message, user_id: int, price: str, file_name: str, file_id) -> dict[str, bool|str]:
+async def check_photo_payment(message:types.Message, user_id: int, price: str, file_name: str, file_id) \
+    -> dict[str, bool|str]:
 
     # file_info = await bot.get_file(file_id)
     # await file_info.download(src)
