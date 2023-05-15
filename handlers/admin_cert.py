@@ -97,7 +97,7 @@ async def admin_process_successful_cert_payment(message: types.Message, state=FS
     if message.text == kb_client.yes_str:
         async with state.proxy() as data: # type: ignore
             code = data['code']
-            data['state'] = 'Активный, оплачен'
+            data['state'] = 'Обработан'
             
             await bot.send_message(message.chat.id, f'Вот код на сертификат: {code}.')
             await FSM_Admin_сert_item.next()
@@ -106,7 +106,7 @@ async def admin_process_successful_cert_payment(message: types.Message, state=FS
     elif message.text == kb_client.no_str: # В таблице код уже будет, но выдадим мы его только после оплаты
         async with state.proxy() as data: # type: ignore
             
-            data['state'] = 'Активный, неоплачен'
+            data['state'] = 'Открыт'
             data['check_document'] = 'Чек не добавлен'
             
             new_cert_order = {
