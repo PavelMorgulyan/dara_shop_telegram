@@ -2,6 +2,9 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemo
 # from keyboards.kb_client import *
 from msg.main_msg import LIST_BACK_TO_HOME
 from handlers.other import statuses_order_lst
+from datetime import datetime
+
+
 another_price_lst = ['Другая цена']
 another_price_btn = KeyboardButton(another_price_lst[0])
 back_lst = ['Назад 🔄'] 
@@ -12,7 +15,6 @@ back_btn = KeyboardButton(back_lst[0])
 cancel_btn = KeyboardButton(cancel_lst[0])
 later = KeyboardButton('Потом 🕒')
 now = KeyboardButton('Сейчас 🍀')
-
 
 commands_button = [
     'Команды',
@@ -214,19 +216,26 @@ def create_kb(text: list) -> ReplyKeyboardMarkup:
 #-----------------------------------------SCHEDULE------------------------------------------------------
 event_type_schedule = ['Тату заказ', 'Консультация']
 
-days = [ 'Хочу ввести конкретную дату', 'Понедельник', 'Вторник',
+days = ['Понедельник', 'Вторник',
     'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
 
 month = [ 'Январь', 'Февраль', 'Март', 'Апрель', 'Май',
     'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 
+years_lst = [i for i in range(int(datetime.now().strftime('%Y')), int(datetime.now().strftime('%Y'))+5)]
+
 date_states = ['Статус', 'Месяц', 'Дату', 'Время начала работы', 'Время окончания работы']
 
 choice_new_date_or_new_day_name =  ['Хочу ввести конкретную дату', 'Хочу выбрать день недели']
 
-new_date_choice = [ 'Хочу ввести конкретную дату', 'Хочу выбрать день недели и месяц']
+new_date_choice = {
+    "one_date": 'Хочу ввести конкретную дату', 
+    "many_dates": 'Хочу выбрать день недели и месяц'
+}
 
 free_or_close_event_in_schedule = ['Свободен', 'Занят']
+
+type_of_schedule_lst = ['Тату заказ', 'Консультация']
 
 choice_new_date_or_no_date_in_tattoo_order = ['Хочу поставить новую дату для этого тату заказа',
     'Хочу оставить дату для этого тату заказа неопределенной']
@@ -280,7 +289,7 @@ kb_change_price_list = ReplyKeyboardMarkup(resize_keyboard=True
 
 client_want_to_try_another_later_img = {
     "admin_want_to_generate_img_from_ai_woman" :    "Сгенерируй мне модель женщины",
-    "client_want_to_get_example_text_for_ai_img" :  "Хочу примеры текста изображений",
+    "client_want_to_get_example_text_for_ai_img":   "Хочу примеры текста изображений",
     "description_ai_generation_img" :               "Хочу подробный текст с описанием о создании изображения",
     "correct_photo_from_ai_or_get_another" :        "Хочу попробовать еще раз с другими моими текстами 🎨"
 }
@@ -311,12 +320,14 @@ kb_in_stock = create_kb(in_stock_button)
 kb_change_status_order = create_kb(statuses_order_lst + LIST_BACK_TO_HOME)
 kb_sequin_types = create_kb(sequin_types + LIST_BACK_TO_HOME)
 kb_admin_has_no_phone_username = create_kb(phone_answer + LIST_BACK_TO_HOME)
-kb_days_for_schedule = create_kb(days + LIST_BACK_TO_HOME)
+kb_days_for_schedule = create_kb(days + [new_date_choice['one_date']] + LIST_BACK_TO_HOME)
 kb_month_for_schedule = create_kb(month + LIST_BACK_TO_HOME)
+kb_years = create_kb(years_lst + LIST_BACK_TO_HOME)
 kb_date_states = create_kb(date_states + LIST_BACK_TO_HOME)
-kb_new_date_choice = create_kb(new_date_choice + LIST_BACK_TO_HOME)
+kb_new_date_choice = create_kb(list(new_date_choice.values()) + LIST_BACK_TO_HOME)
 kb_choice_new_date_or_new_day_name = create_kb(choice_new_date_or_new_day_name + LIST_BACK_TO_HOME)
 kb_free_or_close_event_in_schedule = create_kb(free_or_close_event_in_schedule + LIST_BACK_TO_HOME)
+kb_type_of_schedule =  create_kb(type_of_schedule_lst + LIST_BACK_TO_HOME)
 # kb_price = create_kb(price)
 kb_choice_new_date_or_no_date_in_tattoo_order = \
     create_kb(choice_new_date_or_no_date_in_tattoo_order + LIST_BACK_TO_HOME)

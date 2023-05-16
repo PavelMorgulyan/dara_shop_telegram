@@ -36,22 +36,18 @@ class User(Base):
 class ScheduleCalendar(Base):
     __tablename__ = "schedule_calendar"
     id: Mapped[int] = mapped_column(primary_key=True)
-    schedule_id:    Mapped[Optional[str]]
-    start_time:     Mapped[Optional[str]]
-    end_time:       Mapped[Optional[str]]
-    date:           Mapped[Optional[datetime]]
+    start_datetime: Mapped[Optional[datetime]]
+    end_datetime:   Mapped[Optional[datetime]]
     status:         Mapped[Optional[str]]
     event_type:     Mapped[Optional[str]]
     
     def __repr__(self) -> dict:
         return {
-            "id":           self.id, 
-            "schedule_id":  self.schedule_id,
-            "start_time" :  self.start_time,
-            "end_time" :    self.end_time,
-            "date" :        self.date,
-            "status" :      self.status,
-            "event_type" :  self.event_type,
+            "id":               self.id, 
+            "start_datetime" :  self.start_datetime,
+            "end_datetime" :    self.end_datetime,
+            "status" :          self.status,
+            "event_type" :      self.event_type,
         }
         
 
@@ -117,18 +113,17 @@ class Orders(Base):
     user_id:        Mapped[str] #  = mapped_column(ForeignKey("user_account.id"))
     order_photo :   Mapped[List["OrderPhoto"]]= relationship(back_populates="photo") 
     tattoo_size:    Mapped[Optional[str]] # только для заказа тату - размер тату
-    date_meeting:   Mapped[Optional[str]]
-    date_time :     Mapped[Optional[str]]
+    date_meeting:   Mapped[Optional[datetime]]
     tattoo_note :   Mapped[Optional[str]] # только для заказа тату - описание тату
     order_note :    Mapped[Optional[str]]
     order_state:    Mapped[Optional[str]] # Открыт, Обработан, Выполнен, Отклонен, Отложен, Аннулирован, Ожидает ответа
     order_number:   Mapped[Optional[str]]
-    creation_date:  Mapped[Optional[datetime]] # DATE,
+    creation_date:  Mapped[Optional[datetime]]
     price:          Mapped[Optional[str]]
     check_document: Mapped[List["CheckDocument"]] = \
         relationship(back_populates="doc_id") # Mapped[Optional[str]]
     username:       Mapped[Optional[str]] #  = relationship(back_populates="name") # message.from_user.full_name
-    schedule_id:    Mapped[Optional[str]]
+    schedule_id:    Mapped[Optional[int]]
     colored:        Mapped[Optional[str]]
     # details_number: Mapped[Optional[int]]
     bodyplace:      Mapped[Optional[str]]
@@ -146,6 +141,8 @@ class Orders(Base):
             "order_type":       self.order_type,
             "order_name":       self.order_name,
             "tattoo_size":      self.tattoo_size,
+            "date_meeting":     self.date_meeting,
+            "price":            self.price,
             "colored":          self.colored,
             "bodyplace":        self.bodyplace,
             "tattoo_note":      self.tattoo_note,
@@ -272,9 +269,9 @@ class SchedulePhoto(Base):
     
     def __repr__(self) -> dict:
         return {
-            "id":    self.id, 
-            "name":  self.name,
-            "photo": self.photo,
+            "id":           self.id, 
+            "name":   self.name,
+            "photo":        self.photo
         }
 
 

@@ -94,10 +94,10 @@ async def get_client_choice_main_or_temporary_tattoo(message: types.Message, sta
             data['kb_client_size_tattoo'] = kb_client_size_tattoo
             
             if data['tattoo_type'] == 'переводное':
-                # выставляем '-' в date_meeting, start_date_time, end_date_time 
+                # выставляем "1970-01-01 00:00:00" в date_meeting, start_date_time, end_date_time 
                 # когда тату переводная
                 data['schedule_id'] = 0
-                data['date_meeting'] = '-'
+                data['date_meeting'] = datetime.strptime("1970-01-01 00:00:00", '%Y-%m-%d %H:%M:%S.%f')
                 data['event_type_creation'] = 'no schedule'
                 data['start_date_time'] = '-'
                 data['end_date_time'] = '-'
@@ -223,7 +223,7 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
                 if message.text == f'{tattoo.name}':
                     async with state.proxy() as data:      
                         data['tattoo_name'] = tattoo.name
-                        data['tattoo_photo'] = tattoo.photo # + '|'
+                        data['tattoo_photo'] = tattoo.photo 
                         data['tattoo_price'] = tattoo.price
                         # data['tattoo_details_number'] = tattoo[5]
                         data['tattoo_colored'] = tattoo.colored
@@ -875,7 +875,7 @@ async def get_photo_place_for_tattoo(message: types.Message, state: FSMContext):
         
         elif any(text in message.text for text in LIST_BACK_COMMANDS):
             await FSM_Client_tattoo_order.previous() # -> get_choice_tattoo_place
-            await bot.send_message(message.from_id,  f'{MSG_CLIENT_GO_BACK}\n\n'\
+            await bot.send_message(message.from_id,  f'{MSG_CLIENT_GO_BACK}'\
                 '🗾 Выбери место для своего тату',
                 reply_markup= kb_client.kb_place_for_tattoo)
         else:
@@ -1030,8 +1030,8 @@ async def choice_tattoo_order_date_and_time_meeting(message: types.Message, stat
         elif tattoo_body_place == "Без места для тату":
             for i in range(2):
                 await FSM_Client_tattoo_order.previous() # -> get_choice_tattoo_place
-            await bot.send_message(message.from_id,  f'{MSG_CLIENT_GO_BACK}'\
-                '❔ Хочешь определить место, где будет располагаться тату?',
+            await bot.send_message(message.from_id, f'{MSG_CLIENT_GO_BACK}')
+            await bot.send_message(message.from_id,'❔ Хочешь определить место, где будет располагаться тату?',
                 reply_markup = kb_client.kb_choice_place_tattoo)
         else:
             for i in range(2):
@@ -1042,10 +1042,10 @@ async def choice_tattoo_order_date_and_time_meeting(message: types.Message, stat
             
     elif message.text in kb_client.next_action_lst: # 'Далее ➡️'
         async with state.proxy() as data:
-            data['date_meeting'] = 'Без указания даты сеанса'
+            data['date_meeting'] = '1970-01-01'
             data['event_type_creation'] = 'from schedule'
-            data['start_date_time'] = 'Без указания начала сеанса'
-            data['end_date_time'] = 'Без указания конца сеанса'
+            data['start_date_time'] = '00:00:00'
+            data['end_date_time'] = '00:00:00'
             data['schedule_id'] = 0
             
         for i in range(4):
@@ -1060,54 +1060,30 @@ async def choice_tattoo_order_date_and_time_meeting(message: types.Message, stat
     else:
         async with state.proxy() as data:
             data['event_type_creation'] = 'from schedule'
-            schedule_list = data['date_free_kb_items_list']
+            schedule_lst = data['date_free_kb_items_list']
             
-            if message.text in schedule_list: # если выбираем конкретную дату из календаря  
-                if '/' in message.text.split()[1]:
-                    # Февраль 06/02/2023 c 14:00:00 по 17:00:00
-                    data['date_meeting'] = message.text.split()[1]
-                    ''' datetime(year = int(message.text.split()[1].split('/')[2]),
-                            month =    int(message.text.split()[1].split('/')[1]),
-                            day =      int(message.text.split()[1].split('/')[0]),
-                            hour =     int(message.text.split()[3].split(':')[0]),
-                            minute =   int(message.text.split()[3].split(':')[1]),
-                            second =   int(message.text.split()[3].split(':')[2]),
-                    ) 
-                    '''
-                    data['start_date_time'] = message.text.split()[3]
-                    data['end_date_time'] = message.text.split()[5]
-                    data['schedule_id'] = 0
-                    for event in data['date_free_list']:
-                        if event[3] == message.text.split()[1] and \
-                            event[1] == message.text.split()[3]:
-                            data['schedule_id'] = event[0] 
-                            #обновлять статус  расписания в базе будем по id
-                    for i in range(4):
-                        await FSM_Client_tattoo_order.next() # -> load_tattoo_order_note
-                        
-                    await bot.send_message(message.from_id,   
-                        f'🌿 Прекрасно! 📅 Вы выбрали дату {message.text.split()[1]} и '\
-                        f'время {message.text.split()[3]}')
+            if message.text in schedule_lst: # если выбираем конкретную дату из календаря  
+                
+                # Февраль 06/02/2023 c 14:00:00 по 17:00:00
+                with Session(engine) as session:
+                    schedule_event = session.get(ScheduleCalendar, schedule_lst.index(message.text)+1)
+                data['date_meeting'] = schedule_event.start_datetime
+                data['start_date_time'] = schedule_event.start_datetime.strftime('%H:%M:%S')
+                data['end_date_time'] = schedule_event.end_datetime.strftime('%H:%M:%S')
+                data['schedule_id'] = schedule_event.id
+                
+                for i in range(4):
+                    await FSM_Client_tattoo_order.next() # -> load_tattoo_order_note
                     
-                    await bot.send_message(message.from_id, 
-                        f'🌿 А теперь введи что-нибудь о своем тату! Чем подробнее описание твоего тату, тем лучше!\n\n'\
-                        f'➡️ Или нажми \"{kb_client.no_tattoo_note_from_client[0]}\" для продолжения',
-                        reply_markup= kb_client.kb_no_tattoo_note_from_client
-                    )
-                else: # если выбираем день из календаря  
-                    data['start_date_time'] = message.text.split()[3]
-                    data['end_date_time'] = message.text.split()[5]
-                    await FSM_Client_tattoo_order.next()
-                    dates = await get_dates_from_month_and_day_of_week(
-                        month=message.text.split()[0],
-                        day=message.text.split()[1]
-                    ) 
-                    kb_dates = ReplyKeyboardMarkup(resize_keyboard=True)
-                    for date in dates:
-                        kb_dates.add(KeyboardButton(date))
-                    day = message.text.split()[1]
-                    await bot.send_message(message.from_id, f'Хорошо, в какой {day} хочешь пойти?',
-                        reply_markup= kb_dates)
+                await bot.send_message(message.from_id,   
+                    f"🌿 Прекрасно! 📅 Вы выбрали дату {schedule_event.start_datetime.strftime('%d/%m/%Y и время %H:%M:%S')}")
+                
+                await bot.send_message(message.from_id, 
+                    f'🌿 А теперь введи что-нибудь о своем тату! Чем подробнее описание твоего тату, тем лучше!\n\n'\
+                    f'➡️ Или нажми \"{kb_client.no_tattoo_note_from_client[0]}\" для продолжения',
+                    reply_markup= kb_client.kb_no_tattoo_note_from_client
+                )
+                
             else:
                 await bot.send_message(message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
@@ -1125,7 +1101,7 @@ async def next_choice_tattoo_order_date_meeting(message: types.Message, state: F
         reply_markup= await FullTimePicker().start_picker())
 
 
-# перехода нет, т.к. пользователь  не будет выставлять свою дату
+# перехода нет, т.к. пользователь пока не будет выставлять свою дату
 # выбираем дату заказа
 @dp.callback_query_handler(dialog_cal_callback.filter(), state=FSM_Client_tattoo_order.date_meeting)
 async def load_datemeeting(callback_query: CallbackQuery, callback_data: dict, state: FSMContext):
@@ -1134,16 +1110,15 @@ async def load_datemeeting(callback_query: CallbackQuery, callback_data: dict, s
         user_id = data['telegram']
         
     if selected:
-        new_date = f'{date.strftime("%d/%m/%Y")}'
-        await callback_query.message.answer(f'Вы выбрали {new_date}')
+        await callback_query.message.answer(f'Вы выбрали {date.strftime("%d/%m/%Y")}')
         if date > datetime.now(): 
             async with state.proxy() as data:
-                data['date_meeting'] = new_date #  message.text
+                data['date_meeting'] = date #  message.text
                 data['event_type'] = 'тату заказ'
                 data['event_type_creation'] = 'from user'
             await FSM_Client_tattoo_order.next()
             await bot.send_message(user_id,
-                f'📅 Прекрасно, дата встречи теперь {new_date}! \n\n')
+                f'📅 Прекрасно, дата встречи теперь {date.strftime("%d/%m/%Y")}! \n\n')
             
             await bot.send_message(user_id,
                 '🕒 А теперь введи удобное для тебя время.',
@@ -1153,7 +1128,7 @@ async def load_datemeeting(callback_query: CallbackQuery, callback_data: dict, s
                 f'{MSG_LET_CHOICE_NORMAL_DATE}')
 
 
-# перехода нет, т.к. пользователь  не будет выставлять свою дату
+# перехода нет, т.к. пользователь пока не будет выставлять свою дату
 # выбираем время заказа
 @dp.callback_query_handler(full_timep_callback.filter(), 
     state=FSM_Client_tattoo_order.date_time)
@@ -1169,16 +1144,22 @@ async def process_hour_timepicker(callback_query: CallbackQuery,
             data['start_date_time'] = r.time.strftime("%H:%M:%S")
             data['end_date_time'] = str(int(r.time.strftime("%H")) + 3) + \
                 str(r.time.strftime(":%M:%S"))
-            data['schedule_id'] = await generate_random_order_number(CODE_LENTH)
+            
             user_id = data['telegram']
-            meeting_date = data['start_date_time']
-
+            start_datetime= datetime.strptime(
+                f"{data['date_meeting'].strftime('%Y-%m-%d')} {data['start_date_time']}", 
+                '%Y-%m-%d %H:%M:%S.%f'
+            )
+            
+            end_datetime= datetime.strptime(
+                f"{data['date_meeting'].strftime('%Y-%m-%d')} {data['end_date_time']}", 
+                '%Y-%m-%d %H:%M:%S.%f'
+            )
+            
             with Session(engine) as session:
                 new_schedule_event = ScheduleCalendar(
-                    schedule_id= int(data['schedule_id']),
-                    start_time= data['start_date_time'],
-                    end_time= data['end_date_time'],
-                    date= data['date_meeting'],
+                    start_datetime= start_datetime,
+                    end_datetime= end_datetime,
                     status= 'Занят',
                     event_type= data['event_type']
                 )
@@ -1187,8 +1168,8 @@ async def process_hour_timepicker(callback_query: CallbackQuery,
             
         await FSM_Client_tattoo_order.next()
         await bot.send_message(user_id,
-            f'📅 Прекрасно! Вы выбрали дату {meeting_date} и '\
-            f'🕒 время {r.time.strftime("%H:%M:%S")}.'
+            f"📅 Прекрасно! Вы выбрали дату {data['date_meeting'].strftime('%d')} и "\
+            f"🕒 время {r.time.strftime('%H:%M:%S')}."
         )
         await bot.send_message(user_id, 
             f'🌿 А теперь введи что-нибудь о своем тату! Чем подробнее описание твоего тату, тем лучше! \n\n'\
@@ -1367,29 +1348,28 @@ async def fill_tattoo_order_table(message: types.Message, state: FSMContext):
             new_table_items.append(new_tattoo_place_video)
             
             new_tattoo_order = Orders(
-                telegram=                  f'@{message.from_user.username}',
-                order_name=                data['tattoo_name'],
-                order_type=                data['tattoo_type'],
-                order_photo=               [new_tattoo_item],
-                tattoo_size=               data['tattoo_size'],
-                date_meeting=              data['date_meeting'],
-                date_time=                 data['start_date_time'],
-                tattoo_note=               data['tattoo_note'],
-                order_note=                data['order_note'],
-                order_state=               data['order_state'],
-                order_number=              data['tattoo_order_number'],
-                creation_date=             data['creation_date'],
-                tattoo_price=              data['tattoo_price'],
-                check_document=            [check_document],
-                username=                  data['username'],
-                schedule_id=               data['schedule_id'],
-                tattoo_colored=            data['tattoo_colored'],
-                tattoo_details_number=     data['tattoo_details_number'],
-                tattoo_body_place=         data['tattoo_body_place'],
-                tattoo_place_photo=        [new_tattoo_body_photo],
-                tattoo_place_video_note=   [new_tattoo_place_video_note],
-                tattoo_place_video=        [new_tattoo_place_video],
-                code=                       None
+                telegram= f'@{message.from_user.username}',
+                order_name= data['tattoo_name'],
+                order_type= data['tattoo_type'],
+                order_photo= [new_tattoo_item],
+                tattoo_size=  data['tattoo_size'],
+                date_meeting= datetime.strptime(f"{data['date_meeting'].strftime('%Y-%m-%d')} {data['start_date_time']}", '%Y-%m-%d %H:%M:%S.%f'),
+                tattoo_note= data['tattoo_note'],
+                order_note=  data['order_note'],
+                order_state= data['order_state'],
+                order_number= data['tattoo_order_number'],
+                creation_date= data['creation_date'],
+                tattoo_price= data['tattoo_price'],
+                check_document= [check_document],
+                username= data['username'],
+                schedule_id= data['schedule_id'],
+                tattoo_colored= data['tattoo_colored'],
+                tattoo_details_number= data['tattoo_details_number'],
+                tattoo_body_place= data['tattoo_body_place'],
+                tattoo_place_photo= [new_tattoo_body_photo],
+                tattoo_place_video_note= [new_tattoo_place_video_note],
+                tattoo_place_video= [new_tattoo_place_video],
+                code= None
             )
             new_table_items.append(new_tattoo_order)
             session.add_all(new_table_items)

@@ -19,7 +19,6 @@ db_dara_store_telegram.db
 /handlers/client_payload_tattoo_order.py
 /handlers/client_generate_tattoo_item.py
 /handlers/client_new_giftbox.py
-/sorting.py
 /db/tattoo_items.json
 /db/tattoo_items_deleted.json
 /db/db_tattoo_themes_18_58_08_05_2023.json

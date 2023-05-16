@@ -99,13 +99,11 @@ async def command_get_info_tattoo_orders(message: types.Message):
     if message.text in ['посмотреть тату заказы', '/посмотреть_тату_заказы'] and \
         str(message.from_user.username) in ADMIN_NAMES:
 
-        orders_into_table = Session(engine).scalars(select(TattooOrders))
-        print(f"orders_into_table: {orders_into_table}")
+        orders_into_table = Session(engine).scalars(select(Orders)).all()
         if orders_into_table == []:
             await bot.send_message(message.from_id, MSG_NO_ORDER_IN_TABLE,
                 reply_markup = kb_admin.kb_tattoo_order_commands)
         else:
-            
             await FSM_Admin_get_info_orders.order_status_name.set()
             await bot.send_message(message.from_user.id, 
                 f'Заказы в каком статусе хочешь посмотреть?',
@@ -114,8 +112,8 @@ async def command_get_info_tattoo_orders(message: types.Message):
 
 async def get_status_name(message: types.Message, state: FSMContext): 
     if message.text in statuses_order_lst:
-        orders = Session(engine).scalars(select(TattooOrders).where(
-            TattooOrders.order_state.in_([message.text])))
+        orders = Session(engine).scalars(select(Orders).where(
+            Orders.order_state == message.text))
         
         if orders == []:
             await bot.send_message(message.from_user.id, MSG_NO_ORDER_IN_TABLE)
@@ -1175,19 +1173,18 @@ async def get_tattoo_color( message: types.Message, state: FSMContext):
 
 async def load_tattoo_order_schedule_choice(message: types.Message, state: FSMContext):
     if message.text == 'Хочу выбрать дату из календаря':
-        schedule_list = \
-            await get_info_many_from_table('schedule_calendar', 'status', 'Свободен')
-        schedule = []
-        for event in schedule_list:
-            if event[7] == 'тату заказ':
-                schedule.append(event)
+        with Session(engine) as session:
+            schedule = session.scalars(select(ScheduleCalendar).where(
+                ScheduleCalendar.status == 'Свободен').where(
+                ScheduleCalendar.event_type == 'тату заказ').order_by(ScheduleCalendar.start_datetime))
                 
         if schedule == []:
             await message.reply(
                 f'У тебя пока нет расписания. Тогда создадим новую дату. Выбери пожалуйста, дату',
                 reply_markup = await DialogCalendar().start_calendar())
-            await FSM_Admin_tattoo_order.next()
-            await FSM_Admin_tattoo_order.next() # -> load_datemiting
+            
+            for i in range(2):
+                await FSM_Admin_tattoo_order.next() # -> load_datemiting
         else:
             async with state.proxy() as data:
                 data['date_free_list'] = schedule
@@ -1195,11 +1192,8 @@ async def load_tattoo_order_schedule_choice(message: types.Message, state: FSMCo
             date_list = ''
             for date in schedule:
                 if '/' in date[3]:
-                    date_time = datetime.datetime(
-                        year =      int(date[3].split('/')[2]),
-                        month =     int(date[3].split('/')[1]),
-                        day =       int(date[3].split('/')[0])
-                    )
+                    date_time = datetime.strptime(f"{date[3]} 00:00:00", "%d/%m/%Y %H:%M:%S.%f")
+                    
                     if date_time >= datetime.datetime.now():
                         date_list += f'{date[4]} {date[3]} c {date[1]} по {date[2]}\n'
                         kb_date_schedule.add(KeyboardButton(f'{date[4]} {date[3]} c {date[1]} по {date[2]}'))
