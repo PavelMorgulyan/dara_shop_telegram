@@ -81,7 +81,7 @@ async def fill_sketch_order_table(data:dict, message: types.Message):
             doc= data['check_document']
         )
         
-        new_tattoo_sketch_order = TattooSketchOrders(
+        new_tattoo_sketch_order = Orders(
             desc= data['sketch_description'],
             photo= [new_tattoo_sketch_photo],
             user= message.from_id, 
@@ -95,7 +95,7 @@ async def fill_sketch_order_table(data:dict, message: types.Message):
         session.commit()
         
     date = data['creation_time'] 
-    start_time = f'{date.strftime("%Y-%m-%dT%H:%M:%S")}'
+    start_time = f'{date.strftime("%Y-%m-%dT%H:%M")}'
     
     if DARA_ID != 0:
         await bot.send_message(DARA_ID, f'Дорогая Тату-мастерица! '\

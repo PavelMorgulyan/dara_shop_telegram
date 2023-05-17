@@ -56,7 +56,7 @@ async def dump_to_json_from_db(table_name: str):
     column_names = [i[1] for i in cursor.fetchall()]
     sqlite_connection.close() """
     
-    json_name = f".\\db\\db_{table_name}_{datetime.datetime.now().strftime('%H_%M_%d_%m_%Y')}.json"
+    json_name = f".\\db\\json\\db_{table_name}_{datetime.now().strftime('%H_%M_%d_%m_%Y')}.json"
     data = {}
     for id in range(len(table_info)):
         data[id] = table_info[id] # dict.fromkeys(column_names, table_info[id]) # TODO Доделать правильное формирование словаря

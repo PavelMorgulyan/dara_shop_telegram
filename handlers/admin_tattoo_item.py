@@ -15,6 +15,10 @@ from db.db_filling import dump_to_json
 from db.db_delete_info import delete_info
 from db.db_getter import get_info_many_from_table
 
+from sqlalchemy.orm import Session
+from sqlalchemy import select, ScalarResult, Sequence
+from db.sqlalchemy_base.db_classes import *
+
 from handlers.other import * 
 #from diffusers import StableDiffusionPipeline
 #import torch
@@ -46,16 +50,15 @@ class FSM_Admin_tattoo_item_change(StatesGroup):
 async def command_change_tattoo_item(message: types.Message):
     if message.text.lower() in ['изменить тату', '/изменить_тату'] and \
         str(message.from_user.username) in ADMIN_NAMES:
+        with Session(engine) as session:
+            tattoo_items = session.scalars(select(TattooItems)).all()
             
-        tattoo_items = await get_info_many_from_table('tattoo_items')
         if tattoo_items == []:
             await message.reply(MSG_NO_TATTOO_IN_TABLE)
         else:
             kb_tattoo_names = ReplyKeyboardMarkup(resize_keyboard=True)
-            tattoo_names_list = [] 
             for item in tattoo_items:
-                kb_tattoo_names.add(item[0])
-                tattoo_names_list.append(item[0])
+                kb_tattoo_names.add(item.name)
             await FSM_Admin_tattoo_item_change.tattoo_name.set()
             
             kb_tattoo_names.add(LIST_BACK_TO_HOME[0])
@@ -66,10 +69,11 @@ async def command_change_tattoo_item(message: types.Message):
 
 
 async def get_tattoo_name_for_changing(message: types.Message, state: FSMContext):
-    tattoo_items = await get_info_many_from_table('tattoo_items')
+    with Session(engine) as session:
+        tattoo_items = session.scalars(select(TattooItems)).all()
     tattoo_names_list = [] 
     for item in tattoo_items:
-        tattoo_names_list.append(item[0])
+        tattoo_names_list.append(item.name)
         
     if message.text in tattoo_names_list:
         async with state.proxy() as data:
@@ -338,14 +342,18 @@ async def send_to_view_tattoo_item(id, tattoo_items):
         await bot.send_message(id, MSG_NO_TATTOO_IN_TABLE)
     else:
         for tattoo in tattoo_items:
-            msg = f'- Название: {tattoo[0]}\n'\
-                f'- Цена: {tattoo[2]}\n' \
-                f'- Цвет: {tattoo[3]}\n'\
-                f'- Описание: {tattoo[4]}\n'\
-                f'- Создатель: {tattoo[5]}'\
+            msg = f'- Название: {tattoo.name}\n'\
+                f'- Цена: {tattoo.price}\n' \
+                f'- Цвет: {tattoo.colored}\n'\
+                f'- Описание: {tattoo.note}\n'\
+                f'- Создатель: {tattoo.creator}'\
             
-            if tattoo[1].split('|')[0].lower() != 'тату заказ без фотографии':
-                await bot.send_photo(id, tattoo[1] , msg)
+            
+            if tattoo != None:
+                with Session(engine) as session:
+                    photos = session.scalars(select(TattooItemPhoto).where(
+                        TattooItemPhoto.tattoo_item_name == tattoo.name)).one()
+                await bot.send_photo(id, photos.photo, msg)
             else:
                 await bot.send_message(id, msg)
 
@@ -359,13 +367,15 @@ class FSM_Admin_get_info_tattoo_item(StatesGroup):
 async def command_get_info_tattoo(message: types.Message): 
     if message.text.lower() in ['посмотреть тату', '/посмотреть_тату'] and \
         str(message.from_user.username) in ADMIN_NAMES:
-        tattoo_items = await get_info_many_from_table('tattoo_items')
+        with Session(engine) as session:
+            tattoo_items = session.scalars(select(TattooItems)).all()
+            
         if tattoo_items == []:
             await message.reply(MSG_NO_TATTOO_IN_TABLE)
         else:
             kb_tattoo_names = ReplyKeyboardMarkup(resize_keyboard=True)
             for item in tattoo_items:
-                kb_tattoo_names.add(item[0])
+                kb_tattoo_names.add(item.name)
             await FSM_Admin_get_info_tattoo_item.tattoo_name.set()
             
             kb_tattoo_names.add(kb_client.back_lst[0])
@@ -375,6 +385,7 @@ async def command_get_info_tattoo(message: types.Message):
 
 async def get_tattoo_name_for_info(message: types.Message, state: FSMContext): 
     tattoo_items = await get_info_many_from_table('tattoo_items', 'name', message.text)
+    
     await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
     await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
         reply_markup=kb_admin.kb_tattoo_items_commands)
@@ -387,7 +398,8 @@ async def get_tattoo_name_for_info(message: types.Message, state: FSMContext):
 async def command_get_info_all_tattoo(message: types.Message):
     if message.text.lower() in ['посмотреть все тату', '/посмотреть_все_тату'] and \
         str(message.from_user.username) in ADMIN_NAMES:
-        tattoo_items = await get_info_many_from_table('tattoo_items')
+        with Session(engine) as session:
+            tattoo_items = session.scalars(select(TattooItems)).all()
         await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
         await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
             reply_markup=kb_admin.kb_tattoo_items_commands)
@@ -397,7 +409,9 @@ async def command_get_info_all_tattoo(message: types.Message):
 async def command_get_info_all_admin_tattoo(message: types.Message):
     if message.text.lower() in ['посмотреть все мои тату', '/посмотреть_все_мои_тату'] and \
         str(message.from_user.username) in ADMIN_NAMES:
-        tattoo_items = await get_info_many_from_table('tattoo_items', 'creator', 'admin')
+        with Session(engine) as session:
+            tattoo_items = session.scalars(select(TattooItems).where(
+            TattooItems.creator == 'admin')).all()
         
         await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
         await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
@@ -409,47 +423,59 @@ async def command_get_info_admin_tattoo(message: types.Message):
     if message.text.lower() in ['посмотреть мои тату', 
         '/посмотреть_мои_тату'] and \
         str(message.from_user.username) in ADMIN_NAMES:
-        tattoo_items = await get_info_many_from_table('tattoo_items', 'creator', 'admin')
-        if tattoo_items != []:
+        with Session(engine) as session:
+            tattoo_items = session.scalars(select(TattooItems).where(
+            TattooItems.creator == 'admin')).all()
+            
+        if tattoo_items == []:
+            await message.reply('Прости, но у тебя пока нет своих тату в таблице. '\
+                'Данную таблицу можно заполнить через кнопку \"добавить тату\"')
+        else:
             kb_tattoo_names = ReplyKeyboardMarkup(resize_keyboard=True)
             for item in tattoo_items:
-                kb_tattoo_names.add(item[0])
+                kb_tattoo_names.add(item.name)
             kb_tattoo_names.add(LIST_BACK_TO_HOME[0])
             await FSM_Admin_get_info_tattoo_item.tattoo_name.set()   
             await message.reply('Какое тату хочешь посмотреть?',
                 reply_markup= kb_tattoo_names)
-        else:
-            await message.reply('Прости, но у тебя пока нет своих тату в таблице. '\
-                'Данную таблицу можно заполнить через кнопку \"добавить тату\"')
-
+            
 
 # /посмотреть_пользовательские_тату
 async def command_get_info_client_tattoo(message: types.Message):
     if message.text.lower() in ['посмотреть пользовательские тату', 
         '/посмотреть_пользовательские_тату'] and \
         str(message.from_user.username) in ADMIN_NAMES:
-        tattoo_items = await get_info_many_from_table('tattoo_items', 'creator', 'client')
-        if tattoo_items != []:
+        with Session(engine) as session:
+            tattoo_items = session.scalars(select(TattooItems).where(
+            TattooItems.creator == 'client')).all()
+        if tattoo_items == []:
+            await message.reply(MSG_NO_TATTOO_IN_TABLE)
+            await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
+                reply_markup= kb_admin.kb_tattoo_items_commands)
+            
+        else:
             kb_tattoo_names = ReplyKeyboardMarkup(resize_keyboard=True)
             for item in tattoo_items:
-                kb_tattoo_names.add(item[0])
+                kb_tattoo_names.add(item.name)
             kb_tattoo_names.add(kb_client.cancel_lst[0])
             await FSM_Admin_get_info_tattoo_item.tattoo_name.set()   
             await message.reply('Какое тату хочешь посмотреть?', reply_markup=kb_tattoo_names)
-        else:
-            await message.reply('Прости, но у тебя пока нет пользовательских тату в таблице.')
+
 
 
 async def get_tattoo_name_for_tattoo_info(message: types.Message, state: FSMContext):
     if message.text not in LIST_CANCEL_COMMANDS:
-        tattoo_items = await get_info_many_from_table('tattoo_items', 'name', message.text)
+        with Session(engine) as session:
+            tattoo_items = session.scalars(select(TattooItems).where(
+            TattooItems.name == message.text)).all()
         if tattoo_items == []:
             await message.reply('Таких тату нет. Выбери тату из списка или вернись домой.')
-        await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
-        await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
-            reply_markup=kb_admin.kb_tattoo_items_commands)
-        await state.finish() #  полностью очищает данные
-    elif message.text in LIST_CANCEL_COMMANDS:
+        else:
+            await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
+            await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
+                reply_markup=kb_admin.kb_tattoo_items_commands)
+            await state.finish() #  полностью очищает данные
+    elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_COMMANDS:
         await state.finish() 
         await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
             reply_markup= kb_admin.kb_tattoo_items_commands)

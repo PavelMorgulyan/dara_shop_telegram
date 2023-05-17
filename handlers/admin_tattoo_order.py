@@ -46,7 +46,7 @@ async def get_tattoo_order_and_item_command_list(message: types.Message):
 
 
 #------------------------------------- TATTOO ORDER COMMANDS-----------------------------------
-async def send_to_view_tattoo_order(message: types.Message, tattoo_orders: ScalarResult["TattooOrders"]):
+async def send_to_view_tattoo_order(message: types.Message, tattoo_orders: ScalarResult["Orders"]):
 
     for order in tattoo_orders:
         user = Session(engine).scalars(select(User).where(
@@ -55,14 +55,14 @@ async def send_to_view_tattoo_order(message: types.Message, tattoo_orders: Scala
         username_telegram = 'Без телеграма' if user.telegram_name == '' else user.telegram_name
         username_phone = 'Без номера' if user.phone == '' else user.phone
 
-        message_to_send = f'Тату заказ № {order.tattoo_order_number} от {order.creation_date}\n'
+        message_to_send = f'Тату заказ № {order.order_number} от {order.creation_date}\n'
         
-        if order.tattoo_type == 'постоянное':
-            message_to_send += f'🕒 Дата и время встречи: {order.date_meeting} {order.date_time}\n'
+        if order.order_type == 'постоянное тату':
+            message_to_send += f"🕒 Дата и время встречи: {order.start_date_meeting.strftime('%d/%m/%Y %H:%M')}\n"
         
         message_to_send += \
-            f'🪴 Тип тату: {order.tattoo_type}\n'\
-            f'🍃 Имя: {order.tattoo_name}\n'\
+            f'🪴 Тип тату: {order.order_type}\n'\
+            f'🍃 Имя: {order.order_name}\n'\
             f'📏 Размер: {order.tattoo_size}\n'\
             f'📜 Описание тату: {order.tattoo_note}\n' \
             f'💬 Описание заказа: {order.order_note}\n'\
@@ -832,13 +832,11 @@ async def process_hour_timepicker_start_session(callback_query: CallbackQuery,
     r = await FullTimePicker().process_selection(callback_query, callback_data) # type: ignore
     if r.selected:  
         await callback_query.message.edit_text(
-            f'Вы выбрали время для начала сеанса тату в {r.time.strftime("%H:%M:%S")} ',
+            f'Вы выбрали время для начала сеанса тату в {r.time.strftime("%H:%M")} ',
         )
         # await callback_query.message.delete_reply_markup()
         async with state.proxy() as data:
-            data['start_date_time'] = r.time.strftime("%H:%M:%S")
-            data['end_date_time'] = str(int(r.time.strftime("%H")) + 3) + \
-                str(r.time.strftime(":%M:%S"))
+            data['start_date_time'] = r.time.strftime("%H:%M")
             schedule_id = data['schedule_id']
             user_id = data['telegram']
             await update_info('schedule_calendar', 'schedule_id', schedule_id,
@@ -846,7 +844,7 @@ async def process_hour_timepicker_start_session(callback_query: CallbackQuery,
             
         await FSM_Admin_change_tattoo_order.next() #-> process_hour_timepicker_end_session
         await bot.send_message(user_id,
-            f'📅 Прекрасно! Вы выбрали время начала сеанса {r.time.strftime("%H:%M:%S")}.'
+            f'📅 Прекрасно! Вы выбрали время начала сеанса {r.time.strftime("%H:%M")}.'
         )
         await bot.send_message(user_id, 'А теперь введи время конца сеанса',
             reply_markup= await FullTimePicker().start_picker())
@@ -859,17 +857,17 @@ async def process_hour_timepicker_end_session(callback_query: CallbackQuery,
     r = await FullTimePicker().process_selection(callback_query, callback_data) # type: ignore
     if r.selected:  
         await callback_query.message.edit_text(
-            f'Вы выбрали время для конца сеанса тату в {r.time.strftime("%H:%M:%S")} ',
+            f'Вы выбрали время для конца сеанса тату в {r.time.strftime("%H:%M")} ',
         )
         async with state.proxy() as data:
-            data['end_date_time'] = r.time.strftime("%H:%M:%S")
+            data['end_date_time'] = r.time.strftime("%H:%M")
             schedule_id = data['schedule_id']
             user_id = data['telegram']
             await update_info('schedule_calendar', 'schedule_id', schedule_id,
                 'end_time', data['end_date_time'])
             
         await bot.send_message(user_id,
-            f'📅 Прекрасно! Вы выбрали время начала сеанса {r.time.strftime("%H:%M:%S")}.'
+            f'📅 Прекрасно! Вы выбрали время начала сеанса {r.time.strftime("%H:%M")}.'
         )
         await state.finish()
         await bot.send_message(user_id,
@@ -1192,7 +1190,7 @@ async def load_tattoo_order_schedule_choice(message: types.Message, state: FSMCo
             date_list = ''
             for date in schedule:
                 if '/' in date[3]:
-                    date_time = datetime.strptime(f"{date[3]} 00:00:00", "%d/%m/%Y %H:%M:%S.%f")
+                    date_time = datetime.strptime(f"{date[3]} 00:00:00", "%d/%m/%Y %H:%M")
                     
                     if date_time >= datetime.datetime.now():
                         date_list += f'{date[4]} {date[3]} c {date[1]} по {date[2]}\n'
@@ -1283,12 +1281,12 @@ async def process_hour_timepicker_start(callback_query: CallbackQuery, callback_
     r = await FullTimePicker().process_selection(callback_query, callback_data) # type: ignore
     if r.selected:  
         await callback_query.message.edit_text(
-            f'Вы выбрали время начала тату заказа в {r.time.strftime("%H:%M:%S")} ',
+            f'Вы выбрали время начала тату заказа в {r.time.strftime("%H:%M")} ',
         )
         # await callback_query.message.delete_reply_markup()
         username_id = 0
         async with state.proxy() as data:
-            data['start_date_time'] = r.time.strftime("%H:%M:%S")
+            data['start_date_time'] = r.time.strftime("%H:%M")
             username_id = data['telegram']
         
         
@@ -1303,12 +1301,12 @@ async def process_hour_timepicker_end(callback_query: CallbackQuery, callback_da
     r = await FullTimePicker().process_selection(callback_query, callback_data) # type: ignore
     if r.selected:  
         await callback_query.message.edit_text(
-            f'Вы выбрали время конца заказа тату в {r.time.strftime("%H:%M:%S")} ',
+            f'Вы выбрали время конца заказа тату в {r.time.strftime("%H:%M")} ',
         )
         # await callback_query.message.delete_reply_markup()
         username_id = 0
         async with state.proxy() as data:
-            data['end_date_time'] = r.time.strftime("%H:%M:%S")
+            data['end_date_time'] = r.time.strftime("%H:%M")
             username_id = data['telegram']
             schedule_id = await generate_random_order_number(CODE_LENTH)
             data['schedule_id'] = schedule_id

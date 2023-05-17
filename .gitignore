@@ -19,12 +19,4 @@ db_dara_store_telegram.db
 /handlers/client_payload_tattoo_order.py
 /handlers/client_generate_tattoo_item.py
 /handlers/client_new_giftbox.py
-/db/tattoo_items.json
-/db/tattoo_items_deleted.json
-/db/db_tattoo_themes_18_58_08_05_2023.json
-/db/db_tattoo_order_price_list_13_03_10_05_2023.json
-/db/db_schedule_calendar_17_27_10_05_2023.json
-/db/db_candle_items_18_58_08_05_2023.json
-/db/candle_items.json
-/db/db_schedule_photo_13_03_10_05_2023.json
-/db/db_giftbox_items_18_58_08_05_2023.json
+/db/json

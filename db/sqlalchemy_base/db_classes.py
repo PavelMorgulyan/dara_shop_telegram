@@ -107,50 +107,63 @@ class TattooItemPhoto(Base):
 '''
 class Orders(Base):
     __tablename__ = "orders"
-    id:             Mapped[int] = mapped_column(primary_key=True)
-    order_type:     Mapped[Optional[str]] # тип заказа - постоянное тату, переводное тату, эскиз, гифтбокс, сертификат
-    order_name:     Mapped[str] # = mapped_column(String(50))
-    user_id:        Mapped[str] #  = mapped_column(ForeignKey("user_account.id"))
-    order_photo :   Mapped[List["OrderPhoto"]]= relationship(back_populates="photo") 
-    tattoo_size:    Mapped[Optional[str]] # только для заказа тату - размер тату
-    date_meeting:   Mapped[Optional[datetime]]
-    tattoo_note :   Mapped[Optional[str]] # только для заказа тату - описание тату
-    order_note :    Mapped[Optional[str]]
-    order_state:    Mapped[Optional[str]] # Открыт, Обработан, Выполнен, Отклонен, Отложен, Аннулирован, Ожидает ответа
-    order_number:   Mapped[Optional[str]]
-    creation_date:  Mapped[Optional[datetime]]
-    price:          Mapped[Optional[str]]
-    check_document: Mapped[List["CheckDocument"]] = \
+    id:                 Mapped[int] = mapped_column(primary_key=True)
+    order_type:         Mapped[Optional[str]] # тип заказа - постоянное тату, переводное тату, эскиз, гифтбокс, сертификат
+    order_name:         Mapped[str] # = mapped_column(String(50))
+    user_id:            Mapped[str] #  = mapped_column(ForeignKey("user_account.id")), user.from_id
+    order_photo :       Mapped[List["OrderPhoto"]]= relationship(back_populates="photo") 
+    tattoo_size:        Mapped[Optional[str]] # только для заказа тату - размер тату
+    start_date_meeting: Mapped[Optional[datetime]]
+    end_date_meeting:   Mapped[Optional[datetime]]
+    tattoo_note :       Mapped[Optional[str]] # только для заказа тату - описание тату
+    order_note :        Mapped[Optional[str]]
+    order_state:        Mapped[Optional[str]] # Открыт, Обработан, Выполнен, Отклонен, Отложен, Аннулирован, Ожидает ответа
+    order_number:       Mapped[Optional[str]]
+    creation_date:      Mapped[Optional[datetime]]
+    price:              Mapped[Optional[str]]
+    check_document:     Mapped[List["CheckDocument"]] = \
         relationship(back_populates="doc_id") # Mapped[Optional[str]]
-    username:       Mapped[Optional[str]] #  = relationship(back_populates="name") # message.from_user.full_name
-    schedule_id:    Mapped[Optional[int]]
-    colored:        Mapped[Optional[str]]
+    username:           Mapped[Optional[str]] #  = relationship(back_populates="name") # message.from_user.full_name
+    schedule_id:        Mapped[Optional[int]]
+    colored:            Mapped[Optional[str]]
     # details_number: Mapped[Optional[int]]
-    bodyplace:      Mapped[Optional[str]]
+    bodyplace:          Mapped[Optional[str]]
     tattoo_place_photo: Mapped[List["TattooPlacePhoto"]] = \
         relationship(back_populates="photo_id") # , cascade="all, delete-orphan"
     tattoo_place_video_note: Mapped[List["TattooPlaceVideoNote"]] = \
         relationship(back_populates="video_id") # только для заказа тату - видео записка тела тату
     tattoo_place_video: Mapped[List["TattooPlaceVideo"]]=\
         relationship(back_populates="video_id") # только для заказа тату - видео тела тату
-    code:           Mapped[Optional[str]] # только для заказа сертификата - код сертификата
+    code:               Mapped[Optional[str]] # только для заказа сертификата - код сертификата
     
     def __repr__(self) -> dict:
         return {
-            "order_number":     self.order_number,
-            "order_type":       self.order_type,
-            "order_name":       self.order_name,
-            "tattoo_size":      self.tattoo_size,
-            "date_meeting":     self.date_meeting,
-            "price":            self.price,
-            "colored":          self.colored,
-            "bodyplace":        self.bodyplace,
-            "tattoo_note":      self.tattoo_note,
-            "creation_date":    self.creation_date,
-            "order_state":      self.order_state,
-            'order_note':       self.order_note,
-            'code':             self.code
+            "order_number":         self.order_number,
+            "order_type":           self.order_type,
+            "order_name":           self.order_name,
+            "tattoo_size":          self.tattoo_size,
+            "start_date_meeting":   self.start_date_meeting,
+            "end_date_meeting":     self.end_date_meeting,
+            "price":                self.price,
+            "colored":              self.colored,
+            "bodyplace":            self.bodyplace,
+            "tattoo_note":          self.tattoo_note,
+            "creation_date":        self.creation_date,
+            "order_state":          self.order_state,
+            'order_note':           self.order_note,
+            'code':                 self.code
         }
+
+
+class SketchPhoto(Base):
+    __tablename__ = "sketch_photo"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id:           Mapped[int] = mapped_column(ForeignKey("orders.id"))
+    photo:              Mapped["Orders"] = relationship(back_populates="order_photo")
+    
+    def __repr__(self) -> dict:
+        return {"id": self.id, "tattoo_sketch_order_number": self.order_number,
+            "photo":self.photo, "telegram_user_id": self.telegram_user_id} 
 
 
 class OrderPhoto(Base):
@@ -175,8 +188,8 @@ class TattooPlacePhoto(Base):
     __tablename__ = "tattoo_place_photo"
     id: Mapped[int] = mapped_column(primary_key=True)
     order_id:  Mapped[int] = mapped_column(ForeignKey("orders.id"))
-    order_number: Mapped[int]#Mapped["TattooOrders"] = relationship(back_populates="tattoo_order_number")
-    telegram_user_id: Mapped[int] # = mapped_column(ForeignKey("user.id"))
+    order_number: Mapped[int]
+    telegram_user_id: Mapped[int]
     photo: Mapped[str]
     photo_id: Mapped["Orders"] = relationship(back_populates="tattoo_place_photo")
     

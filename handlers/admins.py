@@ -72,7 +72,7 @@ async def get_name_json_file(message: types.Message, state: FSMContext):
     tables_names_lst = []
     for name in tables_names:
         tables_names_lst.append(name)
-    print(f'tables_names_lst: {tables_names_lst}')
+
     if (message.text,) in tables_names_lst:
         result = await dump_to_json_from_db(table_name= message.text)
         if result == "Succsess":

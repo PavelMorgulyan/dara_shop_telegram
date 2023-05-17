@@ -273,31 +273,53 @@ async def command_create_new_sketch_order(message: types.Message):
             await FSM_Admin_command_create_new_sketch_order.get_description.set() # -> get_new_sketch_description
             await bot.send_message(message.from_id,
                 'Ты ввела команду по созданию нового заказа эскиза переводного тату. \n\n'\
-                'Данный заказ состоит из: \n'\
+                'Данный заказ состоит из:\n'\
                 '1) Добавление описания нового эскиза, \n'\
                 '2) Добавление фотографий нового эскиза\n'\
                 '3) Добавление телеграма клиента\n'\
                 '4) Добавление состояния заказа - оплачен или нет\n'\
-                '5) Возможность добавления чека, если заказ оплачен' )
+                '5) Возможность добавления чека, если заказ оплачен')
             await bot.send_message(message.from_id, 'Введи описание для нового эскиза', 
                 reply_markup= kb_client.kb_cancel)
 
 
 async def fill_sketch_order_table(data:dict, message: types.Message):
-    await set_to_table(tuple(data.values()), 'tattoo_sketch_orders')
+    with Session(engine) as session:
+        new_sketch = Orders(
+            order_type = 'эскиз',
+            order_name= None,
+            user_id= None,
+            order_photo= data['sketch_photo_lst'],
+            tattoo_size = None,
+            start_date_meeting = None,
+            end_date_meeting = None,
+            tattoo_note= None,
+            order_note = data['sketch_description'],
+            order_state= data['state'],
+            order_number= data['tattoo_sketch_order_number'],
+            creation_date= data['creation_date'],
+            price= data['price'],
+            check_document= data['check_document'],
+            username= data['telegram'],
+            schedule_id= None,
+            colored= None,
+            bodyplace= None,
+            tattoo_place_photo= None,
+            tattoo_place_video_note= None,
+            tattoo_place_video= None,
+            code= None
+        )
+        session.add(new_sketch)
+        session.commit()
+
     date = data['creation_time'] 
-    start_time = f'{date.strftime("%Y-%m-%dT%H:%M:%S")}'
-    
-    if DARA_ID != 0:
-        await bot.send_message(DARA_ID, f'Дорогая Тату-мастерица! '\
-        f"🕸 Поступил новый заказ на эскиз под номером {data['id']}!")
-    
+
     event = await obj.add_event(CALENDAR_ID,
         f"Новый эскиз заказ № {data['id']}",
-        'Описание тату: ' +  data['sketch_description'] + ' \n' + \
+        'Описание эскиза: ' +  data['sketch_description'] + ' \n' + \
         'Имя клиента:' + data['telegram'],
-        start_time, # '2023-02-02T09:07:00',
-        start_time    # '2023-02-03T17:07:00'
+        f'{date.strftime("%Y-%m-%dT%H:%M")}', # '2023-02-02T09:07:00',
+        f'{date.strftime("%Y-%m-%dT%H:%M")}'  # '2023-02-03T17:07:00'
     )
     
     await message.reply(
@@ -308,22 +330,30 @@ async def fill_sketch_order_table(data:dict, message: types.Message):
 
 
 async def fill_client_table(data: dict, message: types.Message):
-    client = get_info_many_from_table('clients', 'telegram', data['telegram'])
-    if client == []:
-        await set_to_table(tuple(data.values()), 'clients')
-        await message.reply( f'Ты успешно добавила нового клиента! {MSG_DO_CLIENT_WANT_TO_DO_MORE}')
+    with Session(engine) as session:
+        client = session.scalars(select(User).where(User.telegram_name == data['telegram'])).one()
         
-    else:
-        await message.reply( f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}')
+    if client == []:
+        with Session(engine) as session:
+            new_user = User(
+                name=           data['username'],
+                telegram_id=    None,
+                telegram_name=  data['telegram'],
+                phone=          data['phone'] 
+            )
+            session.add(new_user)
+            session.commit()
+        await message.reply( f'Ты успешно добавила нового клиента! {MSG_DO_CLIENT_WANT_TO_DO_MORE}')
+    await message.reply( f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}', reply_markup=kb_admin.kb_tattoo_sketch_commands)
 
 
 async def get_new_sketch_description(message: types.Message, state: FSMContext):
-    tattoo_sketch_order = await generate_random_order_number(CODE_LENTH)
+    tattoo_sketch_order_number = await generate_random_order_number(CODE_LENTH)
     async with state.proxy() as data:
         data['first_photo'] = False
-        data['tattoo_sketch_order'] = tattoo_sketch_order
-        data['sketch_photo_list'] = ''
-        data['state'] =  'Открыт'
+        data['tattoo_sketch_order_number'] = tattoo_sketch_order_number
+        data['sketch_photo_lst'] = []
+        data['state'] =  OPEN_STATE_DICT["open"]
         data['check_document'] = 'Без чека'
         
     if message.text in LIST_CANCEL_COMMANDS:
@@ -383,12 +413,8 @@ async def get_photo_sketch(message: types.Message, state: FSMContext):
     
     if message.content_type == 'photo':
         async with state.proxy() as data:
-            ''' 
-            first_photo = data['first_photo']
-            if first_photo:
-                data['sketch_photo_list'] = message.photo[0].file_id
-            else: '''
-            data['sketch_photo_list'] += message.photo[0].file_id + '|'
+            
+            data['sketch_photo_lst'].append(SketchPhoto(photo= message.photo[0].file_id))
         
         await bot.send_message(message.from_id, 'Хочешь добавить еще фото?',
             reply_markup= kb_client.kb_yes_no)
@@ -476,7 +502,7 @@ async def get_sketch_state(message: types.Message, state: FSMContext):
             new_sketch_order = {
                 'order_id':             data['tattoo_sketch_order'],
                 'sketch_description':   data['sketch_description'],
-                'photo_list':           data['sketch_photo_list'], 
+                'photo_lst':            data['sketch_photo_lst'], 
                 'telegram':             data['telegram'],
                 'creation_time':        datetime.now(),
                 'state':                data['state'],
@@ -513,7 +539,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
                 new_sketch_order = {
                     'order_id':             data['tattoo_sketch_order'],
                     'sketch_description':   data['sketch_description'],
-                    'photo_list':           data['sketch_photo_list'], 
+                    'photo_lst':            data['sketch_photo_lst'], 
                     'telegram':             data['telegram'],
                     'creation_time':        datetime.now(),
                     'state':                data['state'],
@@ -550,7 +576,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
                 new_sketch_order = {
                     'order_id':             data['tattoo_sketch_order'],
                     'sketch_description':   data['sketch_description'],
-                    'photo_list':           data['sketch_photo_list'], 
+                    'photo_lst':            data['sketch_photo_lst'], 
                     'telegram':             data['telegram'],
                     'creation_time':        datetime.now(),
                     'state':                data['state'],
@@ -572,7 +598,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
                 new_sketch_order = {
                     'order_id':             data['tattoo_sketch_order'],
                     'sketch_description':   data['sketch_description'],
-                    'photo_list':           data['sketch_photo_list'], 
+                    'photo_lst':            data['sketch_photo_lst'], 
                     'telegram':             data['telegram'],
                     'creation_time':        datetime.now(),
                     'state':                data['state'],
