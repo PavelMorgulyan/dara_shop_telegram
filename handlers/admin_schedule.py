@@ -199,7 +199,8 @@ async def get_schedule_year(message: types.Message, state: FSMContext):
         kb = ReplyKeyboardMarkup(resize_keyboard=True)
         for month in kb_admin.month:
             month_number = await get_month_number_from_name(month)
-            if datetime.strptime(f"{message.text}-{month_number}-1 00:00", '%Y-%m-%d %H:%M') > datetime.now():
+            if datetime.strptime(f"{message.text}-{month_number}-1 00:00", '%Y-%m-%d %H:%M') \
+                > datetime.now():
                 kb.add(KeyboardButton(month))
         
         await message.reply(
@@ -368,7 +369,7 @@ async def process_hour_timepicker_end_time(callback_query: CallbackQuery,
                             )
                             session.add(new_schedule_event)
                             session.commit()
-                            
+                        print(f"data: {data}")
                         await bot.send_message(username_id,
                             f"Отлично, теперь в {month_name} в {date.strftime('%d/%m/%Y')} c {start_time} " \
                             f"по {end_time} у тебя рабочее время!",
@@ -391,7 +392,7 @@ async def process_hour_timepicker_end_time(callback_query: CallbackQuery,
                                 session.commit()
                             
                             dates_str += f"{iter_date['start_datetime'].strftime('%d/%m/%Y')}, "
-                            
+                        print(f"data: {data}")
                         await bot.send_message(username_id,
                             f'Отлично, теперь в {month_name} все {date}'\
                             f' ({dates_str[:len(dates_str)-2]})'\
@@ -419,10 +420,10 @@ async def get_view_schedule(user_id: int, schedule: ScalarResult[ScheduleCalenda
         for date in schedule:
             order_number = ''
             with Session(engine) as session:
-                orders = session.scalars(select(Orders).where(Orders.id == date.schedule_id))
+                orders = session.scalars(select(Orders).where(Orders.schedule_id == date.id)).all()
             if orders != []:
                 for order in orders:
-                    order_number += f'{order.order_number} '
+                    order_number += f'{order.order_number}\n'
             else:
                 order_number = 'Нет заказов'
             i+=1
@@ -1288,8 +1289,7 @@ async def delete_schedule_date(message:types.Message, state: FSMContext):
     if message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await message.reply(MSG_BACK_TO_HOME, reply_markup= kb_admin.kb_schedule_commands)
     else:
-        
-        schedule_id = message.text.split().split(") ")[0]
+        schedule_id = message.text.split(") ")[0]
         deleted_schedule = message.text.split(") ")[1]
         with Session(engine) as session:
             schedule = session.get(ScheduleCalendar, schedule_id)

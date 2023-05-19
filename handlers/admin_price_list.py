@@ -75,18 +75,8 @@ async def get_max_size_to_new_price_list(message: types.Message, state: FSMConte
             max_size = int(message.text)
             
         if max_size > min_size:
-            
-            """ sqlite_connection = sqlite3.connect(DB_NAME)
-            cursor = sqlite_connection.cursor()
-            sqlite_select_query = \
-                f"SELECT id from tattoo_order_price_list WHERE min_size = {min_size} and\
-                    max_size = {max_size}"
-
-            cursor.execute(sqlite_select_query)
-            id = cursor.fetchall()
-            sqlite_connection.close() """
-            
-            price = Session(engine).scalars(select(TattooOrderPriceList).where(
+            with Session(engine) as session:
+                price = session.scalars(select(TattooOrderPriceList).where(
                 TattooOrderPriceList.min_size == min_size).where(
                 TattooOrderPriceList.max_size == max_size)).all()
             
@@ -197,8 +187,8 @@ async def delete_price_list(message: types.Message):
                 
                 for item in prices:
                     kb.add(KeyboardButton(
-                            f'Минимальный размер: {str(item.min_size)} | '\
-                            f'Максимальный размер: {str(item.max_size)} | '\
+                            f'Минимальный размер: {item.min_size} | '\
+                            f'Максимальный размер: {item.max_size} | '\
                             f'Цена: {item.price}'
                         )
                     )
@@ -219,12 +209,16 @@ async def get_name_for_deleting_price_list(message: types.Message, state: FSMCon
         )
     if message.text in price_list:
         with Session(engine) as session:
-            price_item = session.get(TattooOrderPriceList, int(price_list.index(message.text))+1)            
-            session.delete(price_item)
+            price = session.scalars(select(TattooOrderPriceList).where(
+                TattooOrderPriceList.min_size == message.text.split()[2]).where(
+                TattooOrderPriceList.max_size == message.text.split()[6])
+                ).one()
+            min_size, max_size, price = price.min_size, price.max_size, price.price
+            session.delete(price)
             session.commit()
         await state.finish()
         await message.reply(
-            f'Вы удалили прайс-лист {price_item.min_size} - {price_item.max_size} по цене {price_item.price}.')
+            f'Вы удалили прайс-лист {min_size} - {max_size} по цене {price}.')
         
         await bot.send_message(message.from_id, 
             f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}',

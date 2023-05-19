@@ -158,8 +158,8 @@ choice_place_tattoo = {
 }
 
 choice_get_photo_for_place_tattoo = {
-    "client_want_to_get_place" : "Да, хочу отправить фото/видео",
-    "client_dont_want_to_get_place": "Нет, не хочу",
+    "client_want_to_get_place" : "Да, хочу отправить фото/видео 📎",
+    "client_dont_want_to_get_place": "Не буду отправлять, идем дальше ➡️",
 }
 
 start_dialog_sketch_order = {'client_want_to_see_galery':'Посмотреть галерею 📃'}

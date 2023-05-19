@@ -152,7 +152,9 @@ class FSM_Admin_command_get_info_tattoo_order(StatesGroup):
 async def command_get_info_tattoo_order(message: types.Message): 
     if message.text in ['посмотреть тату заказ', '/посмотреть_тату_заказ'] \
         and str(message.from_user.username) in ADMIN_NAMES:
-        orders = Session(engine).scalars(select(TattooOrders))
+        with Session(engine) as session:
+            orders = session.scalars(select(Orders).where(
+                Orders.order_type.in_(['постоянное тату', 'переводное тату']))).all()
         
         if orders == []:
             await message.reply(MSG_NO_ORDER_IN_TABLE)
@@ -161,8 +163,8 @@ async def command_get_info_tattoo_order(message: types.Message):
             await FSM_Admin_command_get_info_tattoo_order.order_name.set()
             # await send_to_view_tattoo_order(message, orders_into_table)
             for order in orders:
-                kb_orders.add(KeyboardButton(f"{order.tattoo_order_number} \
-                    \"{order.tattoo_name}\" статус: {order.order_state}"))
+                kb_orders.add(KeyboardButton(f"{order.order_number} \
+                    \"{order.order_name}\" статус: {order.order_state}"))
                 
             kb_orders.add(KeyboardButton('Назад'))
             await bot.send_message(message.from_user.id, f'Какой заказ хочешь посмотреть?',
@@ -171,8 +173,9 @@ async def command_get_info_tattoo_order(message: types.Message):
 
 async def get_name_for_view_tattoo_order(message: types.Message, state: FSMContext): 
     if message.text not in LIST_BACK_COMMANDS:
-        order = Session(engine).scalars(select(TattooOrders).where(
-            TattooOrders.tattoo_order_number == message.text.split()[0]))
+        with Session(engine) as session:
+            order = session.scalars(select(Orders).where(
+                Orders.order_number == message.text.split()[0])).all()
         
         await send_to_view_tattoo_order(message, order)
         await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
@@ -195,53 +198,49 @@ class FSM_Admin_delete_tattoo_order(StatesGroup):
 async def command_delete_info_tattoo_orders(message: types.Message): 
     if message.text in ['удалить тату заказ', '/удалить_тату_заказ'] \
         and str(message.from_user.username) in ADMIN_NAMES:
-        tattoo_orders = await get_info_many_from_table('tattoo_orders')
-        if tattoo_orders == []:
+        await message.reply("Данная функция полностью удаляет заказ из таблицы.\n"\
+            f"Если необходимо перевести заказы в статусы {', '.join(list(CLOSED_STATE_DICT.values()))},"\
+            "то необходимо использовать кнопку \"Изменить статус тату заказа\"")
+        with Session(engine) as session:
+            orders = session.scalars(select(Orders).where(
+                Orders.order_type.in_(['постоянное тату', 'переводное тату']))).all()
+        if orders == []:
             await message.reply('Прости, пока нет заказов в списке, а значит и удалять нечего. '\
                 'Хочешь посмотреть что-то еще?', reply_markup= kb_admin.kb_tattoo_order_commands)
         else:
             kb_tattoo_order_numbers = ReplyKeyboardMarkup(resize_keyboard=True)
-            number_not_deleted_order = 0
-            for ret in tattoo_orders:
-                if ret[8] in list(CLOSED_STATE_DICT.values()):
+            for order in orders:
                     # выводим наименования тату
-                    number_not_deleted_order += 1
-                    kb_tattoo_order_numbers.add(KeyboardButton(f"{ret[9]} \"{ret[1]}\" {ret[8]}"))
-                    
-            if number_not_deleted_order != 0:
-                kb_tattoo_order_numbers.add(KeyboardButton('Назад'))
-                await FSM_Admin_delete_tattoo_order.tattoo_order_number.set()
-                await message.reply("Какой заказ хотите удалить?",
-                    reply_markup= kb_tattoo_order_numbers)
-            else:
-                await message.reply(
-                    f'Прости, пока нет заказов в списке, они все удалены. {MSG_DO_CLIENT_WANT_TO_DO_MORE}',
-                    reply_markup= kb_admin.kb_tattoo_order_commands)
-            # await message.delete()
+                    kb_tattoo_order_numbers.add(KeyboardButton(
+                            f"{order.order_number} \"{order.order_name}\" {order.order_state}"
+                        )
+                    )
+            kb_tattoo_order_numbers.add(KeyboardButton(LIST_BACK_TO_HOME[0]))
+            await FSM_Admin_delete_tattoo_order.tattoo_order_number.set()
+            await message.reply("Какой заказ хотите удалить?",
+                reply_markup= kb_tattoo_order_numbers)
+            
 
 
 async def delete_info_tattoo_orders(message: types.Message, state: FSMContext):
-    tattoo_orders = Session(engine).scalars(select(TattooOrders))
+    with Session(engine) as session:
+        orders = session.scalars(select(Orders).where(
+            Orders.order_type.in_(['постоянное тату', 'переводное тату']))).all()
     choosen_kb_order_lst = []
-    for order in tattoo_orders:
-        choosen_kb_order_lst.append(
-            f"{order.tattoo_order_number} \"{order.tattoo_name}\" {order.order_state}")
+    for order in orders:
+        choosen_kb_order_lst.append(f"{order.order_number} \"{order.order_name}\" {order.order_state}")
     
     if message.text in choosen_kb_order_lst:
-        tattoo_order = Session(engine).scalars(select(TattooOrders).where(
-            TattooOrders.tattoo_order_number == message.text.split()[0])).one()
+        with Session(engine) as session:
+            order = session.scalars(select(Orders).where(
+                Orders.order_number == message.text.split()[0])).one()
+            schedule_event =  session.scalars(select(ScheduleCalendar).where(
+                ScheduleCalendar.id == order.schedule_id
+            )).one()
+            session.delete(order)
+            schedule_event.status = 'Свободен'
+            session.commit()
         
-        await delete_info('tattoo_orders', 'tattoo_order_number', message.text.split()[0])
-        
-        await update_info('schedule_calendar', 'id', tattoo_order[14], 'status', 'Свободен')
-        await update_info(
-            table_name= 'tattoo_orders', 
-            column_name_condition='tattoo_order_number',
-            condition_value= message.text.split()[0], 
-            column_name_value= 'schedule_id', 
-            value= 'Без даты ивента'
-        )
-
         # service.events().delete(calendarId='primary', eventId='eventId').execute()
         ''' 
         print("---------------------------------")

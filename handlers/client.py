@@ -263,7 +263,8 @@ async def fill_client_table(data, message:types.Message):
         "username": data['username'],
         "telegram": data['telegram'],
         "phone":    data['phone']
-    }        
+    }
+        
     await set_to_table(tuple(new_client_info.values()), 'clients')
     await bot.send_message(message.from_id, f'{MSG_THANK_FOR_ORDER}\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
         reply_markup= kb_client.kb_client_main)
