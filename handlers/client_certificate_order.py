@@ -16,6 +16,9 @@ from db.db_getter import get_info_many_from_table
 
 from datetime import datetime
 
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+from db.sqlalchemy_base.db_classes import *
 
 #-------------------------------------------------------сert ORDER-----------------------------------------
 class FSM_Client_сert_item(StatesGroup):
@@ -36,11 +39,8 @@ async def command_load_сert_item(message: types.Message):
 async def load_сert_price(message: types.Message, state: FSMContext):
     if message.text in kb_admin.price + kb_admin.another_price:
         async with state.proxy() as data:
-            data['username'] = message.from_user.full_name
             data['price'] = message.text
             data['status'] = OPEN_STATE_DICT["open"]
-            # data['code'] = await generate_random_code(CODE_LENTH)
-            data['creation_date'] = datetime.now()
             
         await FSM_Client_сert_item.next() # -> load_сert_payment_choice
         await bot.send_message(message.from_id,  
@@ -60,16 +60,43 @@ async def load_сert_price(message: types.Message, state: FSMContext):
         await bot.send_message(message.from_id, f'⭕️ Пожалуйста, выберете сумму из списка')
 
 
+async def create_cert_order(data:dict, message: types.Message):
+    with Session(engine) as session:
+        new_cert_order = Orders(
+            order_type = 'сертификат',
+            order_name= None,
+            user_id= message.from_id,
+            order_photo= None, 
+            tattoo_size= None,
+            tattoo_size= None,
+            start_date_meeting= None,
+            end_date_meeting= None,
+            tattoo_note= None,
+            order_note= None,
+            order_state= OPEN_STATE_DICT['open'],
+            order_number= data['cert_order_number'],
+            creation_date= datetime.now(),
+            price= data['price'],
+            check_document= data['check_document'],
+            username= message.from_user.full_name,
+            schedule_id=None,
+            colored= None,
+            bodyplace= None,
+            tattoo_place_photo= None,
+            tattoo_place_video_note= None,
+            tattoo_place_video= None,
+            code=data['code']
+        )
+        session.add(new_cert_order)
+        session.commit()
+
+
 async def load_сert_payment_choice(message: types.Message, state: FSMContext):
     if message.text == kb_client.now_str:
-        async with state.proxy() as data:
-            price = data['price']
-            
         await FSM_Client_сert_item.next() #-> process_pre_checkout_query
-        
         await bot.send_message(message.chat.id, '🌿 Отлично, давайте сейчас!')
-        await bot.send_message(message.chat.id, f'📎 Отправьте PDF документ или фотографию чека перевода на сумму {price} '\
-            'по номеру телефона +7(925)885-07-87 на имя Дария Редван Э', 
+        await bot.send_message(message.chat.id, f"📎 Отправьте PDF документ или фотографию чека перевода на сумму {data['price']} "\
+            "по номеру телефона +7(925)885-07-87 на имя Дария Редван Э", 
             reply_markup= kb_client.kb_cancel)
         
         '''
@@ -111,38 +138,31 @@ async def load_сert_payment_choice(message: types.Message, state: FSMContext):
         
         async with state.proxy() as data:
             data['cert_order_number'] = await generate_random_order_number(ORDER_CODE_LENTH)
-            data['check_document'] = 'Чек не добавлен'
-            data['code'] = await generate_random_code(CODE_LENTH)
-            cert_order_number = data['cert_order_number'] 
-            data['telegram'] = f'@{message.from_user.username}'
+            data["check_document"] = None
             new_cert_order = {
-                "username":             data['username'],
                 "price":                data['price'],
                 "status":               data['status'] ,
-                "code":                 data['code'] ,  
-                "creation_date" :       data['creation_date'],
+                "code":                 None,  
                 "cert_order_number":    data['cert_order_number'],
-                "check_document" :      data['check_document'],
-                "telegram":             data['telegram']
+                "check_document" :      data['check_document']
             }
-            
-            await set_to_table(tuple(new_cert_order.values()), 'сert_orders')
-            
-        user = await get_info_many_from_table('clients', 'username', data['username'])
+            await create_cert_order(new_cert_order, message)
+        with Session(engine) as session:
+            user = session.scalars(select(User).where(User.telegram_id == message.from_id)).all()
         await state.finish()
         if user == []:
             await bot.send_message(message.chat.id, 
                 f'🍀 Ваш сертификат почти оформлен! Код сертификата будет выдан после оплаты.')
-            await bot.send_message(message.chat.id, MSG_GET_PHOTO_FROM_USER,
+            await bot.send_message(message.chat.id, MSG_TO_CHOICE_CLIENT_PHONE,
                 reply_markup=kb_client.kb_phone_number)
             await FSM_Client_username_info.phone.set()
             
         else:
             await bot.send_message(message.chat.id, 
-                f'🍀 Ваш сертификат оформлен! Номер заказа: {cert_order_number}. '\
-                'Код сертификата будет выдан после оплаты. '\
-                'Посмотреть свои сертификаты можно в \"Мои заказы 📃\" -> '\
-                '\"Посмотреть мои сертификаты 🎫\".')
+                f"🍀 Ваш сертификат оформлен! Номер заказа: {data['cert_order_number']}. "\
+                "Код сертификата будет выдан после оплаты.\n\n"\
+                "❕ Посмотреть свои сертификаты можно в \"Мои заказы 📃\" -> "\
+                "\"Посмотреть мои сертификаты 🎫\".")
             
             await bot.send_message(message.chat.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
                 reply_markup= kb_client.kb_client_main)
@@ -167,7 +187,6 @@ async def process_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery,
 # @dp.message_handler(content_types=[ContentType.SUCCESSFUL_PAYMENT], 
 # state=FSM_Client_сert_item.cert_payment_state_second)
 async def process_successful_cert_payment(message: types.Message, state=FSMContext):
-    price, cert_order_number = '', ''
     check_doc = {}
     async with state.proxy() as data: # type: ignore
         price = data['price']
@@ -175,8 +194,6 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
             price = data['price'].replace('000', ' 000')
         elif len(price) == 5 and ' ' not in price:
             price = data['price'][0:1] + ' ' + data['price'][2:4]
-            
-        data['cert_order_number'] = await generate_random_order_number(ORDER_CODE_LENTH)
         
     '''
     MESSAGES['successful_payment'].format(
@@ -187,7 +204,7 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
     if message.content_type == 'text':
         if any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS):
             await state.finish() # type: ignore
-            await bot.send_message(message.from_id,  MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
+            await bot.send_message(message.from_id, MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
                 reply_markup= kb_client.kb_client_main)
         
     else:
@@ -216,25 +233,22 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
                 code = data['code']
                 cert_order_number = data['cert_order_number']
                 status = data['status']
-                data['telegram'] = f'@{message.from_user.username}'
                 new_cert_order = {
-                    "username":             data['username'],
                     "price":                data['price'],
                     "status":               data['status'] ,
-                    "code":                 data['code'] ,  
-                    "creation_date" :       data['creation_date'],
+                    "code":                 data['code'],
                     "cert_order_number":    data['cert_order_number'],
                     "check_document" :      data['check_document'],
-                    "telegram":             data['telegram']
                 }
                 
                 await set_to_table(tuple(new_cert_order.values()), 'сert_orders')
             
-            await bot.send_message(message.chat.id, f'🎉 Заказ оплачен! \n'\
-                f'🎫 Вот ваш код на сертификат на сумму {price}: {code}. \n\n'\
-                '❕ Сертификат действует неограничено по времени!')
+            await bot.send_message(message.chat.id, f"🎉 Заказ оплачен! \n"\
+                f"🎫 Вот ваш код на сертификат на сумму {price}: {code}. \n\n"\
+                "❕ Сертификат действует неограничено по времени!")
             
-            user = await get_info_many_from_table('clients', 'username', data['username'])
+            with Session(engine) as session:
+                user = session.scalars(select(User).where(User.telegram_id == message.from_id)).all()
             
             if user == []:
                 await bot.send_message(message.chat.id, 
@@ -257,7 +271,8 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
             # TODO дополнить id Шуны
             if DARA_ID != 0:
                 await bot.send_message(DARA_ID, f'❕Дорогая Тату-мастерица! '\
-                    f'Поступил новый заказ на гифтбокс под номером {cert_order_number}! '\
+                    f'У пользователя {message.from_user.full_name} появился сертификат на сумму {price}\n'\
+                    f'Номер сертификата: {cert_order_number}!\n'\
                     f'Статус заказа: {status}')
                 
         else:
@@ -268,20 +283,23 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
 #--------------------------------------GET VIEW CERT ORDER-----------------------------------------
 #/посмотреть_мои_сертификаты
 async def get_clients_cert_order(message: types.Message):
-    orders = await get_info_many_from_table('сert_orders', 'username', message.from_user.full_name)
+    with Session(engine) as session:
+        orders = session.scalars(select(Orders).where(Orders.user_id == message.from_id).where(
+            order.order_type == 'сертификат')).all()
     if orders == []:
-        await bot.send_message(message.from_id, '⭕️ У тебя пока нет сертификатов.',
+        await bot.send_message(message.from_id, '⭕️ У тебя пока нет сертификатов. '\
+            'Ты можешь приобрести сертификат по кнопке \"Хочу сертификат\" в главном меню.',
             reply_markup= kb_client.kb_choice_order_view)
     else:
         msg = ''
-        for ret in orders:
-            msg += f'🎫 Cертификат № {ret[5]}\n'\
-                f'💰 Цена сертификата: {ret[1]}\n'
+        for order in orders:
+            msg += f'🎫 Cертификат № {order.order_number}\n'\
+                f'💰 Цена сертификата: {order.price}\n'
             
-            if ret[2] == PAID_STATE_DICT["paid"]:
-                msg += f'🏷 Код сертификата: {ret[3]}\n'
+            if order.order_state == PAID_STATE_DICT["paid"]:
+                msg += f'🏷 Код сертификата: {order.code}\n'
                 
-            elif ret[2] in [COMPETE_STATE_DICT["complete"]] + list(CLOSED_STATE_DICT.values()):
+            elif order.code in [COMPETE_STATE_DICT["complete"]] + list(CLOSED_STATE_DICT.values()):
                 msg += '🚫 Сертификат уже использован\n'
                 
             else:

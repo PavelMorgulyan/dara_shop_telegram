@@ -16,19 +16,8 @@ async def set_to_table(state: tuple, table: str):
             values_str += '?,'
             
         # Вставляем новый заказ в таблицу
-        ''' sqlite_insert_query = f"""INSERT INTO tattoo_orders
-            (id, username, email, telegram, phone, tattoo_id, size, price, order_state, note)
-            VALUES ({total_rows}, {username}, {email}, {telegram}, {phone},
-            {tattoo_id}, {size},  {price}, {order_state}, {note}
-            
-            )"""
-
-        cursor.execute(sqlite_insert_query)
-        '''
         values_str = values_str[:len(values_str)-1]
         line = f"INSERT INTO {table} VALUES ({values_str})"
-        
-        print(line)
         cursor.execute(line, state)
 
         sqlite_connection.commit()
