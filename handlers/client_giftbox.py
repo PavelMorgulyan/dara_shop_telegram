@@ -75,12 +75,9 @@ async def set_giftbox_order(data: dict, message: types.Message):
             user_id= message.from_id,
             order_photo= None, 
             tattoo_size= None,
-            tattoo_size= None,
-            start_date_meeting= None,
-            end_date_meeting= None,
             tattoo_note= None,
             order_note= data['giftbox_note'],
-            order_state= OPEN_STATE_DICT['open'],
+            order_state= STATES['open'],
             order_number= data['giftbox_order_number'],
             creation_date= datetime.now(),
             price= data['price'],
@@ -131,7 +128,7 @@ async def giftbox_order_pay_method(message: types.Message, state: FSMContext):
         giftbox_order_number = data['giftbox_order_number']
         
         if message.text == kb_client.no_str:
-            data['order_state'] = OPEN_STATE_DICT["open"]
+            data['order_state'] = STATES["open"]
             data['check_document'] = None
 
             new_giftbox_order = {
@@ -213,7 +210,7 @@ async def process_successful_giftbox_payment(message: types.Message, state=FSMCo
     
     async with state.proxy() as data: # type: ignore
         # если человек оплатил, то выставляем статус Обработан
-        data['order_state'] = PAID_STATE_DICT["paid"] 
+        data['order_state'] = STATES["paid"] 
         data['check_document'] = [
             CheckDocument(
                 order_number = giftbox_order_number,
@@ -282,7 +279,7 @@ async def process_successful_giftbox_payment_by_photo(message: types.Message, st
                 check_document = message.photo[0].file_id
             
             giftbox_order_number = data['giftbox_order_number']
-            data['order_state'] = PAID_STATE_DICT["paid"] # если человек оплатил, то выставляем статус Обработан
+            data['order_state'] = STATES["paid"] # если человек оплатил, то выставляем статус Обработан
             status = data['order_state']
             data['check_document'] = [
                 CheckDocument(
@@ -364,14 +361,14 @@ async def get_clients_giftbox_order(message: types.Message):
             if order.order_note != None:
                 message_to_send += f'💬 Описание заказа: {order.order_note}\n'
                 
-            if any(str(order_state) in order.order_state for order_state in list(CLOSED_STATE_DICT.values())):
+            if any(str(order_state) in order.order_state for order_state in list(STATES["closed"].values())):
                 message_to_send += f'❌ Состояние заказа: {order.order_state}\n'
                 
             elif any(str(order_state) in order.order_state for order_state in\
-                [OPEN_STATE_DICT["open"], PAID_STATE_DICT["paid"]]):
+                [STATES["open"], STATES["paid"]]):
                 message_to_send += f'🟡 Состояние заказа: {order.order_state}\n'
                 
-            elif order.order_state == COMPETE_STATE_DICT["complete"]:
+            elif order.order_state == STATES["complete"]:
                 message_to_send += f'🟢 Состояние заказа: {order.order_state}\n'
                 
             await bot.send_message(message.from_user.id, message_to_send)

@@ -18,7 +18,6 @@ from handlers.other import *
 from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult, Sequence
 from db.sqlalchemy_base.db_classes import *
-from datetime import datetime
 
 #from diffusers import StableDiffusionPipeline
 #import torch
@@ -37,22 +36,23 @@ from msg.main_msg import *
 
 #--------------------------------------- SEND TO ADMIN ALL SCHEDULE AT 12:00----------------------------
 async def send_notification_schedule():
-    sqlite_connection = sqlite3.connect(DB_NAME)
-    cursor = sqlite_connection.cursor()
-    closed_states_str = ', '.join([f'{key.capitalize()}: {value}' for key, value in CLOSED_STATE_DICT.items()])
     
-    sqlite_select_query = \
-        f"""SELECT * from giftbox_orders WHERE order_state not in \'({closed_states_str})\'"""
-    cursor.execute(sqlite_select_query)
-    orders = cursor.fetchall()
-    if (sqlite_connection):
-            sqlite_connection.close()
+    with Session(engine) as session:
+        orders = session.scalars(select(Orders).where(
+            Orders.order_type.in_('переводное тату', 'постоянное тату').where(
+            Orders.order_state.in_(list(STATES["closed"].values()))
+            ))).all()
+
     for order in orders:
         if DARA_ID != 0:
-            await bot.send_message(DARA_ID, "Дорогая тату мастерица! \
-                Вот твое расписание на сегодня:\n")
-            
-            schedule = await get_info_many_from_table('schedule_calendar') 
+            await bot.send_message(DARA_ID, 
+                "Дорогая тату мастерица! Вот твое расписание на сегодня:\n"\
+                f"{order.order_type}\n"
+                f"Номер заказа: {order.order_number}"\
+                f"Статус заказа: {order.order_state}"
+            )
+            with Session(engine) as session:
+                schedule = session.scalars(ScheduleCalendar).all()
             await get_view_schedule(DARA_ID, schedule) 
 
 
@@ -199,7 +199,7 @@ async def get_schedule_year(message: types.Message, state: FSMContext):
         kb = ReplyKeyboardMarkup(resize_keyboard=True)
         for month in kb_admin.month:
             month_number = await get_month_number_from_name(month)
-            if datetime.strptime(f"{message.text}-{month_number}-1 00:00", '%Y-%m-%d %H:%M') \
+            if datetime.strptime(f"{message.text}-{month_number}-01 00:00", '%Y-%m-%d %H:%M') \
                 > datetime.now():
                 kb.add(KeyboardButton(month))
         
@@ -344,6 +344,7 @@ async def process_hour_timepicker_end_time(callback_query: CallbackQuery,
                 if date not in kb_admin.days and month_name_from_number != month_name:
                     for i in range(2):
                         await FSM_Admin_create_new_date_to_schedule.previous() #-> get_day_by_date_for_schedule
+                        
                     await bot.send_message(username_id,
                         f'Дата {date} и месяц {month_name} не совпадают. '\
                         'Введите месяц и дату в этом месяце корректно',
@@ -369,7 +370,7 @@ async def process_hour_timepicker_end_time(callback_query: CallbackQuery,
                             )
                             session.add(new_schedule_event)
                             session.commit()
-                        print(f"data: {data}")
+                        print(f"data if new_event_to_schedule_bool: {data}")
                         await bot.send_message(username_id,
                             f"Отлично, теперь в {month_name} в {date.strftime('%d/%m/%Y')} c {start_time} " \
                             f"по {end_time} у тебя рабочее время!",
@@ -378,7 +379,7 @@ async def process_hour_timepicker_end_time(callback_query: CallbackQuery,
                         
                         dates = await get_dates_from_month_and_day_of_week(
                             date, month_name, year, start_time, end_time)
-                        
+                        print(f"dates if not new_event_to_schedule_bool: {dates}")
                         dates_str = ''
                         for iter_date in dates:
                             with Session(engine) as session:
@@ -392,7 +393,6 @@ async def process_hour_timepicker_end_time(callback_query: CallbackQuery,
                                 session.commit()
                             
                             dates_str += f"{iter_date['start_datetime'].strftime('%d/%m/%Y')}, "
-                        print(f"data: {data}")
                         await bot.send_message(username_id,
                             f'Отлично, теперь в {month_name} все {date}'\
                             f' ({dates_str[:len(dates_str)-2]})'\
@@ -420,7 +420,11 @@ async def get_view_schedule(user_id: int, schedule: ScalarResult[ScheduleCalenda
         for date in schedule:
             order_number = ''
             with Session(engine) as session:
-                orders = session.scalars(select(Orders).where(Orders.schedule_id == date.id)).all()
+                # необходимо ввыбрать заказы в данных 
+                orders = session.scalars(select(Orders)
+                    .join(ScheduleCalendarItems)
+                    .where(ScheduleCalendarItems.schedule_id == date.id)).all()
+                
             if orders != []:
                 for order in orders:
                     order_number += f'{order.order_number}\n'
@@ -528,7 +532,8 @@ async def command_get_view_photos_schedule(message:types.Message):
     if message.text.lower() in \
         ['/посмотреть_фотографии_расписания', 'посмотреть фотографии расписания'] and \
         str(message.from_user.username) in ADMIN_NAMES:
-            photos_schedule  = Session(engine).scalars(select(SchedulePhoto)).all()
+            with Session(engine) as session:
+                photos_schedule  = session.scalars(select(SchedulePhoto)).all()
             if photos_schedule == []:
                 await bot.send_message(message.from_id, MSG_NO_SCHEDULE_PHOTO_IN_TABLE)
                 await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE)
@@ -562,7 +567,8 @@ async def command_get_view_photo_schedule(message:types.Message):
                     kb_photos_schedule.add(KeyboardButton( photo.name))
                 kb_photos_schedule.add(KeyboardButton('Назад'))
                 await FSM_Admin_get_view_schedule_photo.schedule_photo_name.set()
-                await message.reply(f"Какую фотографию хочешь посмотреть?", reply_markup= kb_photos_schedule)
+                await message.reply(f"Какую фотографию хочешь посмотреть?", 
+                    reply_markup= kb_photos_schedule)
 
 
 async def get_schedule_photo_to_view(message: types.Message, state: FSMContext ):
@@ -605,7 +611,7 @@ async def delete_photo_schedule(message: types.Message):
             
         kb_photos_schedule = ReplyKeyboardMarkup(resize_keyboard=True)
         for photo in photos_schedule:
-            kb_photos_schedule.add(KeyboardButton( photo.name))
+            kb_photos_schedule.add(KeyboardButton(photo.name))
             await bot.send_photo(message.chat.id, photo.photo,
                 f"Название фотографии календаря: {photo.name}")
         kb_photos_schedule.add(KeyboardButton('Назад'))
@@ -855,11 +861,11 @@ async def process_hour_timepicker_start_or_end_time(callback_query: CallbackQuer
 # state=FSM_Admin_change_schedule.month_or_day_get_name_for_new_state_schedule)
 async def set_new_state_event_in_schedule(message:types.Message, state: FSMContext): 
     with Session(engine) as session:
-        orders = session.scalars(select(Orders).where(
-            Orders.order_state.in_([CLOSED_STATE_DICT["postponed"], OPEN_STATE_DICT["open"]])).where(
-            Orders.schedule_id == None).where(
-            Orders.order_type == 'тату заказ'
-            )).all()
+        orders = session.scalars(select(Orders)
+            .where(Orders.order_state.in_([STATES["closed"]["postponed"], STATES["open"]]))
+            .where(Orders.schedule_id == None)
+            .where(Orders.order_type == 'тату заказ')
+            ).all()
         
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
     order_kb_lst = []
@@ -877,16 +883,23 @@ async def set_new_state_event_in_schedule(message:types.Message, state: FSMConte
         
         # Ищем в бд заказ, который связан с этим ивентом
         with Session(engine) as session:
-            tattoo_order = session.scalars(select(Orders).where(
-                Orders.order_type == 'тату заказ').where(
-                Orders.schedule_id == schedule_id)).one()
+            tattoo_order = session.scalars(select(Orders)
+                .join(ScheduleCalendarItems)
+                .where(Orders.order_type == 'тату заказ')
+                .where(Orders.order_number == ScheduleCalendarItems.order_number)).one()
+                # .where(Orders.schedule_id == schedule_id)).one()
 
         if tattoo_order != []:
             async with state.proxy() as data:
                 data['order_id'] = tattoo_order.id
-                data['tattoo_order_start_date_meeting'] = tattoo_order.start_date_meeting
-                data['tattoo_order_end_date_meeting'] = tattoo_order.end_date_meeting
                 data['tattoo_order_number'] = tattoo_order.order_number
+                with Session(engine) as session:
+                    start_date_meeting = session.get(ScheduleCalendar, schedule_id).start_datetime
+                    end_date_meeting = session.get(ScheduleCalendar, schedule_id).end_datetime
+                    
+                data['tattoo_order_start_date_meeting'] = start_date_meeting
+                data['tattoo_order_end_date_meeting'] = end_date_meeting
+                
                 data['client_id'] = tattoo_order.user_id
                 data['client_name'] = tattoo_order.username
                 old_schedule_state = data['old_schedule_state']
@@ -971,13 +984,12 @@ async def set_new_state_event_in_schedule(message:types.Message, state: FSMConte
             data['notify_type'] = 'new_date_from_schedule_with_no_old_schedule'
             
         with Session(engine) as session:
-            order = session.get(Orders, order_kb_lst.index(message.text)+1)
+            order = session.scalars(select(Orders).where(Orders.order_number == message.text.split()[0])).one()
             schedule = session.get(ScheduleCalendar, schedule_id)
             order.schedule_id = schedule.id
-            order.start_date_meeting = schedule.start_datetime
-            order.end_date_meeting = schedule.end_datetime
-            if order.order_state == CLOSED_STATE_DICT["postponed"]: # Отложен
-                order.order_state = OPEN_STATE_DICT["open"] # Открыт
+
+            if order.order_state == STATES["closed"]["postponed"]: # Отложен
+                order.order_state = STATES["open"] # Открыт
             session.commit()
         await update_schedule_table(state)
         await bot.send_message(message.from_id, MSG_DO_ADMIN_WANT_TO_NOTIFY_CLIENT,
@@ -1021,13 +1033,10 @@ async def get_answer_choice_new_date_or_no_date_in_tattoo_order(message:types.Me
             
             with Session(engine) as session:
                 tattoo_order = session.get(Orders, order_id)
-                
-                tattoo_order.start_date_meeting= datetime.strptime(
-                    f'{message.text.split()[0:3]}', '%d/%m/%Y с %H:%M')
-                
-                tattoo_order.end_date_meeting= datetime.strptime(
-                    f'{message.text.split()[0]} {message.text.split()[4]}', '%d/%m/%Y %H:%M')
-                tattoo_order.schedule_id = schedule_events_kb_lst.index(message.text) + 1
+                tattoo_order.schedule_id = session.scalars(select(ScheduleCalendar).where(
+                    ScheduleCalendar.start_datetime == \
+                        datetime.strptime(f"{message.text.split()[0]} c {message.text.split()[2]}", "%d/%m/%Y с %H:%M"))
+                    ).one().id
                 session.commit()
 
             async with state.proxy() as data:
@@ -1054,12 +1063,10 @@ async def get_answer_choice_new_date_or_no_date_in_tattoo_order(message:types.Me
             
         with Session(engine) as session:
             tattoo_order = session.get(Orders, order_id)
-            tattoo_order.start_date_meeting = None # datetime.strptime("1970-01-01 00:00", '%Y-%m-%d %H:%M')
-            tattoo_order.end_date_meeting = None
             tattoo_order.schedule_id = None
             tattoo_order_number = tattoo_order.order_number
             client_id = tattoo_order.user_id
-            tattoo_order.order_state = CLOSED_STATE_DICT["postponed"] # Отложен
+            tattoo_order.order_state = STATES["closed"]["postponed"] # Отложен
             session.commit()
         await message.reply(f'Хорошо, тату заказ № {tattoo_order_number} теперь без даты и времени встречи')
         

@@ -7,16 +7,15 @@ MONTH_NAME_RU = ['Январь', 'Февраль', 'Март', 'Апрель', '
 MONTH_NAME_EN = ['january', 'february', 'march', 'april', 'may', 'june',
     'july', 'august', 'september', 'october', 'november', 'december']
 
-OPEN_STATE_DICT = {"open" : 'Открыт'} # OPEN_STATE_DICT["open"]
-
-PAID_STATE_DICT  = {"paid" : "Обработан"} # PAID_STATE_DICT["paid"]
-
-COMPETE_STATE_DICT  = {"complete" : 'Выполнен'} # COMPETE_STATE_DICT["complete"]
-
-CLOSED_STATE_DICT   = {
-    "rejected":     'Отклонен', 
-    "postponed":    'Отложен', 
-    "canceled":     'Аннулирован'
+STATES = {
+    "open" : 'Открыт',
+    "paid" : "Обработан",
+    "complete" : 'Выполнен',
+    "closed":{
+        "rejected":     'Отклонен', 
+        "postponed":    'Отложен', 
+        "canceled":     'Аннулирован'
+    }
 }
 
 DAYS = {
@@ -29,9 +28,7 @@ DAYS = {
     'Воскресенье' : 'Sunday', 
 }
 
-statuses_order_lst = \
-    list(OPEN_STATE_DICT.values()) +  list(PAID_STATE_DICT.values()) + \
-    list(COMPETE_STATE_DICT.values()) + list(CLOSED_STATE_DICT.values())
+statuses_order_lst = list(STATES.values())[:-1] + list(STATES["closed"].values())
 
 
 async def get_month_from_number(num: int, lang:str) -> str:
@@ -58,23 +55,23 @@ async def get_dates_from_month_and_day_of_week(
     
     date_time_list = []
     i = 0
-    while i < 31:
-        try:
-            i += 1
-            month_number = await get_month_number_from_name(month)
-            
-            start_datetime = datetime.strptime(
-                f"{year}-{month_number}-{i} {start_time}", '%Y-%m-%d %H:%M:%S.%f' 
-            )
-            
-            end_datetime = datetime.strptime(
-                f"{year}-{month_number}-{i} {end_time}", '%Y-%m-%d %H:%M:%S.%f' 
-            )
-            
-            if start_datetime.strftime('%A') == DAYS[day] and start_datetime >= datetime.now():
-                date_time_list.append({"start_datetime": start_datetime, "end_datetime": end_datetime})
-        except:
-            pass
+    while i < 30:
+        # try:
+        i += 1
+        month_number = await get_month_number_from_name(month)
+        
+        start_datetime = datetime.strptime(
+            f"{year}-{month_number}-{i} {start_time}", '%Y-%m-%d %H:%M' 
+        )
+        
+        end_datetime = datetime.strptime(
+            f"{year}-{month_number}-{i} {end_time}", '%Y-%m-%d %H:%M' 
+        )
+        
+        if start_datetime.strftime('%A') == DAYS[day] and start_datetime >= datetime.now():
+            date_time_list.append({"start_datetime": start_datetime, "end_datetime": end_datetime})
+        """ except:
+            pass """
         
     return date_time_list
 

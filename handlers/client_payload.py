@@ -16,6 +16,9 @@ from db.db_setter import set_to_table
 from db.db_updater import update_info
 from db.db_getter import get_info_many_from_table, DB_NAME, sqlite3
 
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+from db.sqlalchemy_base.db_classes import *
 from datetime import datetime
 
 
@@ -40,56 +43,47 @@ async def send_to_view_tattoo_orders(orders):
     kb_unpaid_orders = ReplyKeyboardMarkup(resize_keyboard=True)
     unpaid_orders_bool = False
     orders_str = 'Заказы:\n'
-    for ret in orders:
-        creation_date = ret[10].split('.')[0].split()[0]
+    for order in orders:
+        creation_date = order.creation_time.strftime('%H:%M %d/%m/%Y')
+        start_time = order.start_datetime.strftime("%d/%m/%Y c %H:%M")
+        end_time = order.end_datetime.strftime("%H:%M")
         orders_str += \
-            f'🕸 Тату заказ № {ret[9]} от {creation_date}\n'\
-            f'🕒 Дата и время встречи: {ret[4]} {ret[5]}\n'\
-            f'📜 Наименования тату: {ret[1]}\n'\
-            f'📏 Размер: {ret[3]}\n'\
-            f'🍃 Описание тату: {ret[6]}\n' \
-            f'💬 Описание заказа: {ret[7]}\n'\
-            f'📃 Состояние заказа: {ret[8]}\n'
+            f'🕸 Тату заказ № {order.order_number} от {creation_date}\n'\
+            f'🕒 Дата и время встречи: {start_time} по {end_time}'\
+            f'📜 Наименования тату: {order.order_name}\n'\
+            f'📏 Размер: {order.tattoo_size}\n'\
+            f'🍃 Описание тату: {order.tattoo_note}\n' \
+            f'💬 Описание заказа: {order.order_note}\n'\
+            f'📃 Состояние заказа: {order.order_state}\n'
 
-        ''' 
-        if ret[12] in ['Чек не добавлен', 'Без чека']:
-            orders_str += '⛔️ Чек не добавлен\n\n'
-        else:
-            orders_str += '🍀 Чек добавлен\n\n' '''
         
-        if ret[8] == OPEN_STATE_DICT["open"]:
+        if order.order_state == STATES["open"]:
             unpaid_orders_bool = True
-            msg_answer_str = f'Тату заказ № {ret[9]} на {ret[4]} {ret[5]} от {creation_date} 🕸'
+            msg_answer_str = f'Тату заказ № {order.order_number} на {start_time} {end_time} от {creation_date} 🕸'
             kb_unpaid_orders.add(KeyboardButton(msg_answer_str))
             
     kb_unpaid_orders.add(KeyboardButton(kb_client.back_lst[0]))
     return kb_unpaid_orders, orders_str, unpaid_orders_bool
 
 
-async def send_to_view_tattoo_sketch_orders(orders):
+async def send_to_view_tattoo_sketch_orders(orders: list):
     kb_unpaid_orders = ReplyKeyboardMarkup(resize_keyboard=True)
     unpaid_orders_bool = False
     orders_str = 'Заказы:\n'
-    for ret in orders:
-        creation_date = ret[10].split('.')[0].split()[0]
+    for order in orders:
+        creation_date = order.creation_time.strftime('%H:%M %d/%m/%Y')
     
     orders_str += '\nВаши заказанные эскизы:\n'
-    for ret in orders:
-        creation_date = ret[4].split('.')[0].split()[0]
+    for order in orders:
+        creation_date = order.creation_date.split('.')[0].split()[0]
         orders_str += \
-            f'🕸 Эскиз № {ret[0]} от {creation_date}\n'\
-            f'📜 Описание эскиза тату: {ret[1]}\n'\
-            f'📃 Состояние заказа: {ret[5]}\n'
-
-        ''' 
-        if ret[6] in ['Чек не добавлен', 'Без чека']:
-            orders_str += '⛔️ Чек не добавлен\n\n'
-        else:
-            orders_str += '🍀 Чек добавлен\n\n' '''
+            f'🕸 Эскиз № {order.order_number} от {creation_date}\n'\
+            f'📜 Описание эскиза тату: {order.order_note}\n'\
+            f'📃 Состояние заказа: {order.order_state}\n'
         
-        if ret[8] == OPEN_STATE_DICT["open"]:
+        if order.order_state == STATES["open"]:
             unpaid_orders_bool = True
-            kb_unpaid_orders.add(KeyboardButton(f'Эскиз заказ № {ret[0]} от {creation_date} 🎨'))
+            kb_unpaid_orders.add(KeyboardButton(f'Эскиз заказ № {order.order_number} от {creation_date} 🎨'))
             
     kb_unpaid_orders.add(KeyboardButton(kb_client.back_lst[0]))
     return kb_unpaid_orders, orders_str, unpaid_orders_bool
@@ -99,17 +93,17 @@ async def send_to_view_cert_orders(orders):
     kb_unpaid_orders = ReplyKeyboardMarkup(resize_keyboard=True)
     unpaid_orders_bool = False
     orders_str = 'Заказы:\n'
-    for ret in orders:
-        orders_str += f'🎫 Заказ сертификата № {ret[5]}\n'\
-            f'💰 Цена сертификата: {ret[1]}\n\n'
+    for order in orders:
+        orders_str += f'🎫 Заказ сертификата № {order.order_number}\n'\
+            f'💰 Цена сертификата: {order.price}\n\n'
             
-        if ret[2] == PAID_STATE_DICT["paid"]:
-            orders_str += f'🏷 Код сертификата: {ret[3]}\n\n'
+        if order.order_state == STATES["paid"]:
+            orders_str += f'🏷 Код сертификата: {order.code}\n\n'
             
         else:
             unpaid_orders_bool = True
             kb_unpaid_orders.add(
-                KeyboardButton(f'Сертификат {ret[5]} по цене {ret[1]} 🎫'))
+                KeyboardButton(f'Сертификат {order.order_number} по цене {order.price} 🎫'))
             orders_str += '⛔️ Сертификат неоплачен\n'
             
     kb_unpaid_orders.add(KeyboardButton(kb_client.back_lst[0]))
@@ -120,17 +114,17 @@ async def send_to_view_giftbox_orders(orders):
     orders_str = 'Заказы:\n'
     unpaid_orders_bool = False
     kb_unpaid_orders = ReplyKeyboardMarkup(resize_keyboard=True)
-    for ret in orders:
-        creation_date = ret[2].split('.')[0].split()[0]
-        orders_str += f'🎁 Гифтбокс заказ № {ret[1]}\n'\
-            f'💬 Описание заказа: {ret[0]}\n'\
-            f'🕒 Дата открытия заказа: {ret[2]}\n'\
-            f'📃 Состояние заказа: {ret[5]}\n\n'
+    for order in orders:
+        creation_date = order.creation_time.strftime('%H:%M %d/%m/%Y')
+        orders_str += f'🎁 Гифтбокс заказ № {order.order_number}\n'\
+            f'💬 Описание заказа: {order.order_note}\n'\
+            f'🕒 Дата открытия заказа: {order[2]}\n'\
+            f'📃 Состояние заказа: {order[5]}\n\n'
             
-        if ret[5] == OPEN_STATE_DICT["open"]:
+        if order.order_state == STATES["open"]:
             unpaid_orders_bool = True
             kb_unpaid_orders.add(KeyboardButton(
-                f'Гифтбокс заказ № {ret[1]} от '\
+                f'Гифтбокс заказ № {order.order_number} от '\
                 f'{creation_date} 🎁'))
             
     kb_unpaid_orders.add(KeyboardButton(kb_client.back_lst[0]))
@@ -190,8 +184,10 @@ async def command_send_to_view_giftbox_orders_to_payloading(message: types.Messa
 
 
 async def command_send_to_view_tattoo_sketch_orders_to_payloading(message: types.Message):
-    orders = \
-        await get_info_many_from_table("tattoo_sketch_orders", 'telegram', f'@{message.from_user.username}')
+    with Session(engine) as session:
+        orders = session.scalars(select(Orders).where(Orders.order_type == "эскиз").where(
+            Orders.user_id == message.from_id
+        )).all()
     
     if orders == []:
         await bot.send_message(message.from_id,  
@@ -216,8 +212,10 @@ async def command_send_to_view_tattoo_sketch_orders_to_payloading(message: types
 
 
 async def command_send_to_view_tattoo_orders_to_payloading(message: types.Message):
-    orders = \
-        await get_info_many_from_table("tattoo_orders", 'telegram', f'@{message.from_user.username}')
+    with Session(engine) as session:
+        orders = session.scalars(select(Orders).where(
+            Orders.order_type.in_(['постоянное тату', 'переводное тату'])).where(
+            Orders.user_id == message.from_id)).all()
     
     if orders == []:
         await bot.send_message(message.from_id,  
@@ -362,7 +360,7 @@ async def get_order_check_document_for_paid(message: types.Message, state=FSMCon
                     order_type_set[order_type][3], # column name of order number
                     order_id,                      # column value - order id
                     "order_state",
-                    PAID_STATE_DICT["paid"]
+                    STATES["paid"]
                 )
                 
                 await update_info(

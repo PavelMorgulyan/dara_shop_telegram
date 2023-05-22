@@ -13,7 +13,6 @@ from db.db_getter import get_info_many_from_table
 
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from db.db_delete_info import delete_info
-from prettytable import PrettyTable
 from handlers.calendar_client import obj
 from msg.main_msg import *
 

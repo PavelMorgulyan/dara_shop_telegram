@@ -259,32 +259,24 @@ async def close_command(message: types.Message, state: FSMContext):
 
 async def fill_client_table(data, message:types.Message):
     # Заполняем таблицу clients
-    new_client_info = {
-        "username": data['username'],
-        "telegram": data['telegram'],
-        "phone":    data['phone']
-    }
+    with Session(engine) as session:
+        user = session.scalars(select(User).where(User.telegram_id == message.from_id)).one()
+        user.phone = data['phone']
+        session.commit()
         
-    await set_to_table(tuple(new_client_info.values()), 'clients')
     await bot.send_message(message.from_id, f'{MSG_THANK_FOR_ORDER}\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
         reply_markup= kb_client.kb_client_main)
 
 
 # выбираем telegram покупателя
 async def load_phone(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data['username'] = message.from_user.full_name
-        data['telegram'] = f'@{message.from_user.username}'
-    
     if message.content_type == 'text':
         if message.text not in LIST_CANCEL_COMMANDS + LIST_BACK_COMMANDS + LIST_BACK_TO_HOME:
-            #user = await get_info_many_from_table('clients', 'username', message.from_user.username)
-            #if user != []:
             async with state.proxy() as data:
                 if message.text == kb_client.phone_number['client_send_contact']:
                     data['phone'] = message.text
                 elif message.text == kb_client.phone_number['client_dont_send_contact']:
-                    data['phone'] = '-' 
+                    data['phone'] = None
                 await fill_client_table(data, message) 
             await state.finish() #  полностью очищает данные
             
@@ -294,7 +286,8 @@ async def load_phone(message: types.Message, state: FSMContext):
             
         elif message.text == kb_client.yes_str:
             await bot.send_message(message.from_id, 
-                '❌ Хорошо, вы не стали добавлять телефон и вернулись в меню.\n\n'\
+                '❌ Хорошо, вы не стали добавлять телефон и вернулись в меню.')
+            await bot.send_message(message.from_id,
                 f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
                 reply_markup= kb_client.kb_client_main)
             await state.finish()

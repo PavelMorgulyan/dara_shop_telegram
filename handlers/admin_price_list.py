@@ -140,7 +140,7 @@ async def send_to_view_price_list(message:types.Message, data): # : ScalarResult
     headers_dct  = {'Номер' : 'с', 'Min см2' : 'с', 'Max см2' : 'с', 'Цена р.' : 'r'}
     # Определяем таблицу
     table = PrettyTable(list(headers_dct.keys()), left_padding_width = 1, right_padding_width= 1) 
-    for header in list(headers_dct.keys()):
+    for header in headers_dct.keys():
         table.align[header] = headers_dct[header]
 
     for item in data:
@@ -158,7 +158,9 @@ async def get_to_view_price_list(message: types.Message):
     if message.text in ['посмотреть прайс-лист на тату', '/посмотреть_прайслист_на_тату'] and \
         str(message.from_user.username) in ADMIN_NAMES:
             with Session(engine) as session:
-                prices = session.scalars(select(TattooOrderPriceList)).all()
+                prices = session.scalars(select(TattooOrderPriceList).order_by(
+                    TattooOrderPriceList.min_size).order_by(
+                    TattooOrderPriceList.max_size)).all()
                 
             if prices == []:
                 await message.reply(MSG_NO_PRICE_LIST_IN_DB,
@@ -256,6 +258,7 @@ async def change_price_list(message: types.Message):
                             f'Цена: {price.price}'
                         )
                     )
+                kb.add(LIST_BACK_TO_HOME[0])
                 await message.reply(f'❔ Какой прайс-лист хочешь поменять?', reply_markup=kb)
 
 

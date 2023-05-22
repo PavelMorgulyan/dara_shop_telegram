@@ -273,7 +273,7 @@ tattoo_from_galery_change_options = {
     # 'client_want_to_change_tattoo_size':    'Хочу изменить размер тату 📏',
     'client_want_to_change_tattoo_color':   'Хочу изменить цвета у тату 🎨',
     'client_want_to_change_tattoo_details': 'Хочу изменить детали на тату 🔧',
-    'no_change':'Ничего не хочу менять ☘️'
+    'no_change':'Ничего не хочу менять ➡️'
 }
 kb_tattoo_from_galery_change_options = create_kb(list(tattoo_from_galery_change_options.values())\
     + back_lst + cancel_lst)

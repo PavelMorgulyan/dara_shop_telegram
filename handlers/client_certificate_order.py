@@ -40,7 +40,7 @@ async def load_сert_price(message: types.Message, state: FSMContext):
     if message.text in kb_admin.price + kb_admin.another_price:
         async with state.proxy() as data:
             data['price'] = message.text
-            data['status'] = OPEN_STATE_DICT["open"]
+            data['status'] = STATES["open"]
             
         await FSM_Client_сert_item.next() # -> load_сert_payment_choice
         await bot.send_message(message.from_id,  
@@ -68,12 +68,9 @@ async def create_cert_order(data:dict, message: types.Message):
             user_id= message.from_id,
             order_photo= None, 
             tattoo_size= None,
-            tattoo_size= None,
-            start_date_meeting= None,
-            end_date_meeting= None,
             tattoo_note= None,
             order_note= None,
-            order_state= OPEN_STATE_DICT['open'],
+            order_state= STATES['open'],
             order_number= data['cert_order_number'],
             creation_date= datetime.now(),
             price= data['price'],
@@ -229,7 +226,7 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
                 else:
                     data['check_document'] = message.photo[0].file_id
                 data['code'] = await generate_random_code(CODE_LENTH)
-                data['status'] = PAID_STATE_DICT["paid"]
+                data['status'] = STATES["paid"]
                 code = data['code']
                 cert_order_number = data['cert_order_number']
                 status = data['status']
@@ -296,10 +293,10 @@ async def get_clients_cert_order(message: types.Message):
             msg += f'🎫 Cертификат № {order.order_number}\n'\
                 f'💰 Цена сертификата: {order.price}\n'
             
-            if order.order_state == PAID_STATE_DICT["paid"]:
+            if order.order_state == STATES["paid"]:
                 msg += f'🏷 Код сертификата: {order.code}\n'
                 
-            elif order.code in [COMPETE_STATE_DICT["complete"]] + list(CLOSED_STATE_DICT.values()):
+            elif order.code in [STATES["complete"]] + list(STATES["closed"].values()):
                 msg += '🚫 Сертификат уже использован\n'
                 
             else:

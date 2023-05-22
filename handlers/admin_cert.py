@@ -16,10 +16,9 @@ from db.db_getter import get_info_many_from_table
 #from diffusers import StableDiffusionPipeline
 #import torch
 from datetime import datetime
-from prettytable import PrettyTable
 from handlers.calendar_client import obj
 from msg.main_msg import *
-
+from handlers.other import STATES
 
 #------------------------------------ CERT COMMAND LIST-------------------------------------------
 # 'Сертификат',
@@ -64,7 +63,7 @@ async def command_load_сert_item(message: types.Message):
 
 
 async def load_сert_price(message: types.Message, state: FSMContext):
-    if message.text in kb_admin.price:
+    if message.text in kb_admin.price_lst:
         async with state.proxy() as data:
             data['username'] = message.from_user.username
             data['creation_date'] = datetime.strftime(datetime.now(), '%d/%m/%Y %H:%M')
@@ -75,8 +74,8 @@ async def load_сert_price(message: types.Message, state: FSMContext):
             async with state.proxy() as data:
                 data['price'] = message.text.split()[0]
                 
-            await FSM_Admin_сert_item.next()
-            await FSM_Admin_сert_item.next()
+            for i in range(2):
+                await FSM_Admin_сert_item.next() #-> admin_process_successful_cert_payment
             await message.reply(f'Пользователь оплатил сертфикат?',
                 reply_markup=kb_client.kb_yes_no) 
         else:
@@ -92,12 +91,13 @@ async def load_сert_other_price(message: types.Message, state: FSMContext):
     await FSM_Admin_сert_item.next()
     await message.reply(f'Пользователь оплатил сертфикат?',
         reply_markup=kb_client.kb_yes_no) 
-    
+
+
 async def admin_process_successful_cert_payment(message: types.Message, state=FSMContext):
     if message.text == kb_client.yes_str:
         async with state.proxy() as data: # type: ignore
             code = data['code']
-            data['state'] = 'Обработан'
+            data['state'] = STATES['paid']
             
             await bot.send_message(message.chat.id, f'Вот код на сертификат: {code}.')
             await FSM_Admin_сert_item.next()
@@ -106,8 +106,8 @@ async def admin_process_successful_cert_payment(message: types.Message, state=FS
     elif message.text == kb_client.no_str: # В таблице код уже будет, но выдадим мы его только после оплаты
         async with state.proxy() as data: # type: ignore
             
-            data['state'] = 'Открыт'
-            data['check_document'] = 'Чек не добавлен'
+            data['state'] = STATES['open']
+            data['check_document'] = None
             
             new_cert_order = {
                 "username":             data['username'],
@@ -142,12 +142,12 @@ async def get_check_answer_cert_from_admin(message: types.Message, state=FSMCont
         cert_order_number = 0
         async with state.proxy() as data: # type: ignore
             cert_order_number = data['cert_order_number']
-            data['check_document'] = 'Чек не добавлен'
+            data['check_document'] = None
             
             new_cert_order = {
                 "username":             data['username'],
                 "price":                data['price'],
-                "state":               data['state'] ,
+                "state":                data['state'] ,
                 "code":                 data['code'] ,  
                 "creation_date" :       data['creation_date'],
                 "cert_order_number":    data['cert_order_number'],
@@ -188,7 +188,7 @@ async def get_check_document_cert_from_admin(message: types.Message, state=FSMCo
             new_cert_order = {
                 "username":             data['username'],
                 "price":                data['price'],
-                "state":               data['state'] ,
+                "state":                data['state'] ,
                 "code":                 data['code'] ,  
                 "creation_date" :       data['creation_date'],
                 "cert_order_number":    data['cert_order_number'],

@@ -27,7 +27,6 @@ from aiogram_timepicker.panel import FullTimePicker, full_timep_callback
 from aiogram_timepicker import result, carousel, clock
 
 
-from prettytable import PrettyTable
 from handlers.calendar_client import obj
 from msg.main_msg import *
 
@@ -110,7 +109,7 @@ async def command_get_info_sketch_order(message: types.Message):
         await FSM_Admin_command_get_info_sketch_order.order_name.set()
         
         for order in orders:
-            if order[5] not in list(CLOSED_STATE_DICT.values()):
+            if order[5] not in list(STATES["closed"].values()):
                 kb_orders.add(KeyboardButton(
                         f'№{order.order_number} \"{order.order_name}\" {order.order_state}'
                     )
@@ -156,7 +155,7 @@ async def command_delete_info_sketch_order(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES:
         with Session(engine) as session:
             orders = session.scalars(select(Orders).where(
-                Orders.order_type == 'эскиз').where(Orders.order_state.not_in(CLOSED_STATE_DICT))).all()
+                Orders.order_type == 'эскиз').where(Orders.order_state.not_in(STATES["closed"]))).all()
             
         if orders == []:
             await message.reply(MSG_NO_ORDER_IN_TABLE)
@@ -211,7 +210,7 @@ async def command_get_info_opened_sketch_orders(message: types.Message):
         with Session(engine) as session:
             orders = session.scalars(select(Orders).where(
                 Orders.order_type == 'эскиз').where(
-                Orders.order_state.in_([OPEN_STATE_DICT["open"], PAID_STATE_DICT['paid']])
+                Orders.order_state.in_([STATES["open"], STATES['paid']])
                 )).all()
         await send_to_view_sketch_order(message, orders)
         await bot.send_message(message.from_user.id,
@@ -228,7 +227,7 @@ async def command_get_info_closed_sketch_orders(message: types.Message):
         with Session(engine) as session:
             orders = session.scalars(select(Orders).where(
                 Orders.order_type == 'эскиз').where(
-                Orders.order_state.in_(list(CLOSED_STATE_DICT.values()))
+                Orders.order_state.in_(list(STATES["closed"].values()))
                 )).all()
         await send_to_view_sketch_order(message, orders)
 
@@ -266,8 +265,6 @@ async def fill_sketch_order_table(data:dict, message: types.Message):
             user_id= None,
             order_photo= data['sketch_photo_lst'],
             tattoo_size = None,
-            start_date_meeting = None,
-            end_date_meeting = None,
             tattoo_note= None,
             order_note = data['sketch_description'],
             order_state= data['state'],
@@ -328,7 +325,7 @@ async def get_new_sketch_description(message: types.Message, state: FSMContext):
         data['first_photo'] = False
         data['tattoo_sketch_order_number'] = tattoo_sketch_order_number
         data['sketch_photo_lst'] = []
-        data['state'] =  OPEN_STATE_DICT["open"]
+        data['state'] =  STATES["open"]
         data['check_document'] = None
         
     if message.text in LIST_CANCEL_COMMANDS:
@@ -472,7 +469,7 @@ async def get_sketch_price(message: types.Message, state: FSMContext):
 async def get_sketch_state(message: types.Message, state: FSMContext):
     if message.text == kb_client.yes_str:
         async with state.proxy() as data:
-            data['state'] = PAID_STATE_DICT['paid']
+            data['state'] = STATES['paid']
             
         await bot.send_message(message.from_id, 'Хочешь добавить чек заказа?', 
             reply_markup= kb_client.kb_yes_no)

@@ -26,7 +26,6 @@ from handlers.other import *
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
 
-from prettytable import PrettyTable
 from msg.main_msg import *
 import json
 
@@ -352,8 +351,9 @@ async def send_to_view_tattoo_item(id, tattoo_items):
             if tattoo != None:
                 with Session(engine) as session:
                     photos = session.scalars(select(TattooItemPhoto).where(
-                        TattooItemPhoto.tattoo_item_name == tattoo.name)).one()
-                await bot.send_photo(id, photos.photo, msg)
+                        TattooItemPhoto.tattoo_item_name == tattoo.name)).all()
+                for photo in photos:
+                    await bot.send_photo(id, photo.photo, msg)
             else:
                 await bot.send_message(id, msg)
 
@@ -402,7 +402,7 @@ async def command_get_info_all_tattoo(message: types.Message):
             tattoo_items = session.scalars(select(TattooItems)).all()
         await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
         await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
-            reply_markup=kb_admin.kb_tattoo_items_commands)
+            reply_markup= kb_admin.kb_tattoo_items_commands)
 
 
 # /посмотреть_все_мои_тату

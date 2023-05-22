@@ -6,7 +6,6 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 storage = MemoryStorage()
 
 
-# create_all(engine, checkfirst=False)
 bot = Bot(token=os.environ['ID_DARA_TELEGRAM_BOT'])
 dp = Dispatcher(bot, storage=storage)
 

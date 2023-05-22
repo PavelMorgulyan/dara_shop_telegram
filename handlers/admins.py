@@ -23,7 +23,6 @@ from aiogram_timepicker.panel import FullTimePicker, full_timep_callback, full_t
     MinSecTimePicker, minsec_timep_callback, minsec_timep_default
 from aiogram_timepicker import result, carousel, clock
 
-from prettytable import PrettyTable
 from handlers.calendar_client import obj
 import cv2
 import pytesseract
@@ -191,10 +190,10 @@ async def get_table_name_filling(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data['table_name'] = message.text
             
-        os.system('dir .\\db\\*.json /b /d > .\\db\\json_name_lst')
+        os.system('dir .\\db\\json\\*.json /b /d > .\\db\\json\\json_name_lst')
         
         kb = ReplyKeyboardMarkup(resize_keyboard=True)
-        with open("json_name_lst", 'r') as json_name_lst:
+        with open(".\\db\\json\\json_name_lst", 'r') as json_name_lst:
             full_line_str = ''
             for line in json_name_lst:
                 full_line_str += line
@@ -217,7 +216,7 @@ async def get_table_name_filling(message: types.Message, state: FSMContext):
 async def get_json_name_filling(message: types.Message, state: FSMContext):
     full_line_str = ''
     full_json_name_lst = []
-    with open("json_name_lst", 'r') as json_name_lst:
+    with open(".\\db\\json\\json_name_lst", 'r') as json_name_lst:
         for line in json_name_lst:
             full_line_str += line
         full_json_name_lst = full_line_str.split('\n')
@@ -226,28 +225,46 @@ async def get_json_name_filling(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             table_name = data['table_name']
         data = {}
-        with open(f'./db/{message.text}', encoding='cp1251') as json_file:
+        with open(f'./db/json/{message.text}', encoding='cp1251') as json_file:
             data = json.load(json_file)
             
         with Session(engine) as session:
             new_item_lst = []
             for i in range(len(data)): # TODO нужно из if-else превратить в 1 строку
-                if table_name == 'TattooOrderPriceList':
-                    new_item_lst.append(TattooOrderPriceList(min_size= data[i][1], max_size= data[i][2], price= data[i][3]))
+                if table_name == 'tattoo_order_price_list':
+                    new_item_lst.append(
+                        TattooOrderPriceList(
+                            min_size= data[str(i)][1], 
+                            max_size= data[str(i)][2], 
+                            price=    data[str(i)][3])
+                    )
                     
-                elif table_name == 'CandleItems':
-                    new_item_lst.append(CandleItems(
-                        name=       data[i][0],
-                        photo=      data[i][1],
-                        price=      data[i][2],
-                        note=       data[i][3],
-                        state=      data[i][4],
-                        quantity=   data[i][5]))
+                elif table_name == 'candle_items':
+                    if message.text == 'candle_items.json':
+                        
+                        new_item_lst.append(CandleItems(
+                            name=       data[str(i + 1)][0]['name'],
+                            photo=      None,
+                            price=      data[str(i + 1)][0]['price'],
+                            note=       data[str(i + 1)][0]['note'],
+                            state=      None,
+                            quantity=   0)
+                        )
+                    else:
+                        new_item_lst.append(CandleItems(
+                            name=       data[str(i)][0],
+                            photo=      data[str(i)][1],
+                            price=      data[str(i)][2],
+                            note=       data[str(i)][3],
+                            state=      data[str(i)][4],
+                            quantity=   data[str(i)][5])
+                        )
                     
             session.add_all(new_item_lst)
             session.commit()
             
-        await message.reply(f"Готово! Вы загрузили данные в таблицу {table_name}! {MSG_DO_CLIENT_WANT_TO_DO_MORE}")
+        await message.reply(f"Готово! Вы загрузили данные в таблицу {table_name}!\n"\
+            f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}", reply_markup= kb_admin.kb_main)
         await state.finish()
         
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:

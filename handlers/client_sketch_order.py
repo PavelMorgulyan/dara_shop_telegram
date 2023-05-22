@@ -8,14 +8,14 @@ from aiogram.dispatcher.filters import Text
 
 from msg.main_msg import *
 from keyboards import kb_client, kb_admin
-from handlers.other import generate_random_order_number, CLOSED_STATE_DICT, OPEN_STATE_DICT
+from handlers.other import generate_random_order_number, STATES
 from handlers.client import CODE_LENTH, fill_client_table, \
     DARA_ID, FSM_Client_username_info, CALENDAR_ID
 from handlers.calendar_client import obj
 
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select, ScalarResult
+from sqlalchemy import select
 from db.sqlalchemy_base.db_classes import *
 from datetime import datetime
 
@@ -70,8 +70,6 @@ async def fill_sketch_order_table(data:dict, message: types.Message):
             user_id=                message.from_id,
             order_photo=            data['photo_lst'],
             tattoo_size=            None,
-            start_date_meeting =    None,
-            end_date_meeting =      None,
             tattoo_note=            None,
             order_note=             data['sketch_description'],
             order_state=            data['state'],
@@ -178,7 +176,7 @@ async def get_sketch_desc_order(message: types.Message, state: FSMContext):
                 'sketch_description':           data['sketch_description'],
                 'photo_lst':                    None,
                 'creation_time':                datetime.now(),
-                'state':                        OPEN_STATE_DICT["open"],
+                'state':                        STATES["open"],
                 'check_document':               doc,
                 'price':                        None,
             }
@@ -219,7 +217,7 @@ async def get_photo_sketch_order(message: types.Message, state: FSMContext):
                     'sketch_description':           data['sketch_description'],
                     'photo_lst':                    data['sketch_photo'], 
                     'creation_time':                datetime.now(),
-                    'state':                        OPEN_STATE_DICT["open"],
+                    'state':                        STATES["open"],
                     'check_document':               doc,
                     'price':                        None
                 }
@@ -259,7 +257,7 @@ async def get_clients_tattoo_sketch_order(message: types.Message):
             message_to_send = f'Заказ № {order.order_number} от {creation_date}\n'\
                 f'📜 Описание тату эскиза: {order.order_note}\n'
             
-            if any(str(order_state) in order[5] for order_state in list(CLOSED_STATE_DICT.values())):
+            if any(str(order_state) in order[5] for order_state in list(STATES["closed"].values())):
                 message_to_send += f'❌ Состояние заказа: {order.order_state}\n'
             else:
                 message_to_send += f'📃 Состояние заказа: {order.order_state}\n'
@@ -286,7 +284,7 @@ class FSM_Client_get_new_photo_to_sketch_order(StatesGroup):
 async def command_client_add_new_photo_to_sketch_order(message: types.Message):
     with Session(engine) as session:
         orders = session.scalars(select(Orders).where(Orders.user_id == message.from_id).where(
-            Orders.order_state.not_in(list(CLOSED_STATE_DICT.values())))).all()
+            Orders.order_state.not_in(list(STATES["closed"].values())))).all()
     
     if orders == []:
         await bot.send_message(message.from_id, '⭕️ У тебя пока нет заказанных эскизов')
@@ -389,7 +387,7 @@ async def get_photo_to_sketch_order(message: types.Message, state: FSMContext):
             
             with Session(engine) as session:
                 orders = session.scalars(select(Orders).where(Orders.user_id == message.from_id).where(
-                    Orders.order_state.not_in(list(CLOSED_STATE_DICT.values())))).all()
+                    Orders.order_state.not_in(list(STATES["closed"].values())))).all()
             
             kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
             for order in orders:
