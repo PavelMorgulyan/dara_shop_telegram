@@ -17,8 +17,6 @@ from handlers.other import *
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
 
-
-from prettytable import PrettyTable
 from handlers.calendar_client import obj
 from msg.main_msg import *
 
