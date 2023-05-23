@@ -48,6 +48,8 @@ size_dict = {
     "25-35" : '25 - 35 см2'
 }
 
+another_size = 'Другой размер'
+
 number_tattoo_details = {
     '1_detail':     '1 основная деталь',
     '2_detail':     '2 основных детали',
@@ -125,6 +127,7 @@ def create_other_size_lst() -> list:
             kb.append(f'{i}x{t}')
     return kb
 
+
 def create_other_size_btn() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
     btn = []
@@ -138,6 +141,18 @@ def create_other_size_btn() -> ReplyKeyboardMarkup:
     kb.add(back_btn).add(cancel_btn)
     return kb
 
+
+def create_another_size_lst() -> list:
+    tmp_lst = []
+    for j in range(5, 40, 5):
+        for i in range(5, 40, 5):
+            tmp_lst.append(f'{i}x{j}')
+    return tmp_lst
+
+
+another_size_lst = create_another_size_lst()
+
+
 def list_other_number_details() -> list:
     list_details = []
     for i in range(6, 35):
@@ -150,7 +165,7 @@ no_photo_in_tattoo_order = {
     "load_tattoo_photo" :       'Загрузить свою фотографию эскиза 📎',
     "load_tattoo_desc":         'Хочу эскиз по моему описанию 💬',
     "no_idea_tattoo_photo" :    'У меня нет идеи для эскиза 😓'
-    }
+}
 
 choice_place_tattoo = {
     "client_know_place" : "Да, я хочу выбрать место",

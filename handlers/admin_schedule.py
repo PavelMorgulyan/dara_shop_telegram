@@ -153,11 +153,11 @@ async def command_create_new_date_to_schedule(message: types.Message):
         # [ 'Хочу ввести конкретную дату', 'Хочу выбрать день недели и месяц']
         await message.reply('Хорошо, давай добавим новую дату в твоем расписании. '\
             'Это будет тату работа или консультация?',
-            reply_markup= kb_admin.kb_event_type_schedule)
+            reply_markup= kb_admin.kb_type_of_schedule)
 
 
 async def choice_event_type_in_schedule(message: types.Message, state: FSMContext):
-    if message.text in kb_admin.event_type_schedule:
+    if message.text in kb_admin.type_of_schedule_lst:
         async with state.proxy() as data:
             data['event_type'] = message.text.lower()
             data['year_number'] = datetime.now().strftime('%Y')

@@ -20,6 +20,10 @@ from handlers.calendar_client import obj
 from msg.main_msg import *
 from handlers.other import STATES
 
+from sqlalchemy.orm import Session
+from sqlalchemy import select, ScalarResult
+from db.sqlalchemy_base.db_classes import *
+
 #------------------------------------ CERT COMMAND LIST-------------------------------------------
 # 'Сертификат',
 async def get_cert_command_list(message: types.Message):
@@ -52,6 +56,11 @@ PRICE_сert_3K = types.LabeledPrice(label='Сертификат на 3000 Р.', 
 PRICE_сert_4K = types.LabeledPrice(label='Сертификат на 4000 Р.', amount=400000)
 PRICE_сert_5K = types.LabeledPrice(label='Сертификат на 5000 Р.', amount=500000)
 
+async def set_cert_order(data:dict, message:types.Message):
+    with Session(engine) as session:
+        new_order = Orders(
+            
+        )
 
 # добавить заказ на сертификат, Отправляем цену сертификата 
 async def command_load_сert_item(message: types.Message):
@@ -120,6 +129,9 @@ async def admin_process_successful_cert_payment(message: types.Message, state=FS
             }
             
             await set_to_table(tuple(new_cert_order.values()), 'сert_orders')
+            
+            
+            
         await state.finish() # type: ignore
         
         await FSM_Admin_cert_username_info.get_user_name.set()
