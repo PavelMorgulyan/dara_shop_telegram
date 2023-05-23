@@ -202,6 +202,7 @@ async def get_table_name_filling(message: types.Message, state: FSMContext):
             async with state.proxy() as data:
                 data['json_name_lst'] = json_name_lst
             await FSM_Admin_get_data_from_json.next()
+            kb.add(LIST_BACK_TO_HOME[0])
             await message.reply('Какой json хочешь использовать?', reply_markup= kb)
             
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
@@ -231,9 +232,10 @@ async def get_json_name_filling(message: types.Message, state: FSMContext):
         with Session(engine) as session:
             new_item_lst = []
             for i in range(len(data)): # TODO нужно из if-else превратить в 1 строку
-                if table_name == 'tattoo_order_price_list':
+                if table_name == 'price_list':
                     new_item_lst.append(
-                        TattooOrderPriceList(
+                        OrderPriceList(
+                            type=     kb_admin.price_lst_types['constant_tattoo'],
                             min_size= data[str(i)][1], 
                             max_size= data[str(i)][2], 
                             price=    data[str(i)][3])

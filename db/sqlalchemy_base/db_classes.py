@@ -253,16 +253,18 @@ class CheckDocument(Base):
 
 
 
-class TattooOrderPriceList(Base):
-    __tablename__ = "tattoo_order_price_list"
+class OrderPriceList(Base):
+    __tablename__ = "price_list"
     id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[Optional[str]] # Типы прайс-листов: 1) постоянное тату, 2) эскиз, 3) гифтбокс 4) переводное тату
     min_size: Mapped[Optional[int]]
     max_size: Mapped[Optional[int]] 
     price: Mapped[Optional[str]] 
     
     def __repr__(self) -> dict:
         return {
-            "id":       self.id, 
+            "id":       self.id,
+            "type":     self.type,
             "min_size": self.min_size,
             "max_size": self.max_size, 
             "price":    self.price

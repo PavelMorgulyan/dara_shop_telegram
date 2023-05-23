@@ -127,12 +127,18 @@ clients_commands = [
 
 
 price_list_commands = [
-    'посмотреть прайс-лист на тату',
-    'изменить прайс-лист на тату',
-    'создать новый прайс-лист на тату',
-    'удалить прайс-лист на тату'
+    'посмотреть прайс-лист',
+    'изменить прайс-лист',
+    'создать новый прайс-лист',
+    'удалить прайс-лист'
 ]
 
+price_lst_types = {
+    'constant_tattoo':'постоянное тату',
+    'shifting_tattoo':'переводное тату',
+    'sketch':'эскиз', 
+    'giftbox':'гифтбокс'
+}
 
 tattoo_order_change_info_list = {
     'Имя тату' :                    'tattoo_name',
@@ -212,8 +218,6 @@ def create_kb(text: list) -> ReplyKeyboardMarkup:
 
 
 #-----------------------------------------SCHEDULE------------------------------------------------------
-event_type_schedule = ['Тату заказ', 'Консультация']
-
 days = ['Понедельник', 'Вторник',
     'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
 
@@ -312,7 +316,7 @@ kb_client_want_to_try_another_later_img = create_kb(
 )
 
 kb_order_statuses = create_kb(statuses_order_lst + back_lst + cancel_lst)
-
+kb_price_lst_types = create_kb(list(price_lst_types.values()) + cancel_lst)
 kb_admin_add_name_or_telegram_for_new_order = \
     create_kb(list(admin_add_name_or_telegram_for_new_order.keys()) + cancel_lst)
 kb_admin_choice_watch_order_or_change_order = \
@@ -320,7 +324,7 @@ kb_admin_choice_watch_order_or_change_order = \
 kb_tattoo_order_change_info_list = \
     create_kb(list(tattoo_order_change_info_list.keys()) + back_lst + cancel_lst)
 kb_another_price_full = create_kb(another_price_full_lst)                
-kb_sizes = create_kb_with_interval(sizes_lst + LIST_BACK_TO_HOME, 5)                            
+kb_sizes = create_kb_with_interval(sizes_lst, 5).add(KeyboardButton(LIST_BACK_TO_HOME[0]))
 kb_no_note = create_kb(no_note + back_lst + LIST_BACK_TO_HOME)
 kb_creator_lst = create_kb(creator_lst)
 kb_new_tattoo_item_state = create_kb(list(new_tattoo_item_state.keys()) + LIST_BACK_TO_HOME)
@@ -357,5 +361,4 @@ kb_candle_item_commands = create_kb(candle_item_commands + LIST_BACK_TO_HOME)
 kb_schedule_commands = create_kb(schedule_commands + LIST_BACK_TO_HOME)
 kb_giftbox_item_commands = create_kb(giftbox_item_commands + LIST_BACK_TO_HOME)
 kb_giftbox_order_commands = create_kb(giftbox_order_commands + LIST_BACK_TO_HOME)
-kb_event_type_schedule = create_kb(event_type_schedule + LIST_BACK_TO_HOME)
 kb_schedule_for_tattoo_order_choice = create_kb(schedule_for_tattoo_order_choice + LIST_BACK_TO_HOME)

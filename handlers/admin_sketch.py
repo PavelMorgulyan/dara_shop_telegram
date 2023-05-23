@@ -208,10 +208,10 @@ async def command_get_info_opened_sketch_orders(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES:
 
         with Session(engine) as session:
-            orders = session.scalars(select(Orders).where(
-                Orders.order_type == 'эскиз').where(
-                Orders.order_state.in_([STATES["open"], STATES['paid']])
-                )).all()
+            orders = session.scalars(select(Orders)
+                .where(Orders.order_type == 'эскиз')
+                .where(Orders.order_state.in_([STATES["open"], STATES['processed'], STATES['paid']]))
+                ).all()
         await send_to_view_sketch_order(message, orders)
         await bot.send_message(message.from_user.id,
             f'Всего активных заказов: {len(orders)}',

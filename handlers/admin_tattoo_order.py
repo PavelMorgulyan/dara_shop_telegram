@@ -76,16 +76,16 @@ async def send_to_view_tattoo_order(message: types.Message, tattoo_orders: Scala
             f'- Telegram пользователя: {username_telegram}\n'\
             f'- Телефон пользователя: {username_phone}\n'
             #f'🎚 Количество основных деталей: {ret[16]}\n'\
-                
-        if order.order_type == 'постоянное тату':
-            i = 0
-            if order.schedule_id is not None:
-                msg += "🕒 Даты встреч:\n"
-                with Session(engine) as session:
+        with Session(engine) as session:
+            order = session.get(Orders, order.id)
+            if order.order_type == 'постоянное тату':
+                i = 0
+                if order.schedule_id is not None:
+                    msg += "🕒 Даты встреч:\n"
                     schedule_lst = session.scalars(select(ScheduleCalendarItems)
                         .where(ScheduleCalendarItems.order_number == order.order_number)).all()
-                for schedule in schedule_lst:
-                    with Session(engine) as session:
+                    
+                    for schedule in schedule_lst:
                         i += 1
                         start_time = session.get(ScheduleCalendar, schedule.schedule_id
                             ).start_datetime.strftime('%d/%m/%Y с %H:%M')
@@ -93,9 +93,9 @@ async def send_to_view_tattoo_order(message: types.Message, tattoo_orders: Scala
                             ).end_datetime.strftime('%H:%M')
                         
                         msg += f"\t{i}) {start_time} до {end_time}\n"
-            else:
-                msg += \
-                    f"🕒 Дата и время встречи не выбраны - свободных ячеек в календаре нет.\n"
+                else:
+                    msg += \
+                        f"🕒 Дата и время встречи не выбраны - свободных ячеек в календаре нет.\n"
         
         
                 
@@ -116,7 +116,7 @@ async def send_to_view_tattoo_order(message: types.Message, tattoo_orders: Scala
                     except:
                         await bot.send_photo(message.from_user.id, doc.doc, 'Чек на оплату заказа')
                 else:
-                    msg += 'Чек не добавлен'
+                    msg += '❌ Чек не добавлен'
         else:
             msg += '❌ Чек не добавлен'
         await bot.send_message(message.from_id, msg)
@@ -321,7 +321,9 @@ async def command_tattoo_order_change_status(message: types.Message):
             await message.reply(f"{MSG_NO_ORDER_IN_TABLE}")
         else:
             for order in orders: # выводим номера тату заказов и их статус
-                kb_tattoo_order_numbers.add(KeyboardButton(f"{order.order_name} статус: {order.order_state}")) 
+                kb_tattoo_order_numbers.add(KeyboardButton(
+                    f"{order.order_number} \"{order.order_name}\" статус: {order.order_state}")
+                ) 
             kb_tattoo_order_numbers.add(KeyboardButton(LIST_BACK_TO_HOME[0]))
             await FSM_Admin_tattoo_order_change_status.tattoo_order_number.set()
             await message.reply("У какого заказа хотите поменять статус?",
@@ -351,17 +353,19 @@ async def complete_new_status_for_tattoo_order(message: types.Message, state: FS
     async with state.proxy() as data:
         tattoo_order_number = data['tattoo_order_number'] 
         data['new_state'] = message.text
-    await update_info('tattoo_orders', 'tattoo_order_number', tattoo_order_number,
-        'order_state', message.text)
+        
+    with Session(engine) as session:
+        order = session.scalars(select(Orders).where(Orders.order_number == tattoo_order_number)).one()
+        order.order_state =  message.text
+        session.commit()
     
     order = await get_info_many_from_table('tattoo_orders', 'tattoo_order_number', tattoo_order_number) 
     schedule_id = order[0][14]
     
-    
     if message.text in ['Аннулирован', 'Отклонен']:
         await update_info('schedule_calendar', 'id', schedule_id, 'status', 'Свободен')
         
-    if message.text in ['Обработан', 'Выполнен']:
+    if message.text in []: # 'Обработан', 'Выполнен'
         await FSM_Admin_tattoo_order_change_status.next()
         await message.reply(f'Хочешь добавить чек к заказу?',
             reply_markup= kb_client.kb_yes_no)

@@ -31,7 +31,7 @@ import os
 PAYMENTS_PROVIDER_TOKEN = os.environ["PAYMENTS_PROVIDER_TOKEN_DARA_TELEGRAM_BOT"]
 ADMIN_NAMES = ['MorgulyanPavel', 'dara_redwan']
 CODE_LENTH = 8
-ORDER_CODE_LENTH = 10
+ORDER_CODE_LENTH = 6
 CALENDAR_ID = 'pmorgukyan@gmail.com'
 DARA_ID = 0
 

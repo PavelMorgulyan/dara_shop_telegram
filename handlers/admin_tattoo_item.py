@@ -222,9 +222,9 @@ async def load_tattoo_item_photo(message: types.Message, state: FSMContext):
 async def load_tattoo_price(message: types.Message, state: FSMContext):
     if message.text == 'Другая цена':
         await message.reply('Хорошо, введи другую цену тату', 
-            reply_markup = kb_admin.kb_another_price)
+            reply_markup = kb_admin.kb_another_price_full)
         
-    elif message.text in kb_admin.price + kb_admin.another_price:
+    elif message.text in kb_admin.price_lst + kb_admin.another_price_full_lst:
         async with state.proxy() as data:
             data['tattoo_price'] = message.text
         await FSM_Admin_tattoo_item.next()
@@ -258,7 +258,7 @@ async def load_tattoo_colored(message: types.Message, state: FSMContext):
         )
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()
-        await message.reply(MSG_BACK_TO_HOME, reply_markup = kb_admin.kb_main)
+        await message.reply(MSG_BACK_TO_HOME, reply_markup = kb_admin.kb_tattoo_items_commands)
         
     elif message.text in LIST_BACK_COMMANDS:
         await FSM_Admin_tattoo_item.previous()
@@ -378,20 +378,28 @@ async def command_get_info_tattoo(message: types.Message):
                 kb_tattoo_names.add(item.name)
             await FSM_Admin_get_info_tattoo_item.tattoo_name.set()
             
-            kb_tattoo_names.add(kb_client.back_lst[0])
+            kb_tattoo_names.add(KeyboardButton(LIST_BACK_TO_HOME[0]))
             await message.reply('Какое тату хочешь посмотреть?',
                 reply_markup =kb_tattoo_names)
 
 
 async def get_tattoo_name_for_info(message: types.Message, state: FSMContext): 
-    tattoo_items = await get_info_many_from_table('tattoo_items', 'name', message.text)
-    
-    await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
-    await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
-        reply_markup=kb_admin.kb_tattoo_items_commands)
-    
-    await state.finish() #  полностью очищает данные
-
+    with Session(engine) as session:
+        tattoo_items = session.scalars(select(TattooItems.name)).all()
+        
+    if message.text in tattoo_items:
+        with Session(engine) as session:
+            tattoo_items = session.scalars(select(TattooItems)
+                .where(TattooItems.name == message.text)).all()
+            
+        await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
+        await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
+            reply_markup=kb_admin.kb_tattoo_items_commands)
+        
+        await state.finish()
+    elif message.text in LIST_BACK_TO_HOME:
+        await state.finish()
+        await message.reply(MSG_BACK_TO_HOME, reply_markup = kb_admin.kb_tattoo_items_commands)
 
 #-----------------------------------/посмотреть_все_тату-------------------------------- COMPLETE
 # /посмотреть_все_тату

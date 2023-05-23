@@ -31,17 +31,36 @@ async def get_price_list_commands(message: types.Message):
 
 #/создать новый прайс-лист на тату
 class FSM_Admin_create_price_list(StatesGroup):
+    get_price_list_name = State()
     get_min_size_to_new_price_list = State()
     get_max_size_to_new_price_list = State()
     get_price_to_new_price_list = State()
 
 
 async def command_create_new_price_list_to_tattoo_order(message: types.Message):
-    if message.text in ['создать новый прайс-лист на тату', '/создать_новый_прайслист_на_тату'] and \
+    if message.text in ['создать новый прайс-лист', '/создать_новый_прайслист'] and \
         str(message.from_user.username) in ADMIN_NAMES:
-            await FSM_Admin_create_price_list.get_min_size_to_new_price_list.set()
+            await FSM_Admin_create_price_list.get_price_list_name.set()
+            await message.reply('На что хочешь создать прайс-лист?',
+                reply_markup= kb_admin.kb_price_lst_types)
+
+
+async def get_price_list_name(message: types.Message, state: FSMContext):
+    if message.text in list(kb_admin.price_lst_types.values()):
+        async with state.proxy() as data:
+            data['price_lst_type'] = message.text
+            
+        if message.text in [kb_admin.price_lst_types['constant_tattoo'], 
+                kb_admin.price_lst_types['shifting_tattoo']]:
+            await FSM_Admin_create_price_list.next()
             await message.reply('Введи, пожалуйста, минимальный размер тату в прайс-листе', 
-                reply_markup=kb_admin.kb_sizes)
+                reply_markup= kb_admin.kb_sizes)
+            
+        elif message.text in [kb_admin.price_lst_types['giftbox'], kb_admin.price_lst_types['sketch']]:
+            for i in range(3):
+                await FSM_Admin_create_price_list.next() #-> get_price_to_new_price_list
+            await message.reply(f'Какую цену хочешь установить на {message.text}?',
+                reply_markup= kb_admin.kb_price)
 
 
 async def get_min_size_to_new_price_list(message: types.Message, state: FSMContext):
@@ -62,7 +81,6 @@ async def get_min_size_to_new_price_list(message: types.Message, state: FSMConte
 
 
 async def get_max_size_to_new_price_list(message: types.Message, state: FSMContext):
-    
     if any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS):
         await state.finish()
         await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
@@ -72,17 +90,19 @@ async def get_max_size_to_new_price_list(message: types.Message, state: FSMConte
         async with state.proxy() as data:
             data['max_size'] = int(message.text)
             min_size = data['min_size']
+            price_lst_type = data['price_lst_type']
             max_size = int(message.text)
             
         if max_size > min_size:
             with Session(engine) as session:
-                price = session.scalars(select(TattooOrderPriceList).where(
-                TattooOrderPriceList.min_size == min_size).where(
-                TattooOrderPriceList.max_size == max_size)).all()
+                price = session.scalars(select(OrderPriceList)
+                    .where(OrderPriceList.type == price_lst_type)
+                    .where(OrderPriceList.min_size == min_size)
+                    .where(OrderPriceList.max_size == max_size)).all()
             
             if price == []:
                 await FSM_Admin_create_price_list.next()
-                await message.reply('Введи, пожалуйста, цену тату в прайс-листе', 
+                await message.reply('Введи, пожалуйста, цену в прайс-листе', 
                     reply_markup= kb_admin.kb_price)
             else:
                 await message.reply('У тебя уже есть прайс-лист с такими размерами. '\
@@ -115,58 +135,133 @@ async def get_price_to_new_price_list(message: types.Message, state: FSMContext)
         
     elif message.text in kb_admin.price_lst + kb_admin.another_price_full_lst:
         async with state.proxy() as data:
-            data['price'] = message.text
-            with Session(engine) as session:
-                new_price_list = TattooOrderPriceList(
-                    min_size=  data['min_size'],
-                    max_size=  data['max_size'],
-                    price=     data['price']
-                )
-                session.add(new_price_list)
-                session.commit()
-            min_size, max_size = data['min_size'], data['max_size']
-            price = data['price']
-        
-        await message.reply(
-            f'📃 Отлично, теперь у вас новый прайс-лист на размер'\
-            f' {min_size} - {max_size} см2 по цене {price}!\n\n'\
-            f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
-            reply_markup=kb_admin.kb_price_list_commands)
+            price_lst_type = data['price_lst_type']
+            if price_lst_type in [kb_admin.price_lst_types['constant_tattoo'], 
+                kb_admin.price_lst_types['shifting_tattoo']]:
+                with Session(engine) as session:
+                    new_price_list = OrderPriceList(
+                        type= price_lst_type,
+                        min_size=  data['min_size'],
+                        max_size=  data['max_size'],
+                        price=     message.text
+                    )
+                    session.add(new_price_list)
+                    session.commit()
+                min_size, max_size = data['min_size'], data['max_size']
+            
+                await message.reply(
+                    f'📃 Отлично, теперь у вас новый прайс-лист на размер'\
+                    f' {min_size} - {max_size} см2 по цене {message.text}!\n\n'\
+                    f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
+                    reply_markup= kb_admin.kb_price_list_commands)
+            else:
+                with Session(engine) as session:
+                    new_price_list = OrderPriceList(
+                        type=       price_lst_type,
+                        min_size=   None,
+                        max_size=   None,
+                        price=      message.text
+                    )
+                    session.add(new_price_list)
+                    session.commit()
+                await message.reply(
+                    f'📃 Отлично, теперь у вас новый прайс-лист на {price_lst_type}'
+                    f' по цене {message.text}!\n\n'\
+                    f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
+                    reply_markup= kb_admin.kb_price_list_commands)
+                
         await state.finish()
     else:
         await bot.send_message(message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
-async def send_to_view_price_list(message:types.Message, data): # : ScalarResult[TattooOrderPriceList]
-    headers_dct  = {'Номер' : 'с', 'Min см2' : 'с', 'Max см2' : 'с', 'Цена р.' : 'r'}
-    # Определяем таблицу
-    table = PrettyTable(list(headers_dct.keys()), left_padding_width = 1, right_padding_width= 1) 
-    for header in headers_dct.keys():
-        table.align[header] = headers_dct[header]
-
-    for item in data:
-        table.add_row([item.id, item.min_size, item.max_size, item.price])
+async def send_to_view_price_list(
+    message:types.Message, 
+    data: ScalarResult[OrderPriceList], 
+    price_lst_type: str) -> None:
+    if price_lst_type in [kb_admin.price_lst_types['constant_tattoo'], 
+        kb_admin.price_lst_types['shifting_tattoo']]:
+        headers_dct  = {'Номер' : 'с', 'Тип':'с', 'Min см2' : 'с', 'Max см2' : 'с', 'Цена р.' : 'r'}
+        # Определяем таблицу
+        table = PrettyTable(list(headers_dct.keys()), left_padding_width = 1, right_padding_width= 1) 
+        for header in headers_dct.keys():
+            table.align[header] = headers_dct[header]
+        i = 0
+        for item in data:
+            i += 1
+            table.add_row([str(i), item.type, item.min_size, item.max_size, item.price])
+            
+        await bot.send_message(message.from_id, f'<pre>{table}</pre>', parse_mode=types.ParseMode.HTML)
         
-    await bot.send_message(message.from_id, f'<pre>{table}</pre>', parse_mode=types.ParseMode.HTML)
+    else:
+        headers_dct  = {'Номер' : 'с', 'Тип':'с', 'Цена р.' : 'r'}
+        # Определяем таблицу
+        table = PrettyTable(list(headers_dct.keys()), left_padding_width = 1, right_padding_width= 1) 
+        for header in headers_dct.keys():
+            table.align[header] = headers_dct[header]
+        i = 0
+        for item in data:
+            i += 1
+            table.add_row([str(i), item.type, item.price])
+            
+        await bot.send_message(message.from_id, f'<pre>{table}</pre>', parse_mode=types.ParseMode.HTML)
     # or use markdown<font color="#fa8e47">
     # await message.reply(f```{table}```, parse_mode="HTML")# types.ParseMode.MARKDOWN_V2)
         
     # await message.reply(f'Вот твои цены\n{table}') # Печатаем таблицу
 
 
+class FSM_Admin_get_to_view_price_lst(StatesGroup):
+    get_price_list_type = State()
+
+
 #/посмотреть_прайслист_на_тату
 async def get_to_view_price_list(message: types.Message):
-    if message.text in ['посмотреть прайс-лист на тату', '/посмотреть_прайслист_на_тату'] and \
+    if message.text in ['посмотреть прайс-лист', '/посмотреть_прайслист'] and \
         str(message.from_user.username) in ADMIN_NAMES:
-            with Session(engine) as session:
-                prices = session.scalars(select(TattooOrderPriceList).order_by(
-                    TattooOrderPriceList.min_size).order_by(
-                    TattooOrderPriceList.max_size)).all()
-                
+            await FSM_Admin_get_to_view_price_lst.get_price_list_type.set()
+            await message.reply('На что хочешь посмотреть прайс-лист?',
+                reply_markup= kb_admin.kb_price_lst_types)
+
+
+async def get_price_list_name_to_view(message: types.Message, state: FSMContext):
+    if message.text in [kb_admin.price_lst_types['constant_tattoo'], 
+            kb_admin.price_lst_types['shifting_tattoo']]:
+        
+        with Session(engine) as session:
+            prices = session.scalars(select(OrderPriceList)
+                .where(OrderPriceList.type == message.text)
+                .order_by(OrderPriceList.min_size)
+                .order_by(OrderPriceList.max_size)).all()
+            
+        if prices == []:
+            await message.reply(MSG_NO_PRICE_LIST_IN_DB,
+                reply_markup= kb_admin.kb_price_list_commands)
+            await state.finish()
+        else:
+            await send_to_view_price_list(message, prices, message.text)
+            await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
+                reply_markup= kb_admin.kb_price_list_commands)
+            await state.finish()
+            
+    elif message.text in [kb_admin.price_lst_types['giftbox'], kb_admin.price_lst_types['sketch']]:
+        with Session(engine) as session:
+            prices = session.scalars(select(OrderPriceList)
+                .where(OrderPriceList.type == message.text)).all()
             if prices == []:
-                await message.reply(MSG_NO_PRICE_LIST_IN_DB,
-                    reply_markup= kb_admin.kb_price_list_commands)
+                await message.reply(MSG_NO_PRICE_LIST_IN_DB)
             else:
-                await send_to_view_price_list(message, prices)
+                await send_to_view_price_list(message, prices, message.text)
+                
+        await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
+            reply_markup= kb_admin.kb_price_list_commands)
+        await state.finish()
+        
+    elif message.text in LIST_CANCEL_COMMANDS:
+        await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME)
+        await state.finish()
+        
+    else:
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # удалить прайс-лист тату
@@ -175,10 +270,15 @@ class FSM_Admin_delete_price_list(StatesGroup):
 
 
 async def delete_price_list(message: types.Message):
-    if message.text in ['удалить прайс-лист на тату', '/удалить_прайслист_на_тату'] and \
+    if message.text in ['удалить прайс-лист', '/удалить_прайслист'] and \
         str(message.from_user.username) in ADMIN_NAMES:
+            await bot.send_message(message.from_id, 
+                'Удалить можно только плайс-листы для тату!\n'\
+                'Чтобы поменять прайс-лист для гифтбокса или эскиза, '\
+                'нужно нажать кнопку \"изменить прайс-лист\"')
+            
             with Session(engine) as session:
-                prices = session.scalars(select(TattooOrderPriceList)).all()
+                prices = session.scalars(select(OrderPriceList)).all()
                 
             if prices == []:
                 await message.reply(MSG_NO_PRICE_LIST_IN_DB,
@@ -200,7 +300,7 @@ async def delete_price_list(message: types.Message):
 
 async def get_name_for_deleting_price_list(message: types.Message, state: FSMContext):
     with Session(engine) as session:
-        prices = session.scalars(select(TattooOrderPriceList)).all()
+        prices = session.scalars(select(OrderPriceList)).all()
         
     price_list = []
     for item in prices:
@@ -211,9 +311,9 @@ async def get_name_for_deleting_price_list(message: types.Message, state: FSMCon
         )
     if message.text in price_list:
         with Session(engine) as session:
-            price = session.scalars(select(TattooOrderPriceList).where(
-                TattooOrderPriceList.min_size == message.text.split()[2]).where(
-                TattooOrderPriceList.max_size == message.text.split()[6])
+            price = session.scalars(select(OrderPriceList).where(
+                OrderPriceList.min_size == message.text.split()[2]).where(
+                OrderPriceList.max_size == message.text.split()[6])
                 ).one()
             min_size, max_size, price = price.min_size, price.max_size, price.price
             session.delete(price)
@@ -234,37 +334,82 @@ async def get_name_for_deleting_price_list(message: types.Message, state: FSMCon
 
 
 class FSM_Admin_change_price_list(StatesGroup):
+    get_price_lst_type = State()
     get_price_list_name_for_changing = State()
     get_new_status_price_list =  State()
     update_new_status_price_list = State()
 
 
-#/изменить_прайслист_на_тату
+#/изменить_прайслист
 async def change_price_list(message: types.Message):
-    if message.text in ['изменить прайс-лист на тату', '/изменить_прайслист_на_тату'] and \
+    if message.text in ['изменить прайс-лист', '/изменить_прайслист'] and \
         str(message.from_user.username) in ADMIN_NAMES:
-            with Session(engine) as session:
-                prices = session.scalars(select(TattooOrderPriceList)).all()
-            if prices == []:
-                await message.reply(MSG_NO_PRICE_LIST_IN_DB,
-                    reply_markup= kb_admin.kb_price_list_commands)
-            else:
-                kb = ReplyKeyboardMarkup(resize_keyboard=True)
-                await FSM_Admin_change_price_list.get_price_list_name_for_changing.set()
-                for price in prices:
-                    kb.add(KeyboardButton(
-                            f'id: {price.id}|Минимальный размер: {price.min_size}|'\
-                            f'Максимальный размер: {price.max_size}|'\
-                            f'Цена: {price.price}'
-                        )
+            await FSM_Admin_change_price_list.get_price_lst_type.set()
+            await message.reply('Какой тип прайс-листа хочешь изменить?',
+                reply_markup= kb_admin.kb_price_lst_types)
+
+
+async def get_price_list_name_to_change(message: types.Message, state: FSMContext):
+    if message.text in list(kb_admin.price_lst_types.values()):
+        async with state.proxy() as data:
+            data['price_lst_type'] = message.text 
+            
+        
+    if message.text in [kb_admin.price_lst_types['constant_tattoo'], 
+            kb_admin.price_lst_types['shifting_tattoo']]:
+        with Session(engine) as session:
+            prices = session.scalars(select(OrderPriceList)
+                .where(OrderPriceList.type.in_([kb_admin.price_lst_types['constant_tattoo'], 
+                    kb_admin.price_lst_types['shifting_tattoo']]))).all()
+        if prices == []:
+            await message.reply(MSG_NO_PRICE_LIST_IN_DB,
+                reply_markup= kb_admin.kb_price_list_commands)
+        else:
+            kb = ReplyKeyboardMarkup(resize_keyboard=True)
+            for price in prices:
+                
+                kb.add(KeyboardButton(
+                        f'id: {price.id}|Минимальный размер: {price.min_size}|'\
+                        f'Максимальный размер: {price.max_size}|'\
+                        f'Цена: {price.price}'
                     )
-                kb.add(LIST_BACK_TO_HOME[0])
-                await message.reply(f'❔ Какой прайс-лист хочешь поменять?', reply_markup=kb)
+                )
+                await FSM_Admin_change_price_list.next()
+            kb.add(LIST_BACK_TO_HOME[0])
+            await message.reply(f'❔ Какой прайс-лист хочешь поменять?', reply_markup=kb)
+            
+    elif message.text in [kb_admin.price_lst_types['giftbox'], kb_admin.price_lst_types['sketch']]:
+        await message.reply(f'Введи, пожалуйста, цену в прайс-листе для {message.text}', 
+            reply_markup= kb_admin.kb_price)
+        
+    elif message.text in kb_admin.price_lst + kb_admin.another_price_full_lst:
+        async with state.proxy() as data:
+            price_lst_type= data['price_lst_type'] 
+            
+        with Session(engine) as session:
+            price_lst = session.scalars(select(OrderPriceList)
+                .where(OrderPriceList.type == price_lst_type)).one()
+            old_price = price_lst.price
+            price_lst.price = message.text
+            session.commit()
+        await message.reply(f'Отлично, ты поменял цену у {price_lst_type} c {old_price} на '\
+            f'{message.text}')
+        await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE)
+        await state.finish()
+            
+    elif message.text in kb_admin.another_price_lst:
+        await message.reply('Введи другую цену', reply_markup= kb_admin.kb_another_price_full)
+        
+    elif message.text in LIST_CANCEL_COMMANDS:
+        await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME)
+        await state.finish()
+    else:
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_price_list_name_for_changing(message: types.Message, state: FSMContext):
     with Session(engine) as session:
-        prices = session.scalars(select(TattooOrderPriceList)).all()
+        prices = session.scalars(select(OrderPriceList)).all()
     
     price_list = []
     for price in prices:
@@ -309,7 +454,7 @@ async def get_new_status_price_list(message: types.Message, state: FSMContext):
 
 async def update_new_status_price_list(message: types.Message, state: FSMContext):
     if message.text == kb_admin.another_price_lst[0]: # 'Другая цена'
-        await message.reply('Хорошо, введи другую цену',
+        await message.reply('Введи другую цену',
             reply_markup= kb_admin.kb_another_price_full)
     
     elif not any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS):
@@ -318,7 +463,7 @@ async def update_new_status_price_list(message: types.Message, state: FSMContext
             id = data['id']
         
         with Session(engine) as session:
-            updating_price = session.get(TattooOrderPriceList, id) 
+            updating_price = session.get(OrderPriceList, id) 
 
             if price_list_type == "Минимальный размер":
                 updating_price.min_size = message.text
@@ -346,9 +491,11 @@ def register_handlers_admin_price_list(dp: Dispatcher):
         Text(equals='Прайс-лист', ignore_case=True), state=None)
 
     dp.register_message_handler(command_create_new_price_list_to_tattoo_order, 
-        Text(equals='создать новый прайс-лист на тату', ignore_case=True), state=None)
+        Text(equals='создать новый прайс-лист', ignore_case=True), state=None)
     dp.register_message_handler(command_create_new_price_list_to_tattoo_order,
-        commands=['/создать_новый_прайслист_на_тату'])
+        commands=['создать_новый_прайслист'])
+    dp.register_message_handler(get_price_list_name,
+        state=FSM_Admin_create_price_list.get_price_list_name)
     dp.register_message_handler(get_min_size_to_new_price_list,
         state=FSM_Admin_create_price_list.get_min_size_to_new_price_list)
     dp.register_message_handler(get_max_size_to_new_price_list,
@@ -357,19 +504,24 @@ def register_handlers_admin_price_list(dp: Dispatcher):
         state=FSM_Admin_create_price_list.get_price_to_new_price_list)
     
     dp.register_message_handler(get_to_view_price_list,
-        Text(equals='посмотреть прайс-лист на тату', ignore_case=True), state=None)
+        Text(equals='посмотреть прайс-лист', ignore_case=True), state=None)
     dp.register_message_handler(get_to_view_price_list,
         commands=['/посмотреть_прайслист_на_тату'], state=None)
+    dp.register_message_handler(get_price_list_name_to_view,
+        state=FSM_Admin_get_to_view_price_lst.get_price_list_type)
+    
     
     dp.register_message_handler(delete_price_list,
-        Text(equals='удалить прайс-лист на тату', ignore_case=True), state=None)
-    dp.register_message_handler(delete_price_list, commands=['/удалить_прайслист_на_тату'], state=None)
+        Text(equals='удалить прайс-лист', ignore_case=True), state=None)
+    dp.register_message_handler(delete_price_list, commands=['/удалить_прайслист'], state=None)
     dp.register_message_handler(get_name_for_deleting_price_list,
         state=FSM_Admin_delete_price_list.get_name_price_for_delete)
     
-    dp.register_message_handler(change_price_list, commands=['/изменить_прайслист_на_тату'], state=None)
+    dp.register_message_handler(change_price_list, commands=['/изменить_прайслист'], state=None)
     dp.register_message_handler(change_price_list,
-        Text(equals='изменить прайс-лист на тату', ignore_case=True), state=None)
+        Text(equals='изменить прайс-лист', ignore_case=True), state=None)
+    dp.register_message_handler(get_price_list_name_to_change,
+        state=FSM_Admin_change_price_list.get_price_lst_type)
     dp.register_message_handler(get_price_list_name_for_changing,
         state=FSM_Admin_change_price_list.get_price_list_name_for_changing)
     dp.register_message_handler(get_new_status_price_list,

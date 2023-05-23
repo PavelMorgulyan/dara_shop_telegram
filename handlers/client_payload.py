@@ -97,14 +97,17 @@ async def send_to_view_cert_orders(orders):
         orders_str += f'🎫 Заказ сертификата № {order.order_number}\n'\
             f'💰 Цена сертификата: {order.price}\n\n'
             
-        if order.order_state == STATES["paid"]:
+        if order.order_state in STATES["paid"]:
             orders_str += f'🏷 Код сертификата: {order.code}\n\n'
             
-        else:
+        elif order.order_state in [STATES["processed"], STATES['open']]:
             unpaid_orders_bool = True
             kb_unpaid_orders.add(
                 KeyboardButton(f'Сертификат {order.order_number} по цене {order.price} 🎫'))
             orders_str += '⛔️ Сертификат неоплачен\n'
+            
+        elif order.order_state in STATES["closed"]:
+            orders_str += '🏷 Сертификат уже использован'
             
     kb_unpaid_orders.add(KeyboardButton(kb_client.back_lst[0]))
     return kb_unpaid_orders, orders_str, unpaid_orders_bool
@@ -132,12 +135,14 @@ async def send_to_view_giftbox_orders(orders):
 
 
 async def command_send_to_view_cert_orders_to_payloading(message: types.Message):
-    orders = \
-        await get_info_many_from_table("cert_orders", 'telegram', f'@{message.from_user.username}')
-    
+    with Session(engine) as session:
+        orders = session.scalars(select(Orders)
+            .where(Orders.order_type == 'сертификат')
+            .where(Orders.user_id == message.from_id)).all()
+        
     if orders == []:
         await bot.send_message(message.from_id,  
-            '⭕️ У тебя пока нет заказов эскизов для оплаты.\n\n'\
+            '⭕️ У тебя пока нет сертификатов для оплаты.\n\n'\
             '❔ Не хочешь ли оформить какой-нибудь заказ?',
                 reply_markup= kb_client.kb_client_main)
         
@@ -158,9 +163,11 @@ async def command_send_to_view_cert_orders_to_payloading(message: types.Message)
 
 
 async def command_send_to_view_giftbox_orders_to_payloading(message: types.Message):
-    orders = \
-        await get_info_many_from_table("giftbox_orders", 'telegram', f'@{message.from_user.username}')
-    
+    with Session(engine) as session:
+        orders = session.scalars(select(Orders)
+            .where(Orders.order_type == 'гифтбокс')
+            .where(Orders.user_id == message.from_id)).all()
+        
     if orders == []:
         await bot.send_message(message.from_id,  
             '⭕️ У тебя пока нет гифтбоксов для оплаты.\n\n'\
@@ -185,14 +192,12 @@ async def command_send_to_view_giftbox_orders_to_payloading(message: types.Messa
 
 async def command_send_to_view_tattoo_sketch_orders_to_payloading(message: types.Message):
     with Session(engine) as session:
-        orders = session.scalars(select(Orders).where(Orders.order_type == "эскиз").where(
-            Orders.user_id == message.from_id
-        )).all()
+        orders = session.scalars(select(Orders)
+            .where(Orders.order_type == "эскиз")
+            .where(Orders.user_id == message.from_id)).all()
     
     if orders == []:
-        await bot.send_message(message.from_id,  
-            '⭕️ У тебя пока нет заказов эскизов для оплаты.\n\n'\
-            '❔ Не хочешь ли оформить какой-нибудь заказ?',
+        await bot.send_message(message.from_id, MSG_CLIENT_DONT_HAVE_SKETCH_ORDERS,
                 reply_markup= kb_client.kb_client_main)
         
     else:
@@ -213,9 +218,9 @@ async def command_send_to_view_tattoo_sketch_orders_to_payloading(message: types
 
 async def command_send_to_view_tattoo_orders_to_payloading(message: types.Message):
     with Session(engine) as session:
-        orders = session.scalars(select(Orders).where(
-            Orders.order_type.in_(['постоянное тату', 'переводное тату'])).where(
-            Orders.user_id == message.from_id)).all()
+        orders = session.scalars(select(Orders)
+            .where(Orders.order_type.in_(['постоянное тату', 'переводное тату']))
+            .where(Orders.user_id == message.from_id)).all()
     
     if orders == []:
         await bot.send_message(message.from_id,  
