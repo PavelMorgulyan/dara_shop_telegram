@@ -2,7 +2,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemo
 from keyboards.kb_admin import create_kb
 from msg.main_msg import LIST_BACK_TO_HOME
 
-# 📷 ⏱ 🛠 ⚙️ 📎 ❤️ ☎️ 🗓 🌿 💬 🕒 🔴 🟢 🟡 ⁉️‼️ ❓ ❕ ❌ ⭕️ 🛑 ⛔️ ☘️ 🖇 🎨 ➡️
+# 📷 ⏱ 🛠 ⚙️ 📎 ❤️ ☎️ 🗓 🌿 💬 🕒 🔴 🟢 🟡 ⁉️‼️ ❓ ❕ ❌ ⭕️ 🛑 ⛔️ ☘️ 🖇 🎨 ➡️ ❗️
 # 🍀 🌴 🍃 🕸 💳 🎉 🎁 📃 🎫  🏚 🔙 ❔ 📏 😓 📅 ⚡️\ 🚫 ⏪ 🔄 🔆 💰 🔧 📅 🗾 🪴 
 
 back_lst = ['Назад 🔄'] 

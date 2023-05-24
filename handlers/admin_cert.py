@@ -72,11 +72,6 @@ PRICE_сert_3K = types.LabeledPrice(label='Сертификат на 3000 Р.', 
 PRICE_сert_4K = types.LabeledPrice(label='Сертификат на 4000 Р.', amount=400000)
 PRICE_сert_5K = types.LabeledPrice(label='Сертификат на 5000 Р.', amount=500000)
 
-async def set_cert_order(data:dict, message:types.Message):
-    with Session(engine) as session:
-        new_order = Orders(
-            
-        )
 
 # добавить заказ на сертификат, Отправляем цену сертификата 
 async def command_load_сert_item(message: types.Message):
@@ -91,7 +86,7 @@ async def load_сert_price(message: types.Message, state: FSMContext):
     if message.text in kb_admin.price_lst:
         async with state.proxy() as data:
             data['username'] = message.from_user.username
-            data['creation_date'] = datetime.strftime(datetime.now(), '%d/%m/%Y %H:%M')
+            data['creation_date'] = datetime.now()
             data['code'] = await generate_random_code(CODE_LENTH)
             data['cert_order_number'] = await generate_random_order_number(ORDER_CODE_LENTH)
 
@@ -105,7 +100,8 @@ async def load_сert_price(message: types.Message, state: FSMContext):
                 reply_markup=kb_client.kb_yes_no) 
         else:
             await FSM_Admin_сert_item.next()
-            await message.reply(f'На какую сумму пользователь хочет сертификат? Введи сумму')
+            await message.reply(f'На какую сумму пользователь хочет сертификат? Введи сумму',
+                reply_markup=kb_admin.kb_price)
     else:
         await message.reply('Ответь на вопрос ответом из списка, пожалуйста')
 
@@ -132,22 +128,16 @@ async def admin_process_successful_cert_payment(message: types.Message, state=FS
         async with state.proxy() as data: # type: ignore
             
             data['state'] = STATES['open']
-            data['check_document'] = None
+            data['check_document'] = []
             
             new_cert_order = {
-                "username":             data['username'],
                 "price":                data['price'],
                 "status":               data['state'] ,
                 "code":                 data['code'] ,  
-                "creation_date" :       data['creation_date'],
                 "cert_order_number":    data['cert_order_number'],
                 "check_document" :      data['check_document']
             }
-            
-            await set_to_table(tuple(new_cert_order.values()), 'сert_orders')
-            
-            
-            
+            await create_cert_order(new_cert_order, message)
         await state.finish() # type: ignore
         
         await FSM_Admin_cert_username_info.get_user_name.set()
@@ -161,6 +151,7 @@ async def admin_process_successful_cert_payment(message: types.Message, state=FS
             'Напиши имя пользователя, пожалуйста.')
     else:
         await message.reply('Ответь на вопрос \"Да\" или \"Нет\"')
+
 
 async def get_check_answer_cert_from_admin(message: types.Message, state=FSMContext):
     if message.text == kb_client.yes_str:
