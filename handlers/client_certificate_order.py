@@ -64,24 +64,13 @@ async def create_cert_order(data:dict, message: types.Message):
     with Session(engine) as session:
         new_cert_order = Orders(
             order_type = 'сертификат',
-            order_name= None,
             user_id= message.from_id,
-            order_photo= None, 
-            tattoo_size= None,
-            tattoo_note= None,
-            order_note= None,
             order_state= STATES['open'],
             order_number= data['cert_order_number'],
             creation_date= datetime.now(),
             price= data['price'],
             check_document= data['check_document'],
             username= message.from_user.full_name,
-            schedule_id=None,
-            colored= None,
-            bodyplace= None,
-            tattoo_place_photo= None,
-            tattoo_place_video_note= None,
-            tattoo_place_video= None,
             code=data['code']
         )
         session.add(new_cert_order)
@@ -90,9 +79,12 @@ async def create_cert_order(data:dict, message: types.Message):
 
 async def load_сert_payment_choice(message: types.Message, state: FSMContext):
     if message.text == kb_client.now_str:
+        async with state.proxy() as data:
+            price = data['price']
         await FSM_Client_сert_item.next() #-> process_pre_checkout_query
         await bot.send_message(message.chat.id, '🌿 Отлично, давайте сейчас!')
-        await bot.send_message(message.chat.id, f"📎 Отправьте PDF документ или фотографию чека перевода на сумму {data['price']} "\
+        await bot.send_message(message.chat.id, 
+            f"📎 Отправьте PDF документ или фотографию чека перевода на сумму {price} "\
             "по номеру телефона +7(925)885-07-87 на имя Дария Редван Э", 
             reply_markup= kb_client.kb_cancel)
         
@@ -135,7 +127,7 @@ async def load_сert_payment_choice(message: types.Message, state: FSMContext):
         
         async with state.proxy() as data:
             data['cert_order_number'] = await generate_random_order_number(ORDER_CODE_LENTH)
-            data["check_document"] = None
+            data["check_document"] = []
             new_cert_order = {
                 "price":                data['price'],
                 "status":               data['status'] ,
@@ -157,7 +149,8 @@ async def load_сert_payment_choice(message: types.Message, state: FSMContext):
         else:
             await bot.send_message(message.chat.id, 
                 f"🍀 Ваш сертификат оформлен! Номер заказа: {data['cert_order_number']}. "\
-                "Код сертификата будет выдан после оплаты.\n\n"\
+                "Код сертификата будет выдан после оплаты.\n\n")
+            await bot.send_message(message.chat.id,
                 "❕ Посмотреть свои сертификаты можно в \"Мои заказы 📃\" -> "\
                 "\"Посмотреть мои сертификаты 🎫\".")
             
@@ -225,20 +218,18 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
                     data['check_document'] = message.document.file_id
                 else:
                     data['check_document'] = message.photo[0].file_id
-                data['code'] = await generate_random_code(CODE_LENTH)
-                data['status'] = STATES["paid"]
-                code = data['code']
+                code = await generate_random_code(CODE_LENTH)
                 cert_order_number = data['cert_order_number']
                 status = data['status']
                 new_cert_order = {
-                    "price":                data['price'],
-                    "status":               data['status'] ,
-                    "code":                 data['code'],
+                    "price":                int(data['price']),
+                    "status":               STATES["paid"],
+                    "code":                 code,
                     "cert_order_number":    data['cert_order_number'],
                     "check_document" :      data['check_document'],
                 }
                 
-                await set_to_table(tuple(new_cert_order.values()), 'сert_orders')
+                await create_cert_order(new_cert_order, message)
             
             await bot.send_message(message.chat.id, f"🎉 Заказ оплачен! \n"\
                 f"🎫 Вот ваш код на сертификат на сумму {price}: {code}. \n\n"\

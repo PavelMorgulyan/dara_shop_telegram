@@ -249,6 +249,7 @@ async def send_info_cooperation(message: types.Message):
 class FSM_Client_username_info(StatesGroup):
     phone = State()
 
+
 # закончить
 async def close_command(message: types.Message, state: FSMContext):
     # await state.finish()
@@ -257,12 +258,21 @@ async def close_command(message: types.Message, state: FSMContext):
         reply_markup= kb_client.kb_client_main)
 
 
-async def fill_client_table(data, message:types.Message):
+async def fill_client_table(data: dict, message:types.Message) -> None:
     # Заполняем таблицу clients
     with Session(engine) as session:
-        user = session.scalars(select(User).where(User.telegram_id == message.from_id)).one()
-        user.phone = data['phone']
-        session.commit()
+        user = session.scalars(select(User).where(User.telegram_id == message.from_id)).all()
+        if user == []:
+            new_user = User(name= message.from_user.full_name,
+                telegram_name= f'@{message.from_user.username}',
+                telegram_id= message.from_id,
+                phone= data['phone'])
+            session.add(new_user)
+            session.commit()
+            
+        else:
+            user[0].phone = data['phone']
+            session.commit()
         
     await bot.send_message(message.from_id, f'{MSG_THANK_FOR_ORDER}\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
         reply_markup= kb_client.kb_client_main)

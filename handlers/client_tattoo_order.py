@@ -103,11 +103,7 @@ async def get_client_choice_main_or_temporary_tattoo(message: types.Message, sta
             data['sizes_lst'] = sizes_lst # загружаем список размеров
             data['kb_client_size_tattoo'] = kb_client_size_tattoo            
             data['tattoo_order_number'] = await generate_random_order_number(ORDER_CODE_LENTH)# определяем номер заказа
-            data['check_document'] = [CheckDocument(
-                order_number = data['tattoo_order_number'],
-                telegram_user_id=   message.from_id,
-                doc=    None, #! Заполняется тогда, когда пользователь оплатил заказ
-            )] 
+            data['check_document'] = [] # изначально выставляется в []
             if data['tattoo_type'] == kb_admin.price_lst_types['shifting_tattoo']:
                 # когда тату переводная
                 data['schedule_id'] = None  
@@ -1431,8 +1427,7 @@ async def fill_tattoo_order_table(message: types.Message, state: FSMContext):
                 bodyplace=              data['tattoo_body_place'],
                 tattoo_place_photo=     data['tattoo_place_photo'],
                 tattoo_place_video_note=data['tattoo_place_video_note'],
-                tattoo_place_video=     data['tattoo_place_video'],
-                code=                   None
+                tattoo_place_video=     data['tattoo_place_video']
             )
             new_table_items.append(new_tattoo_order)
             session.add_all(new_table_items)

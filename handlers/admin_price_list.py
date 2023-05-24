@@ -143,7 +143,7 @@ async def get_price_to_new_price_list(message: types.Message, state: FSMContext)
                         type= price_lst_type,
                         min_size=  data['min_size'],
                         max_size=  data['max_size'],
-                        price=     message.text
+                        price=     int(message.text)
                     )
                     session.add(new_price_list)
                     session.commit()
@@ -160,7 +160,7 @@ async def get_price_to_new_price_list(message: types.Message, state: FSMContext)
                         type=       price_lst_type,
                         min_size=   None,
                         max_size=   None,
-                        price=      message.text
+                        price=      int(message.text)
                     )
                     session.add(new_price_list)
                     session.commit()
@@ -257,7 +257,8 @@ async def get_price_list_name_to_view(message: types.Message, state: FSMContext)
         await state.finish()
         
     elif message.text in LIST_CANCEL_COMMANDS:
-        await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME)
+        await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME, 
+            reply_markup= kb_admin.kb_price_list_commands)
         await state.finish()
         
     else:
@@ -327,7 +328,8 @@ async def get_name_for_deleting_price_list(message: types.Message, state: FSMCon
             reply_markup= kb_admin.kb_price_list_commands)
 
     elif message.text in LIST_CANCEL_COMMANDS:
-        await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME)
+        await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME, 
+            reply_markup= kb_admin.kb_price_list_commands)
         await state.finish()
     else:
         await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
@@ -401,7 +403,8 @@ async def get_price_list_name_to_change(message: types.Message, state: FSMContex
         await message.reply('Введи другую цену', reply_markup= kb_admin.kb_another_price_full)
         
     elif message.text in LIST_CANCEL_COMMANDS:
-        await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME)
+        await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME, 
+            reply_markup= kb_admin.kb_price_list_commands)
         await state.finish()
     else:
         await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
@@ -444,9 +447,8 @@ async def get_new_status_price_list(message: types.Message, state: FSMContext):
             
     elif any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS):
         await state.finish()
-        await message.reply(MSG_CANCEL_ACTION)
-        await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
-            reply_markup=kb_admin.kb_price_list_commands)
+        await message.reply(MSG_CANCEL_ACTION + MSG_BACK_TO_HOME, 
+            reply_markup= kb_admin.kb_price_list_commands)
     else:
         await message.reply('⭕️ Пожалуйста, выбери из представленных вариантов',
             reply_markup=kb_admin.kb_change_price_list)

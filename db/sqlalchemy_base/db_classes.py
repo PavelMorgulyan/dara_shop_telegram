@@ -65,14 +65,14 @@ class ScheduleCalendarItems(Base):
     
 class TattooItems(Base):
     __tablename__ = "tattoo_items"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[Optional[str]]
-    photos: Mapped[List["TattooItemPhoto"]] = \
+    id:         Mapped[int] = mapped_column(primary_key=True)
+    name:       Mapped[Optional[str]]
+    photos:     Mapped[List["TattooItemPhoto"]] = \
         relationship(back_populates="photo_id", cascade="all, delete-orphan") 
-    price: Mapped[Optional[str]]
-    colored: Mapped[Optional[str]]
-    note: Mapped[Optional[str]]
-    creator: Mapped[Optional[str]]
+    price:      Mapped[Optional[int]]
+    colored:    Mapped[Optional[str]]
+    note:       Mapped[Optional[str]]
+    creator:    Mapped[Optional[str]]
     
     def __repr__(self) -> str:
         return {
@@ -117,8 +117,8 @@ class TattooItemPhoto(Base):
 class Orders(Base):
     __tablename__ = "orders"
     id:                 Mapped[int] = mapped_column(primary_key=True)
-    order_type:         Mapped[Optional[str]] # тип заказа - постоянное тату, переводное тату, эскиз, гифтбокс, сертификат
-    order_name:         Mapped[str] # = mapped_column(String(50))
+    order_type:         Mapped[str] # тип заказа - постоянное тату, переводное тату, эскиз, гифтбокс, сертификат
+    order_name:         Mapped[Optional[str]] # = mapped_column(String(50))
     user_id:            Mapped[str] #  = mapped_column(ForeignKey("user_account.id")), user.from_id
     order_photo :       Mapped[List["OrderPhoto"]]\
         = relationship(back_populates="photo_id", cascade="all, delete-orphan") 
@@ -128,7 +128,7 @@ class Orders(Base):
     order_state:        Mapped[Optional[str]] # Открыт, Обработан, Выполнен, Отклонен, Отложен, Аннулирован, Ожидает ответа
     order_number:       Mapped[Optional[str]]
     creation_date:      Mapped[Optional[datetime]]
-    price:              Mapped[Optional[str]]
+    price:              Mapped[Optional[int]]
     check_document:     Mapped[List["CheckDocument"]] = relationship(back_populates="doc_id")
     username:           Mapped[Optional[str]] #  = relationship(back_populates="name") # message.from_user.full_name
     schedule_id:        Mapped[List["ScheduleCalendarItems"]] = \
@@ -259,7 +259,7 @@ class OrderPriceList(Base):
     type: Mapped[Optional[str]] # Типы прайс-листов: 1) постоянное тату, 2) эскиз, 3) гифтбокс 4) переводное тату
     min_size: Mapped[Optional[int]]
     max_size: Mapped[Optional[int]] 
-    price: Mapped[Optional[str]] 
+    price: Mapped[Optional[int]] 
     
     def __repr__(self) -> dict:
         return {
@@ -290,7 +290,7 @@ class CandleItems(Base):
     id:         Mapped[int] = mapped_column(primary_key=True)
     name:       Mapped[Optional[str]] 
     photo:      Mapped[Optional[str]] 
-    price:      Mapped[Optional[str]] 
+    price:      Mapped[Optional[int]] 
     note:       Mapped[Optional[str]] 
     state:      Mapped[Optional[str]] 
     quantity:   Mapped[Optional[int]]

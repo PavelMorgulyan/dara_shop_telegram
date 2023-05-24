@@ -370,16 +370,14 @@ async def process_hour_timepicker_end_time(callback_query: CallbackQuery,
                             )
                             session.add(new_schedule_event)
                             session.commit()
-                        print(f"data if new_event_to_schedule_bool: {data}")
                         await bot.send_message(username_id,
-                            f"Отлично, теперь в {month_name} в {date.strftime('%d/%m/%Y')} c {start_time} " \
+                            f"Отлично, теперь в {month_name} в {date.strftime('%d/%m/%Y')} c {start_time} "\
                             f"по {end_time} у тебя рабочее время!",
                             reply_markup = kb_admin.kb_schedule_commands)
                     else:
                         
                         dates = await get_dates_from_month_and_day_of_week(
                             date, month_name, year, start_time, end_time)
-                        print(f"dates if not new_event_to_schedule_bool: {dates}")
                         dates_str = ''
                         for iter_date in dates:
                             with Session(engine) as session:
@@ -394,8 +392,8 @@ async def process_hour_timepicker_end_time(callback_query: CallbackQuery,
                             
                             dates_str += f"{iter_date['start_datetime'].strftime('%d/%m/%Y')}, "
                         await bot.send_message(username_id,
-                            f'Отлично, теперь в {month_name} все {date}'\
-                            f' ({dates_str[:len(dates_str)-2]})'\
+                            f'Отлично, теперь в {month_name} во все эти даты ({date}: '\
+                            f'{dates_str[:len(dates_str)-2]})'\
                             f' c {start_time} по {end_time} у тебя рабочее время!',
                             reply_markup= kb_admin.kb_schedule_commands)
                         

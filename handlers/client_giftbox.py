@@ -52,7 +52,7 @@ async def giftbox_order_giftbox_note_choice(message: types.Message, state: FSMCo
         
     elif message.text == kb_client.giftbox_note_dict["client_dont_add_something"]:
         async with state.proxy() as data:
-            data['giftbox_note'] = None
+            data['giftbox_note'] = None # 'Без описания'
             
         for i in range(2):
             await FSM_Client_giftbox_having.next() # -> giftbox_order_pay_method
@@ -67,9 +67,10 @@ async def giftbox_order_giftbox_note_choice(message: types.Message, state: FSMCo
     else:
         await bot.send_message(message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
+
 async def set_giftbox_order(data: dict, message: types.Message):
     with Session(engine) as session:
-        new_cert_order = Orders(
+        """ new_cert_order = Orders(
             order_type = 'гифтбокс',
             order_name= None,
             user_id= message.from_id,
@@ -90,9 +91,21 @@ async def set_giftbox_order(data: dict, message: types.Message):
             tattoo_place_video_note= None,
             tattoo_place_video= None,
             code= None
+        ) """
+        new_cert_order = Orders(
+            order_type = 'гифтбокс',
+            user_id= message.from_id,
+            order_note= data['order_note'],
+            order_state= STATES['open'],
+            order_number= data['order_number'],
+            creation_date= datetime.now(),
+            price= data['price'],
+            check_document= data['check_document'],
+            username= message.from_user.full_name
         )
         session.add(new_cert_order)
         session.commit()
+
 
 async def giftbox_order_add_giftbox_note(message: types.Message, state: FSMContext):
     
@@ -116,30 +129,29 @@ async def giftbox_order_add_giftbox_note(message: types.Message, state: FSMConte
         await FSM_Client_giftbox_having.next() # -> giftbox_order_pay_method
         await bot.send_message(message.from_id, "❔ Хочешь оплатить заказ сейчас? ",
             reply_markup= kb_client.kb_yes_no)
-        
 
 
 async def giftbox_order_pay_method(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['giftbox_order_number'] = await generate_random_order_number(ORDER_CODE_LENTH)
         data['creation_date'] = datetime.now()
-        price = '5 000' 
-        data['price'] = price # TODO вставлять ли цену в гифтбокс?
-        giftbox_order_number = data['giftbox_order_number']
+        with Session(engine) as session:
+            price = session.scalars(select(OrderPriceList)
+                .where(OrderPriceList.type == 'гифтбокс')).one().price
+            
+        data['price'] = price # тип int
+        giftbox_order_number = await generate_random_order_number(ORDER_CODE_LENTH)
         
-        if message.text == kb_client.no_str:
-            data['order_state'] = STATES["open"]
-            data['check_document'] = None
-
+        if message.text in [kb_client.later_str, kb_client.no_str]:
             new_giftbox_order = {
                 "order_note" :      data['giftbox_note'],
-                "order_number" :    data['giftbox_order_number'],
-                "check_document" :  data['check_document'],
-                "order_state" :     data['order_state'],
-                "price":            data['price'],
+                "order_number" :    giftbox_order_number,
+                "order_state" :     STATES["open"],
+                'check_document':   [],
+                "price":            price,
             }
-
             await set_giftbox_order(new_giftbox_order, message)
+            
             with Session(engine) as session:
                 user = session.scalars(select(User).where(User.telegram_id == message.from_id)).all()
             
@@ -149,16 +161,16 @@ async def giftbox_order_pay_method(message: types.Message, state: FSMContext):
                     f'🎉 Ваш заказ гифтбокса под номером {giftbox_order_number} почти оформлен!')
                 
                 await bot.send_message(message.chat.id, MSG_TO_CHOICE_CLIENT_PHONE,
-                    reply_markup=kb_client.kb_phone_number)
+                    reply_markup= kb_client.kb_phone_number)
                 
                 await FSM_Client_username_info.phone.set()
             else:
                 await bot.send_message(message.chat.id, 
                     f'🍀 Ваш заказ гифтбокса под номером {giftbox_order_number} оформлен!\n\n'\
-                    '🟢 Хотите сделать что-нибудь еще?',
-                    reply_markup=kb_client.kb_client_main)
+                    f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
+                    reply_markup= kb_client.kb_client_main)
             
-        elif message.text == kb_client.yes_str:
+        elif message.text in [kb_client.now_str, kb_client.yes_str]:
             '''  
             if PAYMENTS_PROVIDER_TOKEN.split(':')[1] == 'TEST':
                 await bot.send_message(message.chat.id, 'Т.к. это тестовый режим, можно'\
@@ -357,7 +369,7 @@ async def get_clients_giftbox_order(message: types.Message):
         for order in orders:
             message_to_send = \
                 f"🎁 Гифтбокс заказ № {order.order_number}\n"\
-                f"🕒 Дата открытия заказа: {order.creation_date.split('.')[0]}\n"
+                f"🕒 Дата открытия заказа: {order.creation_date.strftime('%H:%M %d/%m/%Y')}\n"
             if order.order_note != None:
                 message_to_send += f'💬 Описание заказа: {order.order_note}\n'
                 

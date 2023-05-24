@@ -235,10 +235,10 @@ async def get_json_name_filling(message: types.Message, state: FSMContext):
                 if table_name == 'price_list':
                     new_item_lst.append(
                         OrderPriceList(
-                            type=     kb_admin.price_lst_types['constant_tattoo'],
-                            min_size= data[str(i)][1], 
-                            max_size= data[str(i)][2], 
-                            price=    data[str(i)][3])
+                            type=     data[str(i)][1],
+                            min_size= data[str(i)][2], 
+                            max_size= data[str(i)][3], 
+                            price=    data[str(i)][4])
                     )
                     
                 elif table_name == 'candle_items':

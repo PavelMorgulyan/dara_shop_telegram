@@ -35,10 +35,10 @@ get_information = {
 }
 
 choice_order_type_to_payloading = {
-    "tattoo_orders":           "Тату заказы 🕸",
-    "tattoo_sketch_orders":    "Заказы эскизов 🎨",
-    "giftbox_orders":          "Гифтбоксы 🎁",
-    "cert_orders":             "Сертификаты 🎫"    
+    "Тату заказы 🕸": ['переводное тату', 'постоянное тату'],       
+    "Заказы эскизов 🎨": ["эскиз"],
+    "Гифтбоксы 🎁": ["гифтбокс"],
+    "Сертификаты 🎫": ["сертификат"]             
 }
 
 size_dict = {
@@ -237,7 +237,7 @@ client_choice_add_photo_type = {
     "client_want_to_add_body_photo" : "Добавить фото части тела 👤"
 }
 
-kb_choice_order_type_to_payloading = create_kb(list(choice_order_type_to_payloading.values()) + cancel_lst)
+kb_choice_order_type_to_payloading = create_kb(list(choice_order_type_to_payloading.keys()) + cancel_lst)
 kb_client_choice_add_photo_type = create_kb(list(client_choice_add_photo_type.values()) + \
     back_lst + cancel_lst)
 kb_client_choice_add_another_photo_to_tattoo_order = \
