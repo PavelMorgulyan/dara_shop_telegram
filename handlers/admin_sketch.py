@@ -279,8 +279,8 @@ async def fill_sketch_order_table(data:dict, message: types.Message):
         f"Новый эскиз заказ № {data['id']}",
         'Описание эскиза: ' +  data['sketch_description'] + ' \n' + \
         'Имя клиента:' + data['telegram'],
-        f'{date.strftime("%Y-%m-%dT%H:%M")}', # '2023-02-02T09:07:00',
-        f'{date.strftime("%Y-%m-%dT%H:%M")}'  # '2023-02-03T17:07:00'
+        f'{date.strftime("%Y-%m-%dT%H:%M:%S")}', # '2023-02-02T09:07:00',
+        f'{date.strftime("%Y-%m-%dT%H:%M:%S")}'  # '2023-02-03T17:07:00'
     )
     
     await message.reply(

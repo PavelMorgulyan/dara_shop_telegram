@@ -52,7 +52,7 @@ async def start_create_new_tattoo_sketch_order(message: types.Message):
 async def fill_sketch_order_table(data:dict, message: types.Message):
     new_user = False
     with Session(engine) as session:
-        user = session.scalars(select(User).where(User.telegram_id == message.from_id)).one()
+        user = session.scalars(select(User).where(User.telegram_id == message.from_id)).all()
         if user == []:
             user = User(
                 name=           message.from_user.full_name,
@@ -69,11 +69,8 @@ async def fill_sketch_order_table(data:dict, message: types.Message):
             
         new_tattoo_sketch_order = Orders(
             order_type=             'эскиз',
-            order_name=             None,
             user_id=                message.from_id,
             order_photo=            data['photo_lst'],
-            tattoo_size=            None,
-            tattoo_note=            None,
             order_note=             data['sketch_description'],
             order_state=            data['state'],
             creation_date=          datetime.now(),
@@ -81,39 +78,38 @@ async def fill_sketch_order_table(data:dict, message: types.Message):
             price=                  price,
             check_document=         data['check_document'],
             username=               message.from_user.full_name,
-            schedule_id=            None,
-            colored=                None,
-            bodyplace=              None,
-            tattoo_place_photo=     None,
-            tattoo_place_video_note=None,
-            tattoo_place_video=     None,
-            code=                   None
         )
         session.add(new_tattoo_sketch_order)
         session.commit()
         
-    date = data['creation_time'] 
+    date = datetime.now()
     
     if DARA_ID != 0:
         await bot.send_message(DARA_ID, f'Дорогая Тату-мастерица! '\
         f"🕸 Поступил новый заказ на эскиз под номером {data['tattoo_sketch_order_number']}!")
+        
+    if data['sketch_description'] is None:
+        data['sketch_description'] = 'Без описания'
     
-    event = await obj.add_event(CALENDAR_ID,
-        f"Новый эскиз заказ №{data['tattoo_sketch_order_number']}",
-        f"Описание эскиза тату: {data['sketch_description']}\n" \
-        f'Имя клиента:@{message.from_user.username}',
-        f'{date.strftime("%Y-%m-%dT%H:%M")}', # '2023-02-02T09:07:00',
-        f'{date.strftime("%Y-%m-%dT%H:%M")}'    # '2023-02-03T17:07:00'
+    event = await obj.add_event(
+        CALENDAR_ID,
+        f"Новый эскиз заказ №{str(data['tattoo_sketch_order_number'])}",
+        f"Описание эскиза тату: {data['sketch_description']}; " \
+        f"📃 Статус заказа: {data['state']}. \n"\
+        f"💬 Имя клиента: {message.from_user.full_name}\n"\
+        f"💬 Телеграм клиента: @{message.from_user.username}",
+        f'{date.strftime("%Y-%m-%dT%H:%M:%S")}', # '2023-02-02T09:07:00',
+        f'{date.strftime("%Y-%m-%dT%H:%M:%S")}'  # '2023-02-03T17:07:00'
     )
     
     await bot.send_message(message.from_id,  
-        '🎉 Отлично, заказ на эскиз оформлен! '\
+        "🎉 Отлично, заказ на эскиз оформлен! "\
         f"Номер твоего заказа эскиза {data['tattoo_sketch_order_number']}")
     
     await bot.send_message(message.from_id,  
-        f"❕Оплата эскиза осуществляется только после того, как Дара подтвердит заказ. '\
-        'К тебе придет уведомление через бота о том, что заказ подтвержден и готов к оплате.\n'\
-        '💬 Скоро Дара свяжется с тобой!\n\n"
+        f"❕ Оплата эскиза осуществляется только после того, как администратор подтвердит заказ. "\
+        "К вам придет уведомление через бота о том, что заказ подтвержден и готов к оплате.\n"\
+        "💬 Скоро Дара свяжется с тобой!\n\n"
     )
     if new_user:
         await bot.send_message(message.chat.id, MSG_TO_CHOICE_CLIENT_PHONE, 
@@ -175,15 +171,13 @@ async def get_sketch_desc_order(message: types.Message, state: FSMContext):
     # переход: Хочешь отправить фото твоей идеи для переводной татуировки?' -> Нет
     elif message.text == kb_client.no_str:
         async with state.proxy() as data:
-            doc = [CheckDocument(doc=None, order_number= data['tattoo_sketch_order_number'])]
+            doc = [] # [CheckDocument(doc=None, order_number= data['tattoo_sketch_order_number'])]
             new_sketch_order = {
                 'tattoo_sketch_order_number':   tattoo_sketch_order_number,
                 'sketch_description':           data['sketch_description'],
-                'photo_lst':                    None,
-                'creation_time':                datetime.now(),
+                'photo_lst':                    [],
                 'state':                        STATES["open"],
-                'check_document':               doc,
-                'price':                        None,
+                'check_document':               doc
             }
             await fill_sketch_order_table(new_sketch_order, message)
         await state.finish()
@@ -216,7 +210,7 @@ async def get_photo_sketch_order(message: types.Message, state: FSMContext):
             
         elif message.text == kb_client.client_choice_send_more_photo_to_skatch_order['end_order']:
             async with state.proxy() as data:
-                doc = [CheckDocument(doc=None, order_number= data['tattoo_sketch_order_number'])]
+                doc = [] # [CheckDocument(doc=None, order_number= data['tattoo_sketch_order_number'])]
                 new_sketch_order = {
                     'tattoo_sketch_order_number':   data['tattoo_sketch_order_number'],
                     'sketch_description':           data['sketch_description'],
@@ -266,9 +260,9 @@ async def get_clients_tattoo_sketch_order(message: types.Message):
         await FSM_Client_send_to_client_view_sketch_order.get_order_number.set()
         kb = ReplyKeyboardMarkup(resize_keyboard= True)
         for order in orders:
-            kb.add(
-                KeyboardButton(f"Эскиз №{order.order_number} \"{order.order_name}\" {order.order_state}")
-            )
+            kb.add(KeyboardButton(f"Эскиз №{order.order_number} {order.order_state}"))
+            
+            kb.add(kb_client.cancel_btn)
         await bot.send_message(message.from_id, MSG_WHICH_ORDER_DO_CLIENT_WANT_TO_SEE,
             reply_markup= kb)
 
@@ -280,7 +274,7 @@ async def get_sketch_order_number(message: types.Message, state: FSMContext):
             .where(Orders.order_type == 'эскиз')).all()
     kb_lst = []
     for order in orders:
-        kb_lst.append(f"Эскиз №{order.order_number} \"{order.order_name}\" {order.order_state}") 
+        kb_lst.append(f"Эскиз №{order.order_number} {order.order_state}") 
         
     if message.text in kb_lst:
         with Session(engine) as session:
@@ -308,9 +302,8 @@ async def get_sketch_order_number(message: types.Message, state: FSMContext):
             if media != []:
                 await bot.send_chat_action(message.chat.id, types.ChatActions.UPLOAD_DOCUMENT)
                 await bot.send_media_group(message.chat.id, media= media)
-                await bot.send_message(message.from_id, msg)
-            else:
-                await bot.send_message(message.from_user.id, msg)
+                if len(media) > 1:
+                    await bot.send_message(message.from_user.id, msg)
                 
         await bot.send_message(message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
             reply_markup= kb_client.kb_choice_order_view)
@@ -346,8 +339,9 @@ async def command_client_add_new_photo_to_sketch_order(message: types.Message):
         kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
         for order in orders:
             kb_orders.add(KeyboardButton(f"Эскиз №{order.order_number} от "\
-                f"{order.creation_date.strftime('%H:%M %d/%m/%Y')}"))
-        kb_orders.add(kb_client.back_lst[0]).add(kb_client.cancel_lst[0])
+                f"{order.creation_date.strftime('%H:%M %d/%m/%Y')}")
+            )
+        kb_orders.add(kb_client.cancel_btn)
         
         await FSM_Client_get_new_photo_to_sketch_order.get_order_id.set()
         await bot.send_message(message.from_id, '❔ Для какого заказа хочешь добавить фотографию?',
@@ -374,7 +368,7 @@ async def get_order_id_to_add_new_photo_to_sketch_order(message: types.Message, 
             await FSM_Client_get_new_photo_to_sketch_order.next() # -> get_photo_to_sketch_order
             await bot.send_message(message.from_id, 
                 MSG_CLIENT_LOAD_PHOTO,
-                reply_markup= kb_client.kb_client_choice_add_photo_type)
+                reply_markup= kb_client.kb_back_cancel)
             
         elif any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS):
             await state.finish()
@@ -389,9 +383,9 @@ async def get_photo_to_sketch_order(message: types.Message, state: FSMContext):
     if message.content_type == 'photo':
         async with state.proxy() as data:
             data['sketch_photo'].append(OrderPhoto(
-                    photo=          message.photo[0].file_id,
-                    order_number=   data['sketch_sketch_order_number'],
-                    telegram_id=    message.from_id,
+                    photo=              message.photo[0].file_id,
+                    order_number=       data['sketch_order_number'],
+                    telegram_user_id=   message.from_id,
                 )
             )                                   
             sketch_order_photo_counter = data['sketch_order_photo_counter']
@@ -423,8 +417,9 @@ async def get_photo_to_sketch_order(message: types.Message, state: FSMContext):
             with Session(engine) as session:
                 order = session.scalars(select(Orders)
                     .where(Orders.order_number == sketch_order_number)).one()
-                order.order_photo = sketch_photo
-                session.commit()
+                for photo in sketch_photo:
+                    order.order_photo.append(photo)
+                    session.commit()
                 
             await state.finish()
             await bot.send_message(message.from_id,

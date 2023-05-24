@@ -319,8 +319,8 @@ async def process_successful_giftbox_payment_by_photo(message: types.Message, st
             
             if user == []:
                 await bot.send_message(message.chat.id, 
-                    f'🎉 Ваш заказ гифтбокса под номером {giftbox_order_number} почти оформлен!'\
-                    'Осталось только добавить свой телефон.\n\n ')
+                    f'🎉 Ваш заказ гифтбокса под номером {giftbox_order_number} почти оформлен! '\
+                    'Осталось только добавить свой телефон.')
                 await bot.send_message(
                     message.chat.id, MSG_TO_CHOICE_CLIENT_PHONE,
                     reply_markup= kb_client.kb_phone_number)
@@ -328,7 +328,7 @@ async def process_successful_giftbox_payment_by_photo(message: types.Message, st
             else:
                 await bot.send_message(message.chat.id, 
                     f'🍀 Ваш заказ гифтбокса под номером {giftbox_order_number} оформлен!\n\n'\
-                    '🟢 Хотите сделать что-нибудь еще?',
+                    f'{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
                     reply_markup= kb_client.kb_client_main)
                     
                 # TODO дополнить id Шуны
@@ -339,17 +339,18 @@ async def process_successful_giftbox_payment_by_photo(message: types.Message, st
                         f'Имя клиента: {message.from_user.full_name}')
                     
                     
-                    event = await obj.add_event(CALENDAR_ID,
-                        f'Новый гифтбокс заказ № {giftbox_order_number}',
-                        f"Описание заказа: {data['giftbox_note']}\n"\
-                        f"Имя клиента: {message.from_user.full_name}\n"\
-                        f"Телеграм клиента: @{message.from_user.username}",
-                        str(datetime.now()), # '2023-02-02T09:07:00',
-                        str(datetime.now())    # '2023-02-03T17:07:00'
+                    event = await obj.add_event(
+                        CALENDAR_ID,
+                        f'🎁 Новый гифтбокс заказ № {giftbox_order_number}',
+                        f"📃 Описание заказа: {data['giftbox_note']}\n"\
+                        f"💬 Имя клиента: {message.from_user.full_name}\n"\
+                        f"💬 Телеграм клиента: @{message.from_user.username}",
+                        f'{datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}', # '2023-02-02T09:07:00',
+                        f'{datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}'  # '2023-02-03T17:07:00'
                     )
 
         else:
-            await bot.send_message(message.from_id,  f"❌ Чек не подошел. %s " % check_doc["repost_msg"])
+            await bot.send_message(message.from_id, f"❌ Чек не подошел. %s " % check_doc["repost_msg"])
 
 
 #------------------------------------GET VIEW GIFTBOX ORDER--------------------------------------

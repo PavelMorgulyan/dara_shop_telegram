@@ -1,34 +1,34 @@
 {
   "1": {
-    "tattoo_name": "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ",
+    "tattoo_name": "Бабочки на ветке",
     "tattoo_photo": "AgACAgIAAxkBAAIpWmPvQFwyeEScr0rTB4qwosZxepL8AAI4wTEbzUN5S2xnCPAAAWtvqQEAAwIAA3MAAy4E",
     "tattoo_price": 4000,
-    "tattoo_colored": "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
-    "tattoo_note": "пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+    "tattoo_colored": "Цветное",
+    "tattoo_note": "Без описания",
     "creator": "admin"
   },
   "2": {
-    "tattoo_name": "пїЅпїЅпїЅпїЅпїЅпїЅ",
+    "tattoo_name": "Стрела",
     "tattoo_photo": "AgACAgIAAxkBAAIyKGP14wMs3O4LhMSqB9-1cjw4MJIBAAJfwzEbIgKxS-iiWJS7pDgzAQADAgADcwADLgQ",
     "tattoo_price": 6000,
-    "tattoo_colored": "пїЅ/пїЅ",
-    "tattoo_note": "пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+    "tattoo_colored": "Ч/б",
+    "tattoo_note": "Без описания",
     "creator": "admin"
   },
   "3": {
-    "tattoo_name": "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+    "tattoo_name": "Папоротник",
     "tattoo_photo": "AgACAgIAAxkBAAIyPWP143p3itz3v7e9Y6pGTx3jcVXmAAJjwzEbIgKxS1jUsIIvm9-tAQADAgADcwADLgQ",
     "tattoo_price": 7000,
-    "tattoo_colored": "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
-    "tattoo_note": "пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+    "tattoo_colored": "Цветное",
+    "tattoo_note": "Без описания",
     "creator": "admin"
   },
   "4": {
-    "tattoo_name": "пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+    "tattoo_name": "Ветка с шишками",
     "tattoo_photo": "AgACAgIAAxkBAAIyWGP15MNY5j8Ey3njh6rm5G2cpMq0AAJlwzEbIgKxS0EI6VVbUOb8AQADAgADcwADLgQ",
     "tattoo_price": 20000,
-    "tattoo_colored": "пїЅ/пїЅ",
-    "tattoo_note": "пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+    "tattoo_colored": "Ч/б",
+    "tattoo_note": "Без описания",
     "creator": "admin"
   }
 }

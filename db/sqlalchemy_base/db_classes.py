@@ -164,10 +164,10 @@ class Orders(Base):
 class OrderPhoto(Base):
     __tablename__ = "tattoo_photo"
     id:                 Mapped[int] = mapped_column(primary_key=True)
-    order_id:           Mapped[int] = mapped_column(ForeignKey("orders.id"))
-    order_number:       Mapped[int]# Mapped["TattooOrders"]# = relationship(back_populates="tattoo_order_number")
-    telegram_user_id:   Mapped[int] # = mapped_column(ForeignKey("user.id")) # message.from_id
-    photo:              Mapped[str]
+    order_id:           Mapped[Optional[int]] = mapped_column(ForeignKey("orders.id"))
+    order_number:       Mapped[Optional[int]]# Mapped["TattooOrders"]# = relationship(back_populates="tattoo_order_number")
+    telegram_user_id:   Mapped[Optional[int]] # = mapped_column(ForeignKey("user.id")) # message.from_id
+    photo:              Mapped[Optional[str]]
     photo_id:           Mapped["Orders"] = relationship(back_populates="order_photo")
     
     def __repr__(self) -> dict:
@@ -181,12 +181,12 @@ class OrderPhoto(Base):
 
 class TattooPlacePhoto(Base):
     __tablename__ = "tattoo_place_photo"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    order_id:  Mapped[int] = mapped_column(ForeignKey("orders.id"))
-    order_number: Mapped[int]
-    telegram_user_id: Mapped[int]
-    photo: Mapped[str]
-    photo_id: Mapped["Orders"] = relationship(back_populates="tattoo_place_photo")
+    id:                 Mapped[int] = mapped_column(primary_key=True)
+    order_id:           Mapped[Optional[int]] = mapped_column(ForeignKey("orders.id"))
+    order_number:       Mapped[Optional[int]]
+    telegram_user_id:   Mapped[Optional[int]]
+    photo:              Mapped[Optional[str]]
+    photo_id:           Mapped["Orders"] = relationship(back_populates="tattoo_place_photo")
     
     def __repr__(self) -> dict:
         return {
@@ -199,12 +199,12 @@ class TattooPlacePhoto(Base):
 
 class TattooPlaceVideoNote(Base):
     __tablename__ = "tattoo_place_video_note"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    order_id:  Mapped[int] = mapped_column(ForeignKey("orders.id"))
-    order_number: Mapped[int]#Mapped["TattooOrders"] = relationship(back_populates="tattoo_order_number")
-    telegram_user_id: Mapped[int] # = mapped_column(ForeignKey("user.id"))
-    video: Mapped[str]
-    video_id: Mapped["Orders"] = relationship(back_populates="tattoo_place_video_note")
+    id:                 Mapped[int] = mapped_column(primary_key=True)
+    order_id:           Mapped[Optional[int]] = mapped_column(ForeignKey("orders.id"))
+    order_number:       Mapped[Optional[int]]#Mapped["TattooOrders"] = relationship(back_populates="tattoo_order_number")
+    telegram_user_id:   Mapped[Optional[int]] # = mapped_column(ForeignKey("user.id"))
+    video:              Mapped[Optional[str]]
+    video_id:           Mapped["Orders"] = relationship(back_populates="tattoo_place_video_note")
     
     def __repr__(self) -> dict:
         return {

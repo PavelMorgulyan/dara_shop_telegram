@@ -93,9 +93,10 @@ class FSM_Client_consultation(StatesGroup):
 # хочу консультацию
 async def consultation_client_command(message: types.Message):
     if message.text.lower() in ['хочу консультацию 🌿', '/get_consultation', 'get_consultation']:
-        
-        schedule = Session(engine).scalars(select(ScheduleCalendar).where(ScheduleCalendar.status == 'Свободен').where(
-            ScheduleCalendar.event_type == 'консультация'))
+        schedule = Session(engine).scalars(select(ScheduleCalendar)
+            .where(ScheduleCalendar.status == 'Свободен')
+            .where(ScheduleCalendar.event_type == 'консультация')
+            .where(ScheduleCalendar.start_datetime > datetime.now())).all()
         
         if schedule == []:
             # TODO нужно ли давать выбор пользователю, чтобы он сам вбил дату консультации?
@@ -107,48 +108,63 @@ async def consultation_client_command(message: types.Message):
             msg_date_str = 'Вот мои свободные даты для консультаций в этом месяце:\n'
             
             for date in schedule:
-                str_item = f"{date.date.strftime('%/d/%m/%Y')} c {date[1]} по {date[2]}\n"
+                day = date.start_datetime.strftime("%d/%m/%Y")
+                start_time = date.start_datetime.strftime("%H:%M")
+                end_time = date.end_datetime.strftime("%H:%M")
+                str_item= f'{day} c {start_time} по {end_time}'
                 
-                if date.date >= datetime.now():
-                    msg_date_str += str_item
-                    kb_date_schedule.add(KeyboardButton(str_item))
+                msg_date_str += str_item
+                kb_date_schedule.add(KeyboardButton(str_item))
                     
             kb_date_schedule.add(kb_client.cancel_btn)
             await FSM_Client_consultation.choice_consultation_event_date.set()
 
-            await bot.send_message(message.from_id, f'{msg_date_str}\n Какую консультацию хочешь?',
+            await bot.send_message(message.from_id, f'{msg_date_str}')
+            await bot.send_message(message.from_id, 'Какую консультацию хочешь?',
                 reply_markup= kb_date_schedule)
 
 
-async def choice_consultation_event_date(message: types.Message,  state: FSMContext):
-    schedule = await get_info_many_from_table('schedule_calendar', 'status', 'Свободен')
+async def choice_consultation_event_date(message: types.Message, state: FSMContext):
+    with Session(engine) as session:
+        schedule = session.scalars(select(ScheduleCalendar)
+            .where(ScheduleCalendar.event_type == 'консультация')
+            .where(ScheduleCalendar.status == 'Свободен')
+            .where(ScheduleCalendar.start_datetime > datetime.now())).all()
+        
     schedule_consultation_list = []
-    
     for date in schedule:
-        date = list(date)
-        #if date[7].lower() == 'консультация':
-        schedule_consultation_list.append( f'{date[4]} {date[3]} c {date[1]} по {date[2]}')
+        day = date.start_datetime.strftime("%d/%m/%Y")
+        start_time = date.start_datetime.strftime("%H:%M")
+        end_time = date.end_datetime.strftime("%H:%M")
+        schedule_consultation_list.append(f'{day} c {start_time} по {end_time}')
 
     if any(text in message.text for text in LIST_CANCEL_COMMANDS):
         await state.finish()
         await bot.send_message(message.from_id, MSG_BACK_TO_HOME, reply_markup = kb_client.kb_client_main)
         
     elif message.text in schedule_consultation_list:
-        await update_info('schedule_calendar', 'id', message.text.split()[0], 'status', 'Занят')
+        with Session(engine) as session:
+            schedule = session.scalars(select(ScheduleCalendar)
+                .where(ScheduleCalendar.start_datetime == 
+                    datetime.strptime(f"{message.text.split()[0]} {message.text.split()[2]} ", 
+                        '%d/%m/%Y %H:%M'))
+                    ).one()
+            schedule.status = 'Занят'
+            start_time = schedule.start_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+            end_time= schedule.end_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+            session.commit()
 
         if DARA_ID != 0: # TODO дополнить id Шуны и добавить интеграцию с Google Calendar !!!
             await bot.send_message(DARA_ID,
                 f'Дорогая Тату-мастерица! '\
                 f'Поступил новая консультация! '
                 f'Дата встречи: {message.text}')
-            
-        date_meeting = message.text.split()[1].split('/')
-        start_time = f'{date_meeting[2]}-{date_meeting[1]}-{date_meeting[0]}T{message.text.split()[3]}'
-        end_time = f'{date_meeting[2]}-{date_meeting[1]}-{date_meeting[0]}T{message.text.split()[4]}'
 
-        event = await obj.add_event(CALENDAR_ID,
+        event = await obj.add_event(
+            CALENDAR_ID,
             'Новая консультация',
-            f'Новая консультация от пользователя {message.from_user.full_name}', 
+            f'Новая консультация для пользователя {message.from_user.full_name}'
+            f'💬 Телеграм клиента: @{message.from_user.username}', 
             start_time, # '2023-02-02T09:07:00',
             end_time    # '2023-02-03T17:07:00'
         )
