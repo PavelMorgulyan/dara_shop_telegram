@@ -41,12 +41,21 @@ class FSM_Client_tattoo_sketch_order(StatesGroup):
 
 # Начало диалога с пользователем, который хочет добавить новый заказ тату, хочу тату 🕸
 async def start_create_new_tattoo_sketch_order(message: types.Message):
-    await FSM_Client_tattoo_sketch_order.tattoo_sketch_note.set()
-    await bot.send_message(message.from_id,  
-        '🕸 Отлично, давай сделаем тебе эскиз! \n\n'\
-        f'{MSG_GET_DESCRIPTION_TATTOO_FROM_CLIENT_CONCEPTS}',
-        reply_markup = kb_client.kb_start_dialog_sketch_order
-    )
+    # защита от спама множества заказов. Клиент может заказать только по одному типу товара
+    with Session(engine) as session:
+        orders = session.scalars(select(Orders)
+            .where(Orders.order_type == 'эскиз')
+            .where(Orders.order_state.in_([STATES['open']]))
+            .where(Orders.user_id == message.from_id)).all()
+    if orders == []:
+        await FSM_Client_tattoo_sketch_order.tattoo_sketch_note.set()
+        await bot.send_message(message.from_id,  
+            '🕸 Отлично, давай сделаем тебе эскиз! \n\n'\
+            f'{MSG_GET_DESCRIPTION_TATTOO_FROM_CLIENT_CONCEPTS}',
+            reply_markup = kb_client.kb_start_dialog_sketch_order
+        )
+    else:
+        await bot.send_message(message.from_id, MSG_CLIENT_ALREADY_HAVE_OPEN_ORDER)
 
 
 async def fill_sketch_order_table(data:dict, message: types.Message):
@@ -129,7 +138,8 @@ async def get_sketch_desc_order(message: types.Message, state: FSMContext):
         
     if message.text in LIST_CANCEL_COMMANDS:
         await state.finish()
-        await bot.send_message(message.from_id, MSG_BACK_TO_HOME, reply_markup= kb_client.kb_client_main)
+        await bot.send_message(message.from_id, f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+            reply_markup=kb_client.kb_client_main)
         
     elif message.text in LIST_BACK_COMMANDS:
             await bot.send_message(message.from_id,  
@@ -201,7 +211,8 @@ async def get_photo_sketch_order(message: types.Message, state: FSMContext):
             
         elif message.text in LIST_CANCEL_COMMANDS:
             await state.finish()
-            await bot.send_message(message.from_id,  MSG_BACK_TO_HOME, reply_markup = kb_client.kb_client_main)
+            await bot.send_message(message.from_id, f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+                reply_markup=kb_client.kb_client_main)
             
         elif message.text == kb_client.client_choice_send_more_photo_to_skatch_order['more_photo']:
             async with state.proxy() as data:
@@ -262,7 +273,7 @@ async def get_clients_tattoo_sketch_order(message: types.Message):
         for order in orders:
             kb.add(KeyboardButton(f"Эскиз №{order.order_number} {order.order_state}"))
             
-            kb.add(kb_client.cancel_btn)
+        kb.add(kb_client.cancel_btn)
         await bot.send_message(message.from_id, MSG_WHICH_ORDER_DO_CLIENT_WANT_TO_SEE,
             reply_markup= kb)
 

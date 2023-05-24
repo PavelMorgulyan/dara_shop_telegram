@@ -42,11 +42,16 @@ async def send_to_view_orders(
     order_type: str) -> tuple:
     unpaid_order_lst = []
     kb_unpaid_orders = ReplyKeyboardMarkup(resize_keyboard=True)
+    orders_str = ''
+    msg = ''
     for order in orders:
-        creation_date = order.creation_time.strftime('%H:%M %d/%m/%Y')
+        creation_date = order.creation_date.strftime('%H:%M %d/%m/%Y')
         if order_type in kb_client.choice_order_type_to_payloading["Тату заказы 🕸"]:
-            start_time = order.start_datetime.strftime("%d/%m/%Y c %H:%M")
-            end_time = order.end_datetime.strftime("%H:%M")
+            with Session(engine) as session:
+                schedule= session.scalars(select(ScheduleCalendar)
+                    .where(ScheduleCalendar.id == order.schedule_id)).one()
+            start_time = schedule.start_datetime.strftime("%d/%m/%Y c %H:%M")
+            end_time = schedule.end_datetime.strftime("%H:%M")
             orders_str += \
                 f'🕸 Тату заказ № {order.order_number} от {creation_date}\n'\
                 f'🕒 Дата и время встречи: {start_time} по {end_time}'\
@@ -88,18 +93,17 @@ async def send_to_view_orders(
 async def command_send_to_view_orders_to_payloading(message: types.Message, state=FSMContext):
     if message.text in list(kb_client.choice_order_type_to_payloading.keys()):
         async with state.proxy() as data:
-            data['order_type'] == kb_client.choice_order_type_to_payloading[message.text]
-            
+            data['order_type'] = kb_client.choice_order_type_to_payloading[message.text]
         with Session(engine) as session:
             unpaid_orders = session.scalars(select(Orders)
                 .where(Orders.order_type.in_(kb_client.choice_order_type_to_payloading[message.text]))
                 .where(Orders.user_id == message.from_id)
-                .where(Orders.order_state.in_(STATES['open'], STATES['processed']))).all()
+                .where(Orders.order_state.in_([STATES['open'], STATES['processed']]))).all()
 
             paid_orders = session.scalars(select(Orders)
                 .where(Orders.order_type.in_(kb_client.choice_order_type_to_payloading[message.text]))
                 .where(Orders.user_id == message.from_id)
-                .where(Orders.order_state.not_in(STATES['open'], STATES['processed']))).all()
+                .where(Orders.order_state.not_in([STATES['open'], STATES['processed']]))).all()
             
         if paid_orders != [] and unpaid_orders == []:
             await bot.send_message(message.from_id, 
@@ -110,9 +114,10 @@ async def command_send_to_view_orders_to_payloading(message: types.Message, stat
                 reply_markup= kb_client.kb_client_main)
             
         else:
+            # TODO нет вывода заказов
             kb_unpaid_orders, orders_str, unpaid_order_lst = await send_to_view_orders(
                 orders= unpaid_orders, 
-                order_type= message.text
+                order_type= kb_client.choice_order_type_to_payloading[message.text]
             )
             
             async with state.proxy() as data:

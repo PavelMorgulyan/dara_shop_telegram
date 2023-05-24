@@ -36,12 +36,21 @@ class FMS_Client_get_info_from_user(StatesGroup):
 
 async def giftbox_command(message: types.Message):
     if message.text.lower() in ['хочу гифтбокс 🎁', '/get_giftbox', 'get_giftbox']:
-        await FSM_Client_giftbox_having.giftbox_note_choice.set() # -> giftbox_order_giftbox_note_choice
-        await bot.send_photo(message.chat.id, open('giftbox_title.jpg', 'rb'), GIFTBOX_DESCRIPTION) 
-        # await bot.send_message(message.from_id, 'Какой гифтбокс ты хочешь?',
-        # reply_markup=kb_client_giftbox_names)
-        await bot.send_message(message.from_id, f'Хочешь что-нибудь добавить к своему заказу?',
-            reply_markup= kb_client.kb_giftbox_note)
+        # защита от спама множества заказов. Клиент может заказать только по одному типу товара
+        with Session(engine) as session:
+            orders = session.scalars(select(Orders)
+                .where(Orders.order_type == 'гифтбокс')
+                .where(Orders.order_state.in_([STATES['open']]))
+                .where(Orders.user_id == message.from_id)).all()
+        if orders == []:
+            await FSM_Client_giftbox_having.giftbox_note_choice.set() # -> giftbox_order_giftbox_note_choice
+            await bot.send_photo(message.chat.id, open('giftbox_title.jpg', 'rb'), GIFTBOX_DESCRIPTION) 
+            # await bot.send_message(message.from_id, 'Какой гифтбокс ты хочешь?',
+            # reply_markup=kb_client_giftbox_names)
+            await bot.send_message(message.from_id, f'Хочешь что-нибудь добавить к своему заказу?',
+                reply_markup= kb_client.kb_giftbox_note)
+        else:
+            await bot.send_message(message.from_id, MSG_CLIENT_ALREADY_HAVE_OPEN_ORDER)
     
     
 async def giftbox_order_giftbox_note_choice(message: types.Message, state: FSMContext):

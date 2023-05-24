@@ -60,64 +60,70 @@ async def start_create_new_tattoo_order(message: types.Message):
     # -> get_client_choice_main_or_temporary_tattoo
     await FSM_Client_tattoo_order.client_choice_main_or_temporary_tattoo.set() 
     await bot.send_message(message.from_id,
-        '🌿Отлично, давай подберем тебе твою уникальную татуировку!\n\n'\
+        '🌿 Отлично, давай подберем уникальную татуировку!\n\n'\
         f'{MSG_CLIENT_WANT_CURRENT_OR_NOT_TATTOO}',
         reply_markup = kb_client.kb_client_choice_main_or_temporary_tattoo)
+    
 
 
 async def get_client_choice_main_or_temporary_tattoo(message: types.Message, state: FSMContext):
     if message.text in list(kb_client.choice_main_or_temporary_tattoo.values()):
-        # в прайс-листе находится список размеров
-        with Session(engine) as session:
-            sizes = session.scalars(select(OrderPriceList)
-                .where(OrderPriceList.type.in_([
-                            kb_admin.price_lst_types['constant_tattoo'],
-                            kb_admin.price_lst_types['shifting_tattoo']
-                        ])
-                    )).all()
-        kb_client_size_tattoo = ReplyKeyboardMarkup(resize_keyboard=True)
-        sizes_lst = []
-        for size in sizes:
-            sizes_lst.append(f'{size.min_size} - {size.max_size} см2 📏')
-            kb_client_size_tattoo.add(KeyboardButton(f'{size.min_size} - {size.max_size} см2 📏'))
-        kb_client_size_tattoo.add(KeyboardButton(kb_client.another_size))
-        kb_client_size_tattoo.add(kb_client.back_btn).add(kb_client.cancel_btn)
-        
-        async with state.proxy() as data:
-            # tattoo_type = постоянное тату, переводное тату
-            data['tattoo_type'] = message.text[:-2].lower()
-            data['next_menu_look_tattoo_galery'] = False
-            data['load_tattoo_photo'] = False # для меню выбора фото тату - для кнопки "Назад"
-            data['load_tattoo_desc'] = False # для меню загрузки описания эскиза тату - для кнопки "Назад"
-            data['tattoo_from_galery'] = False # если тату из галереи 
-            data['tattoo_photo'] = None # под фото тату
-            data['tattoo_photo_tmp_lst'] = ''
-            data['tattoo_place_photo'] = []
-            data['tattoo_order_photo_counter'] = False
-            data['tattoo_place_file_counter'] = 4
-            data['tattoo_place_video_note'] = [] # список под видео-записки тела
-            data['tattoo_place_video'] = [] # список под видео тела
-            data['tattoo_body_place'] = "Без места для тату" # изначальное место для тату в заказе
-            data['tattoo_details_number'] = 0 # изначальное количество деталей тату в заказе
-            data['order_state'] = STATES["open"] # выставляем статус как открытый
-            data['sizes_lst'] = sizes_lst # загружаем список размеров
-            data['kb_client_size_tattoo'] = kb_client_size_tattoo            
-            data['tattoo_order_number'] = await generate_random_order_number(ORDER_CODE_LENTH)# определяем номер заказа
-            data['check_document'] = [] # изначально выставляется в []
-            if data['tattoo_type'] == kb_admin.price_lst_types['shifting_tattoo']:
-                # когда тату переводная
-                data['schedule_id'] = None  
-                data['date_meeting'] = None 
-                data['event_type_creation'] = 'no schedule'
-                data['start_date_time'] = None
-                data['end_date_time'] = None
+        # защита от спама множества заказов. Клиент может заказать только по одному типу товара
+        with Session(engine) as session: 
+            orders = session.scalars(select(Orders)
+                .where(Orders.order_type == message.text[:-2].lower())
+                .where(Orders.order_state.in_([STATES['open']]))
+                .where(Orders.user_id == message.from_id)).all()
+        if orders == []:
+            # в прайс-листе находится список размеров
+            with Session(engine) as session:
+                sizes = session.scalars(select(OrderPriceList)
+                    .where(OrderPriceList.type == message.text[:-2].lower())).all()
+            kb_client_size_tattoo = ReplyKeyboardMarkup(resize_keyboard=True)
+            sizes_lst = []
+            for size in sizes:
+                sizes_lst.append(f'{size.min_size} - {size.max_size} см2 📏')
+                kb_client_size_tattoo.add(KeyboardButton(f'{size.min_size} - {size.max_size} см2 📏'))
+            kb_client_size_tattoo.add(KeyboardButton(kb_client.another_size))
+            kb_client_size_tattoo.add(kb_client.back_btn).add(kb_client.cancel_btn)
             
-        await FSM_Client_tattoo_order.next() # -> load_tattoo_order_photo
-        await bot.send_message(message.from_id, f'{MSG_START_TATTOO_ORDER}')
-        await bot.send_message(message.from_id, f'{MSG_SCRETH_DEV}\n\n{MSG_GET_PHOTO_FROM_USER}',
-            # ['Посмотреть галерею тату 📃', 'Загрузить свою фотографию эскиза 📎', 
-            # 'У меня нет фотографии для эскиза 😓', 'Отмена ❌']
-            reply_markup = kb_client.kb_no_photo_in_tattoo_order)
+            async with state.proxy() as data:
+                # tattoo_type = постоянное тату, переводное тату
+                data['tattoo_type'] = message.text[:-2].lower()
+                data['next_menu_look_tattoo_galery'] = False
+                data['load_tattoo_photo'] = False # для меню выбора фото тату - для кнопки "Назад"
+                data['load_tattoo_desc'] = False # для меню загрузки описания эскиза тату - для кнопки "Назад"
+                data['tattoo_from_galery'] = False # если тату из галереи 
+                data['tattoo_photo'] = None # под фото тату
+                data['tattoo_photo_tmp_lst'] = ''
+                data['tattoo_place_photo'] = []
+                data['tattoo_order_photo_counter'] = False
+                data['tattoo_place_file_counter'] = 4
+                data['tattoo_place_video_note'] = [] # список под видео-записки тела
+                data['tattoo_place_video'] = [] # список под видео тела
+                data['tattoo_body_place'] = "Без места для тату" # изначальное место для тату в заказе
+                data['tattoo_details_number'] = 0 # изначальное количество деталей тату в заказе
+                data['order_state'] = STATES["open"] # выставляем статус как открытый
+                data['sizes_lst'] = sizes_lst # загружаем список размеров
+                data['kb_client_size_tattoo'] = kb_client_size_tattoo            
+                data['tattoo_order_number'] = await generate_random_order_number(ORDER_CODE_LENTH)# определяем номер заказа
+                data['check_document'] = [] # изначально выставляется в []
+                if data['tattoo_type'] == kb_admin.price_lst_types['shifting_tattoo']:
+                    # когда тату переводная
+                    data['schedule_id'] = None  
+                    data['date_meeting'] = None 
+                    data['event_type_creation'] = 'no schedule'
+                    data['start_date_time'] = None
+                    data['end_date_time'] = None
+                
+            await FSM_Client_tattoo_order.next() # -> load_tattoo_order_photo
+            await bot.send_message(message.from_id, f'{MSG_START_TATTOO_ORDER}')
+            await bot.send_message(message.from_id, f'{MSG_SCRETH_DEV}\n\n{MSG_GET_PHOTO_FROM_USER}',
+                # ['Посмотреть галерею тату 📃', 'Загрузить свою фотографию эскиза 📎', 
+                # 'У меня нет фотографии для эскиза 😓', 'Отмена ❌']
+                reply_markup = kb_client.kb_no_photo_in_tattoo_order)
+        else:
+            await bot.send_message(message.from_id, MSG_CLIENT_ALREADY_HAVE_OPEN_ORDER)
         
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()
