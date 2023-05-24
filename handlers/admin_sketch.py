@@ -261,25 +261,14 @@ async def fill_sketch_order_table(data:dict, message: types.Message):
     with Session(engine) as session:
         new_sketch = Orders(
             order_type = 'эскиз',
-            order_name= None,
-            user_id= None,
             order_photo= data['sketch_photo_lst'],
-            tattoo_size = None,
-            tattoo_note= None,
             order_note = data['sketch_description'],
             order_state= data['state'],
             order_number= data['tattoo_sketch_order_number'],
             creation_date= data['creation_date'],
             price= data['price'],
             check_document= data['check_document'],
-            username= data['telegram'],
-            schedule_id= None,
-            colored= None,
-            bodyplace= None,
-            tattoo_place_photo= None,
-            tattoo_place_video_note= None,
-            tattoo_place_video= None,
-            code= None
+            username= data['telegram']
         )
         session.add(new_sketch)
         session.commit()
