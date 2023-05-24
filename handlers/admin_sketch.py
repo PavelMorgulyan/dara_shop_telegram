@@ -533,7 +533,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             check_doc_pdf = await check_pdf_document_payment(
                 user_id = message.from_id,
-                price = data['price'],
+                price = str(data['price']),
                 file_name = data['tattoo_sketch_order'] + '.pdf',
                 file_id = message.document.file_id
             )
@@ -564,7 +564,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
             check_doc_photo = await check_photo_payment(
                 message, 
                 message.from_id, 
-                data['price'], 
+                str(data['price']),
                 data['tattoo_sketch_order'], 
                 message.photo[0].file_id
             )

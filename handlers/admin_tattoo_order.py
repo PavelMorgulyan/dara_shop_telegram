@@ -420,12 +420,12 @@ async def get_price_for_check_document(message: types.Message, state: FSMContext
 async def get_check_document(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         tattoo_order_number = data['tattoo_order_number'] 
-        price = data['tattoo_order_price']
+        price = str(data['tattoo_order_price'])
         
     if message.content_type == 'document':
         check_doc_pdf = await check_pdf_document_payment(
             user_id= message.from_id, 
-            price= price, 
+            price= price,
             file_name= message.document.file_name, 
             file_id= message.document.file_id
         ) 

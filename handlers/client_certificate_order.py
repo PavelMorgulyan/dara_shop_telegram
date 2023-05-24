@@ -179,12 +179,8 @@ async def process_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery,
 async def process_successful_cert_payment(message: types.Message, state=FSMContext):
     check_doc = {}
     async with state.proxy() as data: # type: ignore
-        price = data['price']
-        if len(price) == 4 and ' ' not in price:
-            price = data['price'].replace('000', ' 000')
-        elif len(price) == 5 and ' ' not in price:
-            price = data['price'][0:1] + ' ' + data['price'][2:4]
-        
+        price = str(data['price'])
+
     '''
     MESSAGES['successful_payment'].format(
         total_amount=message.successful_payment.total_amount // 100,

@@ -12,10 +12,6 @@ from handlers.other import *
 from validate import check_pdf_document_payment, check_photo_payment
 from handlers.calendar_client import obj
 
-from db.db_setter import set_to_table
-from db.db_updater import update_info
-from db.db_getter import get_info_many_from_table, DB_NAME, sqlite3
-
 from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
