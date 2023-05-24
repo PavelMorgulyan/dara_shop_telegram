@@ -1,7 +1,8 @@
 from aiogram.utils import executor
 from create_bot import dp
 from handlers import admins, client, client_tattoo_order, admin_price_list, admin_schedule,\
-    admin_tattoo_item, admin_tattoo_order, admin_sketch, admin_clients_commands, client_certificate_order,\
+    admin_tattoo_item, admin_tattoo_order, admin_sketch, admin_clients_commands,\
+    client_certificate_order,\
     client_giftbox, client_sketch_order, client_payload, admin_cert
 ''' \
     ,\
@@ -29,9 +30,7 @@ client_certificate_order.register_handlers_client_cert(dp)
 client_certificate_order.register_handlers_client_cert(dp)
 client_giftbox.register_handlers_client_giftbox(dp)
 client_sketch_order.register_handlers_client_sketch(dp)
-
 client_payload.register_handlers_client_payload(dp)
-
 
 admins.register_handlers_admin(dp)
 admin_price_list.register_handlers_admin_price_list(dp)

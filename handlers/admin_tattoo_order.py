@@ -1695,8 +1695,6 @@ async def tattoo_order_load_user_name(message: types.Message, state: FSMContext)
             "date_meeting": data['start_date_time'] + ' ' +  data['date_meeting'],
             "order_number": data['tattoo_order_number'] 
         }
-        
-        
         await update_info('schedule_calendar', 'id', data['schedule_id'], 'status', 'Занят')
         
         time_meeting = data['start_date_time'] 
@@ -1707,12 +1705,14 @@ async def tattoo_order_load_user_name(message: types.Message, state: FSMContext)
 
         end_time = f'{date_meeting[2]}-{date_meeting[1]}-{date_meeting[0]}T{end_time_meeting}'
             
-        event = await obj.add_event(CALENDAR_ID,
+        event = await obj.add_event(
+            CALENDAR_ID,
             f'Новый тату заказ № {tattoo_order_number}',
                 'Название тату: ' +    data['tattoo_name'] + ', \n' + \
                 'Описание тату: ' +    data['tattoo_note'] + ', \n' + \
                 'Описание заказа: ' +  data['order_note'] + ', \n' + \
-                'Имя клиента: ' +      message.text,
+                f"Имя клиента: {message.from_user.full_name}\n"\
+                    ,
             start_time, # '2023-02-02T09:07:00',
             end_time    # '2023-02-03T17:07:00'
         )
