@@ -61,7 +61,7 @@ async def giftbox_order_giftbox_note_choice(message: types.Message, state: FSMCo
         
     elif any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS):
         await state.finish()
-        await bot.send_message(message.from_id, MSG_BACK_TO_HOME,
+        await bot.send_message(message.from_id, f'{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}',
             reply_markup= kb_client.kb_client_main)
         
     else:
@@ -117,7 +117,7 @@ async def giftbox_order_add_giftbox_note(message: types.Message, state: FSMConte
         
     elif any(text in message.text for text in LIST_CANCEL_COMMANDS):
         await state.finish()
-        await bot.send_message(message.from_id,  MSG_BACK_TO_HOME,
+        await bot.send_message(message.from_id, f'{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}',
             reply_markup= kb_client.kb_client_main)
 
     else:
@@ -269,7 +269,7 @@ async def process_successful_giftbox_payment_by_photo(message: types.Message, st
             doc_name += '.pdf'
             check_doc = await check_pdf_document_payment(
                 user_id,
-                data['price'],
+                str(data['price']),
                 doc_name,
                 message.document.file_id
             ) 
@@ -279,7 +279,7 @@ async def process_successful_giftbox_payment_by_photo(message: types.Message, st
             check_doc = await check_photo_payment(
                 message,
                 user_id,
-                data['price'],
+                str(data['price']),
                 doc_name,
                 message.photo[0].file_id
             )

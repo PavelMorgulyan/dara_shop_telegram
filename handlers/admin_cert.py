@@ -9,7 +9,7 @@ from aiogram.dispatcher.filters import Text
 from handlers.client import CODE_LENTH, ORDER_CODE_LENTH, ADMIN_NAMES, CALENDAR_ID
 from handlers.other import generate_random_code, generate_random_order_number
 
-from validate import check_pdf_document_payment
+from validate import check_pdf_document_payment, check_photo_payment
 from db.db_setter import set_to_table
 from db.db_updater import update_info
 from db.db_getter import get_info_many_from_table
@@ -34,6 +34,22 @@ async def get_cert_command_list(message: types.Message):
 
 
 #----------------------------------------CREATE CERT ORDER--------------------------------------
+async def create_cert_order(data:dict, message: types.Message):
+    with Session(engine) as session:
+        new_cert_order = Orders(
+            order_type = 'сертификат',
+            user_id= message.from_id,
+            order_state= STATES['open'],
+            order_number= data['cert_order_number'],
+            creation_date= datetime.now(),
+            price= data['price'],
+            check_document= data['check_document'],
+            username= message.from_user.full_name,
+            code=data['code']
+        )
+        session.add(new_cert_order)
+        session.commit()
+
 class FSM_Admin_сert_item(StatesGroup):
     сert_price = State() 
     сert_other_price = State()
@@ -185,17 +201,26 @@ async def get_check_answer_cert_from_admin(message: types.Message, state=FSMCont
 
 # Получаем фотографию или документ чека 
 async def get_check_document_cert_from_admin(message: types.Message, state=FSMContext):
+    
     async with state.proxy() as data: # type: ignore
-        data['check_document'] = message.document.file_id # .photo[0].file_id
-        price = data['price']
-
-    # Проверяем чек на корректность # data['check_document']
-    check_doc = await check_pdf_document_payment(
-        message.from_id, price, message.document.file_name, data['check_document']) 
-    if check_doc:
+        price = str(data['price'])
+        
+    check_document = ''
+    if message.content_type == 'document':
+        check_document = message.document.file_id # .photo[0].file_id
+        # Проверяем чек на корректность 
+        check_doc_result = await check_pdf_document_payment(
+            message.from_id, price, message.document.file_name, check_document)
+        
+    elif message.content_type == 'photo':
+        check_document = message.photo[0].file_id
+        # Проверяем чек на корректность 
+        check_doc_result = await check_photo_payment(
+            message, message.from_id, price, data['cert_order_number'], check_document)
+    
+    if check_doc_result["result"]:
         async with state.proxy() as data: # type: ignore
             cert_order_number = data['cert_order_number']
-            data['check_photo'] = message
             
             new_cert_order = {
                 "username":             data['username'],
@@ -204,21 +229,22 @@ async def get_check_document_cert_from_admin(message: types.Message, state=FSMCo
                 "code":                 data['code'] ,  
                 "creation_date" :       data['creation_date'],
                 "cert_order_number":    data['cert_order_number'],
-                "check_document" :      data['check_document']
+                "check_document" :      check_document
             }
             
-            await set_to_table(tuple(new_cert_order.values()), 'сert_orders')
+            # await set_to_table(tuple(new_cert_order.values()), 'сert_orders')
             
         await state.finish() # type: ignore
         await FSM_Admin_cert_username_info.get_user_name.set()
         async with state.proxy() as data: # type: ignore
             data['order_number'] = cert_order_number
         
-        await bot.send_message(message.chat.id, f'Админ, заказ под номером {cert_order_number} почти оформлен!'\
+        await bot.send_message(message.chat.id, 
+            f'Админ, заказ под номером {cert_order_number} почти оформлен!'\
             ' Осталось только добавить имя, телеграм и телефон пользователя заказа.'\
             ' Напиши имя пользователя.')
     else:
-        await message.reply('Прости, не мог бы ты, о Великий Админ, отправить документ с чеком заново')
+        await message.reply('Прости, не мог бы ты отправить документ с чеком заново. %s' % check_doc_result[''])
 
 
 async def cert_load_user_name(message: types.Message, state: FSMContext):
