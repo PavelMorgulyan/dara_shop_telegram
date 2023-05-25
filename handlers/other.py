@@ -8,10 +8,11 @@ MONTH_NAME_EN = ['january', 'february', 'march', 'april', 'may', 'june',
     'july', 'august', 'september', 'october', 'november', 'december']
 
 STATES = {
-    "open" : 'Открыт',
-    "processed" : "Обработан",
-    "paid": "Оплачен",
-    "complete" : 'Выполнен',
+    "open" :        'Открыт',
+    "processed" :   "Обработан",
+    "paid":         "Оплачен",
+    "in_work":      "Выполняется",
+    "complete" :    'Выполнен',
     "closed":{
         "rejected":     'Отклонен', 
         "postponed":    'Отложен', 

@@ -172,7 +172,6 @@ new_tattoo_item_state  = {
     'Создатель' : "creator"
 }
 
-
 in_stock_button = ['Есть в наличии', 'Нет в наличии, нужно докупать']
 
 # https://shinyband.com/glitterss
