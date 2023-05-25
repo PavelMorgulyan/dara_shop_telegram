@@ -97,19 +97,27 @@ client_main = {
     'client_want_cert':             'Xочу сертификат 🎫',
     'free_dates':                   'Свободные даты 🗓',
     'clients_orders':               'Мои заказы 📃',
+    'client_schedule':              'Сеансы 🕒',
     'payload_order':                'Оплатить заказ 💳',
     'about_tattoo_master':          'О тату мастере 🧾',
     'important_info':               'Важная информация ❕', 
     # ,'Закончить 🌴''Хочу создать тату эскиз 📷'
 }
 
+client_schedule_menu = {
+    'view_client_events': 'Посмотреть мои сеансы 📃',
+    'add_new_event': 'Новый сеанс 🕒',
+    'change_event': 'Изменить мой сеанс 🔧',
+}
+
 choice_order_view = {
-    "client_watch_tattoo_order" :           'Посмотреть мои тату заказы 🕸',
-    "client_add_photo_to_tattoo_order" :    'Добавить фотографии к тату заказу 📷' ,
-    "client_add_photo_to_sketch_order" :    'Добавить фотографию к заказу эскиза 🌿',
-    "client_watch_giftbox_order" :          'Посмотреть мои гифтбоксы 🎁',
-    "client_watch_cert_order" :             'Посмотреть мои сертификаты 🎫',
-    "client_watch_sketch_order" :           'Посмотреть мои заказы эскизов 🎨'
+    "client_watch_tattoo_order" :       'Посмотреть мои тату заказы 🕸',
+    "client_add_photo_to_tattoo_order": 'Добавить фотографии к тату заказу 📷' ,
+    "client_add_photo_to_sketch_order": 'Добавить фотографию к заказу эскиза 🌿',
+    "client_watch_giftbox_order" :      'Посмотреть мои гифтбоксы 🎁',
+    "client_watch_cert_order" :         'Посмотреть мои сертификаты 🎫',
+    "client_watch_sketch_order" :       'Посмотреть мои заказы эскизов 🎨',
+    # "client_add_new_schedule_event":    'Добавить новую дату сеанса'
 } 
 
 choice_order_pay = [
@@ -243,6 +251,7 @@ kb_client_choice_add_photo_type = create_kb(list(client_choice_add_photo_type.va
 kb_client_choice_add_another_photo_to_tattoo_order = \
     create_kb(list(client_choice_add_another_photo_to_tattoo_order.values()) + back_lst + cancel_lst)
 kb_next_action = create_kb(next_action_lst + back_lst + cancel_lst)
+kb_client_schedule_menu = create_kb(list(client_schedule_menu.values()) + LIST_BACK_TO_HOME)
 kb_get_information = create_kb(list(get_information.values()) + LIST_BACK_TO_HOME)
 kb_no_photo_in_tattoo_order = create_kb(list(no_photo_in_tattoo_order.values()) + back_lst + cancel_lst)
 kb_colored_tattoo_choice = create_kb(colored_tattoo_choice + back_lst + cancel_lst)
