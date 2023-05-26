@@ -48,7 +48,10 @@ async def command_start(message: types.Message):
             message.from_user.id, 
             'Привет админ! Какие команды хочешь выполнить?',
             reply_markup = kb_admin.kb_main)
-        admin_tattoo_item = Session(engine).scalars(select(TattooItems)).all()
+        
+        with Session(engine) as session:
+            admin_tattoo_item = session.scalars(select(TattooItems)).all()
+            
         if admin_tattoo_item == []:
             await db_dump_from_json_tattoo_items()
         
@@ -60,26 +63,32 @@ async def command_start(message: types.Message):
 
 # свободные даты
 async def open_date_command(message: types.Message):    
-    schedule = Session(engine).scalars(select(ScheduleCalendar).where(
-        ScheduleCalendar.status == "Свободен").where(
-        ScheduleCalendar.event_type == "тату заказ"))
+    with Session(engine) as session:
+        schedule = session.scalars(select(ScheduleCalendar)
+            .where(ScheduleCalendar.start_datetime > datetime.now())
+            .order_by(ScheduleCalendar.start_datetime)
+            .where(ScheduleCalendar.status == "Свободен")
+            .where(ScheduleCalendar.event_type == "тату заказ")).all()
+            
     
     date_list = ''
     for date in schedule:
-        date_list += f'🗓 {date.date} c {date.start_time} по {date.end_time}\n'
+        date_list += f"🗓 {date.start_datetime.strftime('%H:%M')} до"\
+            f" {date.end_datetime.strftime('%H:%M %d/%m/%Y')}\n"
     month_today = int(datetime.strftime(datetime.now(), '%m'))
     year_today = int(datetime.strftime(datetime.now(), '%Y'))
     
     schedule_photo = await get_info_many_from_table('schedule_photo', 'name', f'{month_today} {year_today}')
     if schedule_photo != [] and schedule != []:
         await bot.send_photo( message.from_user.id, list(schedule_photo[0])[1],
-            f'Вот мои свободные даты в этом месяце:\n{date_list}',
+            f'💬 Вот мои свободные даты в этом месяце:\n\n{date_list}',
             reply_markup = kb_client.kb_client_main)
         
     elif schedule != [] and schedule_photo == []:
         await bot.send_message(message.from_user.id, 
-            f'Вот мои свободные даты в этом месяце:\n{date_list}',
+            f'💬 Вот мои свободные даты в этом месяце:\n\n{date_list}',
             reply_markup = kb_client.kb_client_main)
+        
     else:
         await bot.send_message(message.from_id,  
             '❌ Прости, но в месяце пока нет свободных дат.\n\n '\
@@ -94,6 +103,7 @@ class FSM_Client_consultation(StatesGroup):
 async def consultation_client_command(message: types.Message):
     if message.text.lower() in ['хочу консультацию 🌿', '/get_consultation', 'get_consultation']:
         schedule = Session(engine).scalars(select(ScheduleCalendar)
+            .order_by(ScheduleCalendar.start_datetime)
             .where(ScheduleCalendar.status == 'Свободен')
             .where(ScheduleCalendar.event_type == 'консультация')
             .where(ScheduleCalendar.start_datetime > datetime.now())).all()
@@ -120,7 +130,7 @@ async def consultation_client_command(message: types.Message):
             await FSM_Client_consultation.choice_consultation_event_date.set()
 
             await bot.send_message(message.from_id, f'{msg_date_str}')
-            await bot.send_message(message.from_id, 'Какую консультацию хочешь?',
+            await bot.send_message(message.from_id, '❔ Какую консультацию хочешь?',
                 reply_markup= kb_date_schedule)
 
 
@@ -157,8 +167,9 @@ async def choice_consultation_event_date(message: types.Message, state: FSMConte
         if DARA_ID != 0: # TODO дополнить id Шуны и добавить интеграцию с Google Calendar !!!
             await bot.send_message(DARA_ID,
                 f'Дорогая Тату-мастерица! '\
-                f'Поступил новая консультация! '
-                f'Дата встречи: {message.text}')
+                f'У тебя новая консультация! '
+                f'Дата встречи: {message.text}\n'
+                f'Телеграм клиента: @{message.from_user.username}')
 
         event = await obj.add_event(
             CALENDAR_ID,
@@ -181,7 +192,7 @@ async def choice_consultation_event_date(message: types.Message, state: FSMConte
     
     else:
         await bot.send_message(message.from_id, 
-            f'❌ Прошу, выбери дату консультации из предложенных вариантов.')
+            f'❌ Выберите дату консультации из предложенных вариантов.')
 
 
 # О тату мастере

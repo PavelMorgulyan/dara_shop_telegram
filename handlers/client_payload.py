@@ -6,6 +6,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text
 
 from msg.main_msg import *
+from msg.msg_client_payload import *
 from keyboards import kb_client, kb_admin
 from handlers.other import *
 
@@ -32,7 +33,7 @@ class FSM_Client_paid_order(StatesGroup):
 async def command_get_payment_order_choice(message: types.Message):
     if message.text.lower() in ['оплатить заказ 💳', '/pay_for_the_order']:
         await FSM_Client_paid_order.order_type.set() # -> command_send_to_view_orders_to_payloading
-        await bot.send_message(message.from_id, "❔ Какие заказы хочешь оплатить?",
+        await bot.send_message(message.from_id, MSG_WHICH_ORDER_CLIENT_WANT_TO_PAY,
             reply_markup= kb_client.kb_choice_order_type_to_payloading)
         # await FSM_Client_paid_order.order_name.set()
 
@@ -108,10 +109,10 @@ async def command_send_to_view_orders_to_payloading(message: types.Message, stat
         if paid_orders != [] and unpaid_orders == []:
             await bot.send_message(message.from_id, 
                 f'🍀 У тебя все тату заказы оплачены! {MSG_DO_CLIENT_WANT_TO_DO_MORE}',
-                reply_markup= kb_client.kb_client_main)
+                reply_markup= kb_client.kb_choice_order_type_to_payloading)
         if unpaid_orders == []:
             await bot.send_message(message.from_id, MSG_CLIENT_DONT_HAVE_SKETCH_ORDERS,
-                reply_markup= kb_client.kb_client_main)
+                reply_markup= kb_client.kb_choice_order_type_to_payloading)
             
         else:
             # TODO нет вывода заказов
@@ -137,7 +138,7 @@ async def command_send_to_view_orders_to_payloading(message: types.Message, stat
             reply_markup= kb_client.kb_client_main)
 
 
-async def get_order_name_for_paid(message: types.Message, state=FSMContext):
+async def get_order_name_to_paid(message: types.Message, state=FSMContext):
     async with state.proxy() as data:
         unpaid_order_lst = data['unpaid_order_lst']
         
@@ -157,24 +158,21 @@ async def get_order_name_for_paid(message: types.Message, state=FSMContext):
             data['order'] = order
             data['price'] = price
         await FSM_Client_paid_order.next()
-        await bot.send_message(message.from_id,  
-            f'🧾 Хорошо, вы выбрали заказ № {order_number}\n\n'\
-            f'Пожалуйста, добавьте файл или фотографию чека о переводе на сумму {price}',
+        await bot.send_message(message.from_id, MSG_CLIENT_CHOOSE_ORDER % (order_number, price),
             reply_markup= kb_client.kb_back_cancel)
         
     elif message.text in LIST_BACK_COMMANDS:
         await FSM_Client_paid_order.previous() # -> command_send_to_view_orders_to_payloading
-        await bot.send_message(message.from_id, "❔ Какие заказы хотите оплатить?",
+        await bot.send_message(message.from_id, MSG_WHICH_ORDER_CLIENT_WANT_TO_PAY,
             reply_markup= kb_client.kb_choice_order_type_to_payloading)
         
     elif any(text in message.text for text in LIST_CANCEL_COMMANDS):
         await state.finish() # type: ignore
         await bot.send_message(message.from_id, MSG_BACK_TO_HOME, 
             reply_markup= kb_client.kb_client_main)
-    
 
 
-async def get_order_check_document_for_paid(message: types.Message, state=FSMContext):
+async def get_order_check_document_to_paid(message: types.Message, state=FSMContext):
     if message.content_type == 'text':
         if message.text in LIST_BACK_COMMANDS:
             await FSM_Client_paid_order.previous()
@@ -192,8 +190,7 @@ async def get_order_check_document_for_paid(message: types.Message, state=FSMCon
             await bot.send_message(message.from_id, MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
                 reply_markup= kb_client.kb_client_main)
         else:
-            await bot.send_message(message.from_id, "❕ Загрузите фото или документ чека, пожалуйста. "\
-                "Или нажмите \"Назад\" или \"Отмена\"")
+            await bot.send_message(message.from_id, MSG_NOT_CORRECT_CHECK_FROM_USER)
         
     elif message.content_type in ["document", "photo"]:
         async with state.proxy() as data:  # type: ignore
@@ -271,14 +268,14 @@ def register_handlers_client_payload(dp: Dispatcher):
     dp.register_message_handler(command_send_to_view_orders_to_payloading,
         state= FSM_Client_paid_order.order_type)
     
-    dp.register_message_handler( get_order_name_for_paid,
+    dp.register_message_handler( get_order_name_to_paid,
         state= FSM_Client_paid_order.order_name)
     dp.register_message_handler(
-        get_order_check_document_for_paid,
+        get_order_check_document_to_paid,
         Text(equals=[kb_client.cancel_lst[0], kb_client.back_lst[0]], ignore_case= True), 
         state= FSM_Client_paid_order.order_check_document)
     
-    dp.register_message_handler( get_order_check_document_for_paid,
+    dp.register_message_handler( get_order_check_document_to_paid,
         content_types=['photo', 'document', 'message'], 
         state= FSM_Client_paid_order.order_check_document)
         
