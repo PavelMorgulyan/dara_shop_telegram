@@ -96,9 +96,7 @@ async def send_to_view_tattoo_order(message: types.Message, tattoo_orders: Scala
                 else:
                     msg += \
                         f"🕒 Дата и время встречи не выбраны - свободных ячеек в календаре нет.\n"
-        
-        
-                
+
         if order.order_state in list(STATES["closed"].values()):
             msg += f'❌ Состояние заказа: {order.order_state}\n'
         else:
