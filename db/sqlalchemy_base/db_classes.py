@@ -329,7 +329,6 @@ class CandleItems(Base):
     photo: Mapped[Optional[str]]
     price: Mapped[Optional[int]]
     note: Mapped[Optional[str]]
-    state: Mapped[Optional[str]]
     quantity: Mapped[Optional[int]]
 
     def __repr__(self) -> dict:
@@ -339,7 +338,6 @@ class CandleItems(Base):
             "photo": self.photo,
             "price": self.price,
             "note": self.note,
-            "state": self.state,
             "quantity": self.quantity,
         }
 

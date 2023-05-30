@@ -161,6 +161,7 @@ async def command_get_info_tattoo_orders(message: types.Message):
     ):
         with Session(engine) as session:
             orders = session.scalars(select(Orders)).all()
+            
         if orders == []:
             await bot.send_message(
                 message.from_id,
@@ -171,7 +172,7 @@ async def command_get_info_tattoo_orders(message: types.Message):
             await FSM_Admin_get_info_orders.order_status_name.set()
             await bot.send_message(
                 message.from_user.id,
-                f"Заказы в каком статусе хочешь посмотреть?",
+                MSG_WHITH_ORDER_STATE_ADMIN_WANT_TO_SEE,
                 reply_markup=kb_admin.kb_order_statuses,
             )
 
