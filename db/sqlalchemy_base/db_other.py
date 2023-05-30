@@ -1,35 +1,41 @@
 from typing import List, Optional
 from sqlalchemy import ForeignKey, String, DateTime, TIMESTAMP
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, \
-    relationship, declarative_base
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+    declarative_base,
+)
 from sqlalchemy.dialects.mssql import DATETIME
 from datetime import datetime
 import typing
 from sqlalchemy import create_engine, MetaData
-from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session 
+from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session
 
-''' class Base(DeclarativeBase):
-    pass '''
+""" class Base(DeclarativeBase):
+    pass """
 
 
 class User(Base):
     __tablename__ = "user_account"
-    id: Mapped[int] = mapped_column(primary_key=True) 
-    name: Mapped[str] = mapped_column(String(30))   # message.from_user.full_name
-    telegram_name: Mapped[Optional[str]]            # 
-    telegram_id: Mapped[Optional[str]]              # message.from_id
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(30))  # message.from_user.full_name
+    telegram_name: Mapped[Optional[str]]  #
+    telegram_id: Mapped[Optional[str]]  # message.from_id
     phone: Mapped[Optional[str]]
-    
+
     def __repr__(self) -> dict:
         return {
-            "id":self.id, 
-            "name":self.name, 
+            "id": self.id,
+            "name": self.name,
             "telegram_name": self.telegram_name,
-            "telegram_id":self.telegram_id, 
-            "phone":self.phone
+            "telegram_id": self.telegram_id,
+            "phone": self.phone,
         }
 
-''' 
+
+""" 
 class Address(Base):
     __tablename__ = "address"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -38,61 +44,73 @@ class Address(Base):
     user: Mapped["User"] = relationship(back_populates="addresses")
     def __repr__(self) -> dict:
         return Address{"id":self.id, "user_id":self.user_id, "email_address":self.email_address} 
-'''
+"""
+
 
 class SketchPhoto(Base):
     __tablename__ = "sketch_photo"
     id: Mapped[int] = mapped_column(primary_key=True)
-    tattoo_sketch_order_number: Mapped[int] #  mapped_column(ForeignKey("tattoo_sketch_orders.img_id"))
-    telegram_user_id: Mapped[int] #  # = mapped_column(ForeignKey("user.id"))
-    photo: Mapped["TattooSketchOrders"]= \
-        relationship(back_populates="photo", cascade="all, delete-orphan")
-    
+    tattoo_sketch_order_number: Mapped[
+        int
+    ]  #  mapped_column(ForeignKey("tattoo_sketch_orders.img_id"))
+    telegram_user_id: Mapped[int]  #  # = mapped_column(ForeignKey("user.id"))
+    photo: Mapped["TattooSketchOrders"] = relationship(
+        back_populates="photo", cascade="all, delete-orphan"
+    )
+
     def __repr__(self) -> dict:
-        return {"id": self.id, "tattoo_sketch_order_number": self.tattoo_sketch_order_number,
-            "photo":self.photo, "telegram_user_id": self.telegram_user_id} 
+        return {
+            "id": self.id,
+            "tattoo_sketch_order_number": self.tattoo_sketch_order_number,
+            "photo": self.photo,
+            "telegram_user_id": self.telegram_user_id,
+        }
 
 
 class TattooOrderPriceList(Base):
     __tablename__ = "tattoo_order_price_list"
     id: Mapped[int] = mapped_column(primary_key=True)
     min_size: Mapped[Optional[int]]
-    max_size: Mapped[Optional[int]] 
-    price: Mapped[Optional[str]] 
-    
+    max_size: Mapped[Optional[int]]
+    price: Mapped[Optional[str]]
+
     def __repr__(self) -> dict:
-        return {"id": self.id, "min_size": self.min_size,
-            "max_size":self.max_size, "price":self.price}
+        return {
+            "id": self.id,
+            "min_size": self.min_size,
+            "max_size": self.max_size,
+            "price": self.price,
+        }
 
 
 class TattooThemes(Base):
     __tablename__ = "tattoo_themes"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[Optional[str]]
-    
+
     def __repr__(self) -> dict:
-        return {"id": self.id, "name":self.name}
+        return {"id": self.id, "name": self.name}
 
 
 class CandleItems(Base):
     __tablename__ = "candle_items"
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped["GiftboxItems"] = relationship(back_populates= "candle_name")
-    photo: Mapped["GiftboxItems"] = relationship(back_populates= "candle_photo")
-    price: Mapped["GiftboxItems"] = relationship(back_populates= "candle_price")
-    note: Mapped["GiftboxItems"] = relationship(back_populates= "candle_note")
-    state: Mapped["GiftboxItems"] = relationship(back_populates= "candle_state")
+    name: Mapped["GiftboxItems"] = relationship(back_populates="candle_name")
+    photo: Mapped["GiftboxItems"] = relationship(back_populates="candle_photo")
+    price: Mapped["GiftboxItems"] = relationship(back_populates="candle_price")
+    note: Mapped["GiftboxItems"] = relationship(back_populates="candle_note")
+    state: Mapped["GiftboxItems"] = relationship(back_populates="candle_state")
     quantity: Mapped[Optional[int]]
-    
+
     def __repr__(self) -> dict:
         return {
-            "id":self.id,
-            "name":self.name,
-            "photo":self.photo,
-            "price":self.price,
-            "note":self.note,
-            "state":self.state,
-            "quantity":self.quantity
+            "id": self.id,
+            "name": self.name,
+            "photo": self.photo,
+            "price": self.price,
+            "note": self.note,
+            "state": self.state,
+            "quantity": self.quantity,
         }
 
 
@@ -102,78 +120,84 @@ class GiftboxOrders(Base):
     order_note: Mapped[Optional[str]]
     order_number: Mapped[Optional[str]]
     creation_date: Mapped[Optional[str]]
-    telegram_user_id: Mapped[Optional[int]] # = mapped_column(ForeignKey("user_account.id"))
-    check_document: Mapped[List["CheckDocumentGiftboxOrders"]]  = relationship(back_populates="doc", cascade="all, delete-orphan")# = mapped_column("check_document_tattoo_orders.doc") 
+    telegram_user_id: Mapped[
+        Optional[int]
+    ]  # = mapped_column(ForeignKey("user_account.id"))
+    check_document: Mapped[List["CheckDocumentGiftboxOrders"]] = relationship(
+        back_populates="doc", cascade="all, delete-orphan"
+    )  # = mapped_column("check_document_tattoo_orders.doc")
     # = relationship(back_populates= "doc", cascade= "all, delete-orphan")
-    
-    order_state : Mapped[Optional[str]]
+
+    order_state: Mapped[Optional[str]]
     price: Mapped[Optional[str]]
-    
+
     def __repr__(self) -> dict:
         return {
-            "id":self.id,
-            "order_note":self.order_note,
-            "order_number":self.order_number,
-            "creation_date":self.creation_date,
-            "telegram_user_id":self.telegram_user_id,
-            "order_state":self.order_state,
-            "price":self.price,
-            "check_document":self.check_document
+            "id": self.id,
+            "order_note": self.order_note,
+            "order_number": self.order_number,
+            "creation_date": self.creation_date,
+            "telegram_user_id": self.telegram_user_id,
+            "order_state": self.order_state,
+            "price": self.price,
+            "check_document": self.check_document,
         }
 
 
 class SequinsItems(Base):
     __tablename__ = "sequins_items"
     id: Mapped[int] = mapped_column(primary_key=True)
-    type: Mapped["GiftboxItems"] = relationship(back_populates= "sequins_type")
-    state: Mapped["GiftboxItems"] = relationship(back_populates= "sequins_state")
+    type: Mapped["GiftboxItems"] = relationship(back_populates="sequins_type")
+    state: Mapped["GiftboxItems"] = relationship(back_populates="sequins_state")
     photo: Mapped[Optional[str]]
-    
+
     def __repr__(self) -> dict:
         return {
-            "id":self.id,
-            "type":self.type,
-            "state":self.state,
-            "photo":self.photo
+            "id": self.id,
+            "type": self.type,
+            "state": self.state,
+            "photo": self.photo,
         }
 
 
 class GiftboxItems(Base):
     __tablename__ = "giftbox_items"
-    id:             Mapped[int] = mapped_column(primary_key=True)
-    name:           Mapped[Optional[str]]
-    photo:          Mapped[List["TattooPhoto"]] = \
-        relationship(back_populates="photo", cascade="all, delete-orphan")  
-    price:          Mapped[Optional[str]]
-    giftbox_note:   Mapped[Optional[str]]
-    candle_name:    Mapped["CandleItems"] = relationship(back_populates= "name")
-    candle_photo :  Mapped["CandleItems"] = relationship(back_populates= "photo")
-    candle_price:   Mapped["CandleItems"] = relationship(back_populates= "price")
-    candle_note :   Mapped["CandleItems"] = relationship(back_populates= "note")
-    candle_state :  Mapped["CandleItems"] = relationship(back_populates= "state")
-    tattoo_theme:   Mapped[Optional[str]]
-    tattoo_note:    Mapped[Optional[str]]
-    tattoo_state:   Mapped[Optional[str]]
-    sequins_type :  Mapped["SequinsItems"] = relationship(back_populates= "type")
-    sequins_state : Mapped["SequinsItems"] = relationship(back_populates= "state")
-    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[Optional[str]]
+    photo: Mapped[List["TattooPhoto"]] = relationship(
+        back_populates="photo", cascade="all, delete-orphan"
+    )
+    price: Mapped[Optional[str]]
+    giftbox_note: Mapped[Optional[str]]
+    candle_name: Mapped["CandleItems"] = relationship(back_populates="name")
+    candle_photo: Mapped["CandleItems"] = relationship(back_populates="photo")
+    candle_price: Mapped["CandleItems"] = relationship(back_populates="price")
+    candle_note: Mapped["CandleItems"] = relationship(back_populates="note")
+    candle_state: Mapped["CandleItems"] = relationship(back_populates="state")
+    tattoo_theme: Mapped[Optional[str]]
+    tattoo_note: Mapped[Optional[str]]
+    tattoo_state: Mapped[Optional[str]]
+    sequins_type: Mapped["SequinsItems"] = relationship(back_populates="type")
+    sequins_state: Mapped["SequinsItems"] = relationship(back_populates="state")
+
     def __repr__(self) -> dict:
         return {
-            "id":self.id,
-            "photo":self.photo,
-            "price":self.price,
-            "giftbox_note":self.giftbox_note,
-            "candle_name":self.candle_name,
-            "candle_price":self.candle_price,
-            "candle_note":self.candle_note,
-            "candle_state":self.candle_state,
-            "tattoo_note":self.tattoo_note,
-            "tattoo_state":self.tattoo_state,
-            "sequins_type":self.sequins_type,
-            "sequins_state":self.sequins_state,
+            "id": self.id,
+            "photo": self.photo,
+            "price": self.price,
+            "giftbox_note": self.giftbox_note,
+            "candle_name": self.candle_name,
+            "candle_price": self.candle_price,
+            "candle_note": self.candle_note,
+            "candle_state": self.candle_state,
+            "tattoo_note": self.tattoo_note,
+            "tattoo_state": self.tattoo_state,
+            "sequins_type": self.sequins_type,
+            "sequins_state": self.sequins_state,
         }
 
-'''
+
+"""
     giftbox_name = State()                  # назови гифтбокс
     giftbox_photo = State()                 # загрузи фото гифтбокс
     giftbox_price = State()                 # примерная цена на гифтбокс
@@ -191,7 +215,7 @@ class GiftboxItems(Base):
     giftbox_tattoo_state = State()          # есть ли эти тату сейчас в наличии или надо докупать
     giftbox_sequins_type = State()           # впиши тип блесток тату
     giftbox_sequins_state = State()          # есть ли эти блестки сейчас в наличии или надо докупать
-'''
+"""
 
 
 class ScheduleCalendar(Base):
@@ -203,18 +227,17 @@ class ScheduleCalendar(Base):
     date: Mapped[Optional[datetime]]
     status: Mapped[Optional[str]]
     event_type: Mapped[Optional[str]]
-    
+
     def __repr__(self) -> dict:
         return {
-            "id":           self.id, 
-            "schedule_id":  self.schedule_id,
-            "start_time" :  self.start_time,
-            "end_time" :    self.end_time,
-            "date" :        self.date,
-            "status" :      self.status,
-            "event_type" :  self.event_type,
+            "id": self.id,
+            "schedule_id": self.schedule_id,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "date": self.date,
+            "status": self.status,
+            "event_type": self.event_type,
         }
-        
 
 
 class SchedulePhoto(Base):
@@ -222,12 +245,12 @@ class SchedulePhoto(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[Optional[str]]
     photo: Mapped[Optional[str]]
-    
+
     def __repr__(self) -> dict:
         return {
-            "id":   self.id, 
+            "id": self.id,
             "name": self.name,
-            "photo":self.photo,
+            "photo": self.photo,
         }
 
 
@@ -237,22 +260,24 @@ class CertificateOrders(Base):
     # username TEXT NOT NULL,
     price: Mapped[Optional[str]]
     order_state: Mapped[Optional[str]]
-    code: Mapped[Optional[str]] 
+    code: Mapped[Optional[str]]
     creation_date: Mapped[Optional[datetime]]
     cert_order_number: Mapped[Optional[str]]
-    check_document: Mapped[List["CheckDocumentCertOrders"]]  = relationship(back_populates="doc", cascade="all, delete-orphan")# = mapped_column("check_document_cert_orders.doc") 
+    check_document: Mapped[List["CheckDocumentCertOrders"]] = relationship(
+        back_populates="doc", cascade="all, delete-orphan"
+    )  # = mapped_column("check_document_cert_orders.doc")
     # =relationship(back_populates="doc", cascade="all, delete-orphan")
-    telegram_user_id: Mapped["User"] = relationship(back_populates= "telegram_id")
-    
+    telegram_user_id: Mapped["User"] = relationship(back_populates="telegram_id")
+
     def __repr__(self) -> dict:
         return {
-            "id":self.id,
-            "telegram":self.telegram_user_id,
-            "cert_order_number":self.cert_order_number,
-            "creation_date":self.creation_date,
-            "code":self.code,
-            "order_state":self.order_state,
-            "price":self.price,
+            "id": self.id,
+            "telegram": self.telegram_user_id,
+            "cert_order_number": self.cert_order_number,
+            "creation_date": self.creation_date,
+            "code": self.code,
+            "order_state": self.order_state,
+            "price": self.price,
         }
 
 
@@ -261,18 +286,19 @@ class TattooAI(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     img_id: Mapped[int]
     img_name: Mapped[Optional[str]]
-    photo : Mapped[List["AIPhoto"]]= \
-        relationship(back_populates="photo", cascade="all, delete-orphan") 
+    photo: Mapped[List["AIPhoto"]] = relationship(
+        back_populates="photo", cascade="all, delete-orphan"
+    )
     state: Mapped[Optional[str]]
     author_name: Mapped[Optional[str]]
-    
+
     def __repr__(self) -> dict:
         return {
-            "id":self.id,
-            "img_id":self.img_id,
-            "img_name":self.img_name,
-            "state":self.state,
-            'author_name':self.author_name,
+            "id": self.id,
+            "img_id": self.img_id,
+            "img_name": self.img_name,
+            "state": self.state,
+            "author_name": self.author_name,
         }
 
 
@@ -280,6 +306,6 @@ class AIPhoto(Base):
     __tablename__ = "ai_photo"
     id: Mapped[int] = mapped_column(primary_key=True)
     photo: Mapped["TattooAI"] = relationship(back_populates="photo")
-    
+
     def __repr__(self) -> dict:
-        return {"id":self.id, "photo": self.photo}
+        return {"id": self.id, "photo": self.photo}
