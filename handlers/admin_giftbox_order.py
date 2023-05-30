@@ -85,7 +85,7 @@ async def command_get_info_giftbox_orders(message: types.Message):
         await FSM_Admin_send_to_view_giftbox_orders.giftbox_order_state.set()
         await bot.send_message(
             message.from_user.id,
-            "В каком статусе хочешь посмотреть заказы?",
+            MSG_WHITH_ORDER_STATE_ADMIN_WANT_TO_SEE,
             reply_markup=kb_admin.kb_order_statuses,
         )
 
@@ -103,6 +103,10 @@ async def get_status_to_view_giftbox_orders(message: types.Message, state: FSMCo
             message.from_user.id, f"Всего гифтбокс заказов: {len(orders)}"
         )
         await state.finish()
+        await bot.send_message(
+            message.from_id, 
+            MSG_DO_CLIENT_WANT_TO_DO_MORE,
+            reply_markup= kb_admin.kb_giftbox_order_commands)
 
     elif message.text in LIST_BACK_COMMANDS + LIST_CANCEL_COMMANDS + LIST_BACK_COMMANDS:
         await state.finish()
