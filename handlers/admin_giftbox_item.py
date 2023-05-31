@@ -1,6 +1,7 @@
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
+from prettytable import PrettyTable
 from create_bot import dp, bot
 from keyboards import kb_client, kb_admin
 from aiogram.dispatcher.filters import Text
@@ -19,6 +20,10 @@ from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
 
 from handlers.calendar_client import obj
 from msg.main_msg import *
+
+from sqlalchemy.orm import Session
+from sqlalchemy import select, ScalarResult
+from db.sqlalchemy_base.db_classes import *
 
 
 # ------------------------------------------------------- GIFTBOX ITEM COMMAND LIST------------------------------------------------------
@@ -53,7 +58,6 @@ class FSM_Admin_giftbox_item(StatesGroup):
     )  # есть ли эти свечи сейчас в наличии или надо докупать
 
     giftbox_tattoo_theme = State()  # если есть тату, то какая тематика
-    giftbox_tattoo_other_theme = State()  # если есть тату, то какая другая тематика
 
     giftbox_tattoo_note = State()  # впиши описание тату
     giftbox_tattoo_state = (
@@ -99,7 +103,7 @@ async def load_giftbox_photo(message: types.Message, state: FSMContext):
 
 # Отправляем стоимость гифтбокса
 async def load_giftbox_price(message: types.Message, state: FSMContext):
-    if message.text in kb_admin.price:
+    if message.text in kb_admin.price_lst:
         async with state.proxy() as data:
             data["giftbox_price"] = int(message.text)
 
@@ -118,186 +122,342 @@ async def load_giftbox_note(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["giftbox_note"] = message.text
     await FSM_Admin_giftbox_item.next()
-    kb_candle_choice = ReplyKeyboardMarkup(resize_keyboard=True)
-    kb_candle_choice.add(KeyboardButton("Новую")).add(
-        KeyboardButton("Выбрать из готовых")
-    )
     await message.reply(
-        "Хорошо, теперь необходимо добавить свечу в гифтбокс."
-        f" Добавить в этот гифтбокс новую свечу или выбрать из готовых?",
-        reply_markup=kb_candle_choice,
+        "Хорошо, теперь необходимо добавить свечу в гифтбокс. "
+        f"Добавить в этот гифтбокс новую свечу или выбрать из готовых?",
+        reply_markup=kb_admin.kb_candle_choice,
     )
 
 
 async def get_giftbox_candle_choice(message: types.Message, state: FSMContext):
-    await FSM_Admin_giftbox_item.next()
-    if message.text == "Новую":
+    await FSM_Admin_giftbox_item.next() #-> get_giftbox_candle_name
+    if message.text == kb_admin.candle_choice["new"]:
         await FSM_Admin_giftbox_item.next()
         await message.reply("Назови имя свечи", reply_markup=kb_client.kb_cancel)
 
-    else:
+    elif message.text == kb_admin.candle_choice["having"]:
         candle_items = await get_info_many_from_table("candle_items")
         kb_candle_names = ReplyKeyboardMarkup(resize_keyboard=True)
+        with Session(engine) as session:
+            candle_items = session.scalars(select(CandleItems)).all()
         for item in candle_items:
-            kb_candle_names.add(KeyboardButton(item[0]))
+            kb_candle_names.add(KeyboardButton(item.name))
         await message.reply("Выбери имя готовой свечи", reply_markup=kb_candle_names)
 
 
 async def get_giftbox_candle_name(message: types.Message, state: FSMContext):
-    candle_in_table = False
-    candle_name = message.text
-    candle_item = []
-    try:
-        candle_item = await get_info_many_from_table(
-            "candle_items", "name", candle_name
+
+    with Session(engine) as session:
+        candle_items = session.scalars(select(CandleItems.name)).all()
+        
+    if message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+        await state.finish()
+        await message.reply(
+            f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+            reply_markup=kb_admin.kb_price_list_commands,
         )
-        candle_in_table = True
-    except:
-        print("Свеча не в таблице")
-
-    async with state.proxy() as data:
-        (
-            data["giftbox_candle_name"],
-            data["giftbox_candle_photo"],
-            data["giftbox_candle_price"],
-            data["giftbox_candle_note"],
-        ) = list(candle_item[0])
-
-    if not candle_in_table:
+    elif message.text in candle_items:
         async with state.proxy() as data:
-            data["giftbox_candle_name"] = message.text
-        await FSM_Admin_giftbox_item.next()
-        await message.reply("Загрузи фото свечи")
-    else:
+            with Session(engine) as session:
+                candle = session.scalars(select(CandleItems).where(CandleItems.name == message.text)).one()
+            data['candle_id'] = candle.id
+            data["candle_name"] = candle.name
+            data["candle_photo"] = candle.photo
+            data["candle_price"] = candle.price
+            data["candle_note"] = candle.note
         for i in range(4):
-            await FSM_Admin_giftbox_item.next()
+            await FSM_Admin_giftbox_item.next() #-> giftbox_candle_state
+        await message.reply(
+            "Есть ли эти свечи сейчас в наличии или надо докупать?",
+            reply_markup=kb_admin.kb_in_stock,
+        )
+
+    else:
+        with Session(engine) as session:
+            candles_name = session.scalars(select(CandleItems.name)).all()
+        if message.text not in candles_name:
+            async with state.proxy() as data:
+                data["giftbox_candle_name"] = message.text
+            await FSM_Admin_giftbox_item.next() #-> load_giftbox_candle_photo
+            await message.reply("Загрузи фото свечи")
+        else:
+            await bot.send_message(message.from_id, f'У тебя уже есть свеча с названием {message.text}.'
+                'Введи другое название')
+
+
+# Отправляем фото свечи в гифтбоксе
+async def load_giftbox_candle_photo(message: types.Message, state: FSMContext):
+    if message.content_type == 'photo':
+        async with state.proxy() as data:
+            data["candle_photo"] = message.photo[0].file_id
+        await FSM_Admin_giftbox_item.next()
+        await message.reply("Введи примерную цену свечи", reply_markup=kb_admin.kb_price)
+        
+    elif message.content_type == 'text':
+        if message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+            await state.finish()
+            await message.reply(
+                f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+                reply_markup=kb_admin.kb_giftbox_item_commands,
+            )
+
+
+# Отправляем стоимость свечи в гифтбоксе
+async def load_giftbox_candle_price(message: types.Message, state: FSMContext):
+    if message.text == kb_admin.another_price_lst[0]:
+        await bot.send_message(
+            message.from_id,
+            MSG_ADMIN_SET_ANOTHER_PRICE,
+            reply_markup=kb_admin.kb_another_price_full,
+        )
+    elif message.text in kb_admin.price_lst + kb_admin.another_price_full_lst:
+        async with state.proxy() as data:
+            data["candle_price"] = int(message.text)
+
+            await FSM_Admin_giftbox_item.next() #-> giftbox_candle_note
+            await message.reply("Введи описание свечи в гифтбоксе", reply_markup= kb_client.kb_cancel)
+    else:
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def giftbox_candle_note(message: types.Message, state: FSMContext):
+    if message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+        await state.finish()
+        await message.reply(
+            f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+            reply_markup=kb_admin.kb_giftbox_item_commands,
+        )
+    else:
+        async with state.proxy() as data:
+            data["candle_note"] = message.text
         await message.reply(
             "Есть ли эти свечи сейчас в наличии или надо докупать?",
             reply_markup=kb_admin.kb_in_stock,
         )
 
 
-# Отправляем фото свечи в гифтбоксе
-async def load_giftbox_candle_photo(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["giftbox_candle_photo"] = message.photo[0].file_id
-    await FSM_Admin_giftbox_item.next()
-    await message.reply("Введи примерную цену свечи", reply_markup=kb_admin.kb_price)
-
-
-# Отправляем стоимость свечи в гифтбоксе
-async def load_giftbox_candle_price(message: types.Message, state: FSMContext):
-    if message.text in kb_admin.price:
-        async with state.proxy() as data:
-            data["giftbox_candle_price"] = int(message.text)
-
-            await FSM_Admin_giftbox_item.next()
-            await message.reply("Введи описание свечи в гифтбоксе")
-    else:
-        await message.reply("Введи пожалуйста цену свечи корректно - цифрами, слитно")
-
-
-async def giftbox_candle_note(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["giftbox_candle_note"] = message.text
-    await message.reply(
-        "Есть ли эти свечи сейчас в наличии или надо докупать?",
-        reply_markup=kb_admin.kb_in_stock,
-    )
-
-
 # есть ли эти свечи сейчас в наличии или надо докупать
 async def giftbox_candle_state(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["giftbox_candle_state"] = message.text
-    tattoo_themes = ["ботаника", "лес", "абстракция"]
-    try:
-        new_tattoo_theme = await get_info_many_from_table("tattoo_themes")
-        tattoo_themes += new_tattoo_theme
-    except:
-        print("Пока нет новых тем в таблице с тату темами")
-        pass
-
-    kb_tattoo_theme = ReplyKeyboardMarkup(resize_keyboard=True)
-    for theme in tattoo_themes:
-        kb_tattoo_theme.add(KeyboardButton(theme))
-    kb_tattoo_theme.add(KeyboardButton("Другая"))
-    await FSM_Admin_giftbox_item.next()
-    await message.reply(
-        f"Хорошо, а теперь добавь тему тату в этом гифтбоксе."
-        f' На данный момент у тебя есть эти темы: {", ".join(tattoo_themes)}.'
-        f" Какую выбираешь?",
-        reply_markup=kb_tattoo_theme,
-    )
+    if message.text in list(kb_admin.in_stock_button.values()):
+        async with state.proxy() as data:
+            data["candle_quantity"] = 0 if message.text == kb_admin.in_stock_button["not_in_stock"] else 1
+            with Session(engine) as session:
+                new_candle_item = CandleItems(
+                    name= data['candle_name'],
+                    photo= data['candle_photo'],
+                    price= data['candle_price'],
+                    note= data['candle_note'],
+                    quantity= int(data["candle_quantity"])
+                )
+                session.add(new_candle_item)
+                session.commit()
+                
+            with Session(engine) as session:
+                candle_id = session.scalars(select(CandleItems).where(CandleItems.name == data['candle_name'])).one().id
+                data["candle_id"] = candle_id
+        
+        kb_tattoo_theme = ReplyKeyboardMarkup(resize_keyboard=True)
+        for theme in TATTOO_THEMES:
+            kb_tattoo_theme.add(KeyboardButton(theme))
+        await FSM_Admin_giftbox_item.next() #-> load_tattoo_theme
+        await message.reply(
+            f"Хорошо, а теперь добавь тему тату в этом гифтбоксе."
+            f' На данный момент у тебя есть эти темы: {", ".join(TATTOO_THEMES)}.'
+            f" Какую выбираешь?",
+            reply_markup=kb_tattoo_theme,
+        )
+    elif message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+        await state.finish()
+        await message.reply(
+            f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+            reply_markup=kb_admin.kb_giftbox_item_commands,
+        )
+    else:
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # Отправляем тему тату в гифтбоксе
 async def load_tattoo_theme(message: types.Message, state: FSMContext):
     if message.text != "Другая":
         async with state.proxy() as data:
-            data["giftbox_tattoo_theme"] = message.text
-        await FSM_Admin_giftbox_item.next()
-        await FSM_Admin_giftbox_item.next()
+            data["tattoo_theme"] = message.text
+        await FSM_Admin_giftbox_item.next() #-> load_giftbox_tattoo_other_theme
         await message.reply(f"Выбрана тема: {message.text}. Введи описание тату")
+        
+    elif message.text == "Другая":
+        await message.reply("Введи какая тема будет у тату?", kb_client.kb_cancel)
+        
+    elif message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+        await state.finish()
+        await message.reply(
+            f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+            reply_markup=kb_admin.kb_giftbox_item_commands,
+        )
     else:
-        await FSM_Admin_giftbox_item.next()
-        await message.reply("Введи какая тема будет у тату?")
-
-
-# Отправляем другую тему для тату в гифтбоксе
-async def load_giftbox_tattoo_other_theme(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["giftbox_tattoo_theme"] = message.text
-    await FSM_Admin_giftbox_item.next()
-    await message.reply("Введи описание тату")
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # Отправляем описание тату в гифтбоксе
 async def load_giftbox_tattoo_note(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["giftbox_tattoo_note"] = message.text
-    await FSM_Admin_giftbox_item.next()
-    await message.reply(
-        "Есть ли эти тату сейчас в наличии или надо докупать?",
-        reply_markup=kb_admin.kb_in_stock,
-    )  # in_stock_button = ['Есть в наличии', 'Нет в наличии, нужно докупать']
+    if message.text in list(kb_admin.in_stock_button.values()):
+        async with state.proxy() as data:
+            data["tattoo_note"] = message.text
+        await FSM_Admin_giftbox_item.next()
+        await message.reply(
+            "Есть ли эти тату сейчас в наличии или надо докупать?",
+            reply_markup=kb_admin.kb_in_stock,
+        )  # in_stock_button = ['Есть в наличии', 'Нет в наличии, нужно докупать']
+        
+    elif message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+        await state.finish()
+        await message.reply(
+            f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+            reply_markup=kb_admin.kb_giftbox_item_commands,
+        )
+    else:
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # есть ли эти тату сейчас в наличии или надо докупать
 async def load_giftbox_tattoo_state(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["giftbox_tattoo_state"] = message.text
-    await FSM_Admin_giftbox_item.next()
-    await message.reply("Впиши тип блесток", reply_markup=kb_admin.kb_sequin_types)
+    if message.text in list(kb_admin.in_stock_button.values()):
+        async with state.proxy() as data:
+            data["tattoo_quantity"] = 0 if message.text == kb_admin.in_stock_button["not_in_stock"] else 1
+        await FSM_Admin_giftbox_item.next() # -> load_giftbox_sequins_type
+        
+        kb_sequin_types = ReplyKeyboardMarkup(resize_keyboard=True)
+        with Session(engine) as session:
+            sequin_types = session.scalars(select(SequinsItems)).all()
+            
+        for type in sequin_types:
+            kb_sequin_types.add(type.name)
+        await message.reply("Выбери тип блесток", reply_markup= kb_sequin_types)
+        # TODO добавить возможность вносить тип блесток в бд
+        
+    elif message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+        await state.finish()
+        await message.reply(
+            f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+            reply_markup=kb_admin.kb_giftbox_item_commands,
+        )
+        
+    else:
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # впиши тип блесток
 async def load_giftbox_sequins_type(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["sequins_type"] = message.text
-    await FSM_Admin_giftbox_item.next()
-    await message.reply(
-        "Есть ли эти блестки сейчас в наличии или надо докупать?",
-        reply_markup=kb_admin.kb_in_stock,
-    )  # ['Есть в наличии', 'Нет в наличии, нужно докупать']
+    if message.text in kb_admin.sequin_types:
+        async with state.proxy() as data:
+            data["sequins_type"] = message.text
+        
+            with Session(engine) as session:
+                data["sequins_id"] = session.scalars(select(SequinsItems)
+                                                    .where(SequinsItems.name == message.text)).one().id
+        
+        await FSM_Admin_giftbox_item.next()
+        await message.reply(
+            "Есть ли эти блестки сейчас в наличии или надо докупать?",
+            reply_markup=kb_admin.kb_in_stock,
+        )  # ['Есть в наличии', 'Нет в наличии']
 
 
 # впиши статус блесток
 async def load_giftbox_sequins_state(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["sequins_state"] = message.text
-
-    await set_to_table(tuple(data.values()), "giftbox_items")
-    await message.reply(
-        "Готово! Вы добавили гифтбокс в таблицу", reply_markup=kb_admin.kb_main
-    )
-    await state.finish()  #  полностью очищает данные
+    if message.text in list(kb_admin.in_stock_button.values()):
+        async with state.proxy() as data:
+            data["sequins_state"] = message.text
+            sequins_id = data["sequins_id"] 
+        
+        
+        with Session(engine) as session:
+            seq = session.get(SequinsItems, sequins_id)
+            seq.state = message.text
+            
+            new_giftbox_item = GiftboxItems(
+                name= data['giftbox_name'],
+                photo= GiftboxItemsPhoto(photo= data['giftbox_photo']),
+                price= data['giftbox_price'],
+                giftbox_note= data["giftbox_note"],
+                candle_id= data['candle_id'],
+                tattoo_note= data['tattoo_note'],
+                tattoo_quantity= int(data['tattoo_quantity']),
+                sequins_id= sequins_id
+            )
+            session.add(new_giftbox_item)
+            session.commit()
+        
+        # await set_to_table(tuple(data.values()), "giftbox_items")
+        await message.reply(
+            f"Готово! Вы добавили гифтбокс {data['giftbox_name']} в таблицу!", reply_markup=kb_admin.kb_giftbox_item_commands
+        )
+        await state.finish()  #  полностью очищает данные
+    elif message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+        await state.finish()
+        await message.reply(
+            f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+            reply_markup=kb_admin.kb_giftbox_item_commands,
+        )
+        
+    else:
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # -------------------------------------------------------GIFTBOX ITEM COMMANDS-----------------------------------------
-async def send_to_view_gifbox_item(message: types.Message, orders_into_table: list):
-    number_deleted_order = 1
-    for ret in orders_into_table:
+async def send_to_view_gifbox_item(message: types.Message, items: list) -> None:
+    if items == []:
+        await message.reply("Пока у вас нет гифтбоксов в таблице")
+        await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE)
+    else:
+        headers = [
+            "№",
+            "Название",
+            "Цена",
+            "Описание",
+            "Название свечи",
+            "Цена свечи",
+            "Статус свечи",
+            "Тату тема",
+            "Описание тату",
+            "Статус тату",
+            "Блестки",
+            "Статус блесток"
+        ]
+        for item in items:
+            table = PrettyTable(
+                headers, left_padding_width=1, right_padding_width=1
+            )  # Определяем таблицу
+            
+
+            with Session(engine) as session:
+                candle = session.get(CandleItems, item.candle_id)
+                sequins = session.get(SequinsItems, item.sequins_id)
+                table.add_row(
+                    [
+                        item.id,
+                        item.name,
+                        item.price,
+                        item.giftbox_note,
+                        candle.name,
+                        candle.price,
+                        f"Нет в наличии" if candle.quantity == 0 else f"В наличии {candle.quantity} штук",
+                        item.tattoo_theme,
+                        item.tattoo_note,
+                        f"Нет в наличии" if item.tattoo_quantity == 0 else f"В наличии {item.tattoo_quantity} штук",
+                        sequins.name,
+                        f"Нет в наличии" if sequins.quantity == 0 else f"В наличии {sequins.quantity} штук",
+                        
+                    ]
+                )
+            await bot.send_message(
+                message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
+            )
+        await bot.send_message(
+            message.from_id,
+            MSG_DO_CLIENT_WANT_TO_DO_MORE,
+            reply_markup=kb_admin.kb_clients_commands,
+        )
+    ''' for ret in items:
         await bot.send_photo(
             message.from_user.id,
             ret[1],
@@ -314,7 +474,9 @@ async def send_to_view_gifbox_item(message: types.Message, orders_into_table: li
             f"- Блестки в гитфбоксе: {ret[12]}\n"
             f"- Статус блесток в гитфбоксе: {ret[13]}\n",
         )
-        number_deleted_order += 1
+    '''
+        
+
 
 
 # -------------------------------------------------------GIFTBOX ITEM COMMANDS посмотреть_все_гифтбоксы---------------------COMPLETE
@@ -325,12 +487,10 @@ async def command_get_info_giftboxes_item(message: types.Message):
         in ["/посмотреть_все_гифтбоксы", "посмотреть все гифтбоксы"]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
-        orders_into_table = await get_info_many_from_table("giftbox_items")
+        with Session(engine) as session:
+            orders = session.scalars(select(GiftboxItems)).all()
 
-        if orders_into_table is None:
-            await message.reply("Пока у вас нет гифтбоксов в таблице(")
-        else:
-            await send_to_view_gifbox_item(message, orders_into_table)
+        await send_to_view_gifbox_item(message, orders)
 
 
 # -------------------------------------------------------GIFTBOX ITEM COMMANDS посмотреть_гифтбокс---------------------COMPLETE
@@ -345,15 +505,17 @@ async def command_get_info_giftbox_item(message: types.Message):
         message.text.lower() in ["/посмотреть_гифтбокс", "посмотреть гифтбокс"]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
-        orders_into_table = await get_info_many_from_table("giftbox_items")
-        kb_giftbox_names = ReplyKeyboardMarkup(resize_keyboard=True)
-
-        if orders_into_table is None:
-            await message.reply("Пока у вас нет гифтбоксов в таблице(")
+        with Session(engine) as session:
+            orders = session.scalars(select(GiftboxItems)).all()
+        
+        if orders == []:
+            await message.reply("Пока у вас нет гифтбоксов в таблице")
+            await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE)
         else:
+            kb_giftbox_names = ReplyKeyboardMarkup(resize_keyboard=True)
             await FSM_Admin_get_info_giftbox_items.giftbox_item_name.set()
-            for ret in orders_into_table:
-                kb_giftbox_names.add(KeyboardButton(ret[0]))
+            for order in orders:
+                kb_giftbox_names.add(KeyboardButton(order.name))
                 await bot.send_message(
                     message.from_user.id,
                     f"Какой гифтбокс хочешь посмотреть?",
@@ -362,20 +524,25 @@ async def command_get_info_giftbox_item(message: types.Message):
 
 
 async def get_name_for_info_giftbox_item(message: types.Message, state: FSMContext):
-    order_into_table = await get_info_many_from_table(
-        "giftbox_items", "name", message.text
-    )
-
-    if order_into_table is None:
-        await message.reply("Такого гифтбокса в таблице нет")
-    else:
-        await send_to_view_gifbox_item(message, order_into_table)
+    with Session(engine) as session:
+        orders = session.scalars(select(GiftboxItems)).all()
+    giftbox_names_lst = []
+    for order in orders:
+        giftbox_names_lst.append(order.name)
+    
+    if message.text in giftbox_names_lst:
+        with Session(engine) as session:
+            orders = session.scalars(select(GiftboxItems).where(GiftboxItems.name == message.text)).one()
+            
+        await send_to_view_gifbox_item(message, orders)
         await bot.send_message(
             message.from_user.id,
             f"Что еще хочешь посмотреть?",
             reply_markup=kb_admin.kb_main,
         )
-    await state.finish()
+        await state.finish()
+    else:
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # -------------------------------------------------------GIFTBOX ITEM COMMANDS поменять_цену_гифтбокса---------------------COMPLETE
@@ -436,7 +603,7 @@ async def set_new_price_giftbox_item(message: types.Message, state: FSMContext):
         await state.finish()  #  полностью очищает данные
     else:
         await FSM_Admin_change_price_giftbox_items.next()
-        await message.reply("Введи другую цену")
+        await message.reply(MSG_ADMIN_SET_ANOTHER_PRICE)
 
 
 # Определяем новую цену гифтбокса
@@ -507,10 +674,6 @@ def register_handlers_admin_giftbox_item(dp: Dispatcher):
     )
     dp.register_message_handler(
         load_tattoo_theme, state=FSM_Admin_giftbox_item.giftbox_tattoo_theme
-    )
-    dp.register_message_handler(
-        load_giftbox_tattoo_other_theme,
-        state=FSM_Admin_giftbox_item.giftbox_tattoo_other_theme,
     )
     dp.register_message_handler(
         load_giftbox_tattoo_note, state=FSM_Admin_giftbox_item.giftbox_tattoo_note

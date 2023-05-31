@@ -282,10 +282,9 @@ async def get_json_name_filling(message: types.Message, state: FSMContext):
                         new_item_lst.append(
                             CandleItems(
                                 name=data[str(i + 1)][0]["name"],
-                                photo=None,
+                                photo=data[str(i + 1)][0]["photo"],
                                 price=data[str(i + 1)][0]["price"],
                                 note=data[str(i + 1)][0]["note"],
-                                state=None,
                                 quantity=0,
                             )
                         )
@@ -294,10 +293,9 @@ async def get_json_name_filling(message: types.Message, state: FSMContext):
                             CandleItems(
                                 name=data[str(i)][0],
                                 photo=data[str(i)][1],
-                                price=data[str(i)][2],
+                                price=int(data[str(i)][2]),
                                 note=data[str(i)][3],
-                                state=data[str(i)][4],
-                                quantity=data[str(i)][5],
+                                quantity=int(data[str(i)][4])
                             )
                         )
 
@@ -305,7 +303,7 @@ async def get_json_name_filling(message: types.Message, state: FSMContext):
             session.commit()
 
         await message.reply(
-            f"Готово! Вы загрузили данные в таблицу {table_name}!\n"
+            f"🎉 Готово! Вы загрузили данные в таблицу {table_name}!\n"
             f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
             reply_markup=kb_admin.kb_main,
         )

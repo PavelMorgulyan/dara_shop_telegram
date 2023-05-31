@@ -249,7 +249,7 @@ async def load_tattoo_item_photo(message: types.Message, state: FSMContext):
 async def load_tattoo_price(message: types.Message, state: FSMContext):
     if message.text == "Другая цена":
         await message.reply(
-            "Хорошо, введи другую цену тату",
+            MSG_ADMIN_SET_ANOTHER_PRICE,
             reply_markup=kb_admin.kb_another_price_full,
         )
 

@@ -164,7 +164,7 @@ async def get_price_to_new_price_list(message: types.Message, state: FSMContext)
 
     elif message.text == kb_admin.another_price_lst[0]:
         await message.reply(
-            "Выбери другую цену для прайс-листа",
+            MSG_ADMIN_SET_ANOTHER_PRICE,
             reply_markup=kb_admin.kb_another_price_full,
         )
 
@@ -511,7 +511,7 @@ async def get_price_list_name_to_change(message: types.Message, state: FSMContex
 
     elif message.text in kb_admin.another_price_lst:
         await message.reply(
-            "Введи другую цену", reply_markup=kb_admin.kb_another_price_full
+            MSG_ADMIN_SET_ANOTHER_PRICE, reply_markup=kb_admin.kb_another_price_full
         )
 
     elif message.text in LIST_CANCEL_COMMANDS:
@@ -581,7 +581,7 @@ async def get_new_status_price_list(message: types.Message, state: FSMContext):
 async def update_new_status_price_list(message: types.Message, state: FSMContext):
     if message.text == kb_admin.another_price_lst[0]:  # 'Другая цена'
         await message.reply(
-            "Введи другую цену", reply_markup=kb_admin.kb_another_price_full
+            MSG_ADMIN_SET_ANOTHER_PRICE, reply_markup=kb_admin.kb_another_price_full
         )
 
     elif not any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS):

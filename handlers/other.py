@@ -31,6 +31,13 @@ MONTH_NAME_EN = [
     "december",
 ]
 
+TATTOO_THEMES = [
+    "Ботаника", 
+    "Лес", 
+    "Абстракция",
+    "Другая"
+]
+
 STATES = {
     "open": "Открыт",
     "processed": "Обработан",

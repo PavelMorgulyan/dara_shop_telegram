@@ -345,15 +345,15 @@ class CandleItems(Base):
 class SequinsItems(Base):
     __tablename__ = "sequins_items"
     id: Mapped[int] = mapped_column(primary_key=True)
-    type: Mapped[Optional[str]]
-    state: Mapped[Optional[str]]
+    name: Mapped[Optional[str]]
+    quantity: Mapped[Optional[int]]
     photo: Mapped[Optional[str]]
 
     def __repr__(self) -> dict:
         return {
             "id": self.id,
-            "type": self.type,
-            "state": self.state,
+            "name": self.name,
+            "quantity": self.quantity,
             "photo": self.photo,
         }
 
@@ -379,11 +379,10 @@ class GiftboxItems(Base):
     price: Mapped[Optional[str]]
     giftbox_note: Mapped[Optional[str]]
     candle_id: Mapped[Optional[str]]
+    tattoo_theme: Mapped[Optional[str]]
     tattoo_note: Mapped[Optional[str]]
-    tattoo_state: Mapped[Optional[str]]
-    sequins_id: Mapped[
-        Optional[str]
-    ]  # Mapped["SequinsItems"] = relationship(back_populates= "type")
+    tattoo_quantity: Mapped[Optional[int]]
+    sequins_id: Mapped[Optional[str]]  # Mapped["SequinsItems"] = relationship(back_populates= "type")
     # sequins_state : # Mapped["SequinsItems"] = relationship(back_populates= "state")
 
     def __repr__(self) -> dict:
@@ -393,7 +392,7 @@ class GiftboxItems(Base):
             "price": self.price,
             "giftbox_note": self.giftbox_note,
             "tattoo_note": self.tattoo_note,
-            "tattoo_state": self.tattoo_state,
+            "tattoo_quantity": self.tattoo_quantity,
             "sequins_id": self.sequins_id,
             "candle_id": self.candle_id,
         }

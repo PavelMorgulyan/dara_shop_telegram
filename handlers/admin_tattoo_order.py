@@ -504,7 +504,7 @@ async def get_price_for_check_document(message: types.Message, state: FSMContext
     if message.text == "Другая цена":
         await bot.send_message(
             message.from_id,
-            "Хорошо, укажи другую цену",
+            MSG_ADMIN_SET_ANOTHER_PRICE,
             reply_markup=kb_admin.kb_another_price,
         )
 
@@ -901,10 +901,10 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
                 reply_markup=kb_client.kb_client_choice_main_or_temporary_tattoo,
             )
 
-    elif message.text == "Другая цена":
+    elif message.text in kb_admin.another_price_lst:
         await bot.send_message(
             message.from_id,
-            "Хорошо, укажи другую цену",
+            MSG_ADMIN_SET_ANOTHER_PRICE,
             reply_markup=kb_admin.kb_another_price_full,
         )
 

@@ -16,12 +16,13 @@ from handlers import (
     client_sketch_order,
     client_payload,
     admin_cert,
+    admin_candle, 
+    admin_giftbox_item, 
+    admin_giftbox_order,
+    admin_sequins
 )
 
-""" \
-    ,\
-    admin_candle, admin_giftbox_item, admin_giftbox_order, , \
-    admin_generate_ai_img """
+""" admin_generate_ai_img """
 
 
 from db.db_create import *
@@ -58,10 +59,11 @@ admin_clients_commands.register_handlers_admin_client_commands(dp)
 
 admin_sketch.register_handlers_admin_sketch(dp)
 admin_cert.register_handlers_admin_cert(dp)
-"""
 admin_candle.register_handlers_admin_candle(dp)
 admin_giftbox_item.register_handlers_admin_giftbox_item(dp)
 admin_giftbox_order.register_handlers_admin_giftbox_order(dp)
+admin_sequins.register_handlers_admin_sequins(dp)
+"""
 admin_generate_ai_img.register_handlers_admin_generate_img(dp) """
 # other.register_handlers_other(dp)
 

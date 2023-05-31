@@ -6,7 +6,8 @@ calendar_id = "pmorgukyan@gmail.com"  # 'https://calendar.google.com/calendar/em
 
 class GoogleCalendar:
     SCOPES = ["https://www.googleapis.com/auth/calendar"]
-    FILE_PATH = "files\calendar_docs\quantum-studio-335116-7806c0451434.json"
+    # FILE_PATH = "files\calendar_docs\quantum-studio-335116-7806c0451434.json"
+    FILE_PATH = "files\calendar_docs\quantum-studio-335116-522a99213397.json"
 
     def __init__(self) -> None:
         credentials = service_account.Credentials.from_service_account_file(

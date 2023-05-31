@@ -40,14 +40,14 @@ async def send_to_view_users_orders(user_lst: list, message: types.Message):
                 orders = session.scalars(
                     select(Orders).where(Orders.username == user.name)
                 ).all()
+            headers = [
+                "№",
+                "Тип заказа",
+                "Пользователь",
+                "Номер заказа",
+                "Статус",
+            ]
             for order in orders:
-                headers = [
-                    "№",
-                    "Тип заказа",
-                    "Пользователь",
-                    "Номер заказа",
-                    "Статус",
-                ]
                 table = PrettyTable(
                     headers, left_padding_width=1, right_padding_width=1
                 )  # Определяем таблицу

@@ -33,6 +33,7 @@ commands_button = [
     "Гифтбокс продукт",
     "Сертификат",
     "Свеча",
+    "Блестки",
     "Прайс-лист",
     "Пользователи",
     "Хочу создать изображение",
@@ -131,6 +132,11 @@ clients_commands = [
     Ожидает ответа — заказ был создан, когда покупатель оформил заявку на обратный ответ.
 """
 
+sequins_commands = {
+    "create":"добавить блестки",
+    "view":"посмотреть блестки",
+    "delete":"удалить блестки"
+}
 
 price_list_commands = [
     "посмотреть прайс-лист",
@@ -178,7 +184,10 @@ new_tattoo_item_state = {
     "Создатель": "creator",
 }
 
-in_stock_button = ["Есть в наличии", "Нет в наличии, нужно докупать"]
+in_stock_button = {
+    "in_stock" : "Есть в наличии", 
+    "not_in_stock" : "Нет в наличии"
+}
 
 # https://shinyband.com/glitterss
 sequin_types = [
@@ -354,13 +363,19 @@ client_want_to_try_another_later_img = {
     "admin_want_to_generate_img_from_ai_woman": "Сгенерируй мне модель женщины",
     "client_want_to_get_example_text_for_ai_img": "Хочу примеры текста изображений",
     "description_ai_generation_img": "Хочу подробный текст с описанием о создании изображения",
-    "correct_photo_from_ai_or_get_another": "Хочу попробовать еще раз с другими моими текстами 🎨",
+    "correct_photo_from_ai_or_get_another": "Хочу попробовать еще раз с другими моими текстами 🎨"
 }
+
+candle_choice = {"new_candle": "Новую", "having":"Выбрать из готовых"}
+
+kb_candle_choice = create_kb(list(candle_choice.values()) + cancel_lst)
 
 admin_choice_create_new_or_created_schedule_item = {
     "create_new_schedule": "Создать новое расписание",
     "choice_created_schedule": "Выбрать из моего расписания",
 }
+
+kb_sequins_commands = create_kb(list(sequins_commands.values()) + LIST_BACK_TO_HOME)
 
 kb_client_want_to_try_another_later_img = create_kb(
     list(client_want_to_try_another_later_img.values()) + back_lst + cancel_lst
@@ -388,7 +403,7 @@ kb_new_tattoo_item_state = create_kb(
 )
 kb_price_list_commands = create_kb(price_list_commands + LIST_BACK_TO_HOME)
 kb_main = create_kb(commands_button)
-kb_in_stock = create_kb(in_stock_button)
+kb_in_stock = create_kb(list(in_stock_button.values()) + cancel_lst)
 kb_change_status_order = create_kb(statuses_order_lst + LIST_BACK_TO_HOME)
 kb_sequin_types = create_kb(sequin_types + LIST_BACK_TO_HOME)
 kb_admin_has_no_phone_username = create_kb(phone_answer + LIST_BACK_TO_HOME)

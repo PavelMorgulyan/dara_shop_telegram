@@ -97,7 +97,7 @@ async def load_candle_price(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data['menu_another_price'] = True
         await message.reply(
-            'Введи другую цену для свечи', reply_markup=kb_admin.kb_another_price_full
+            MSG_ADMIN_SET_ANOTHER_PRICE, reply_markup=kb_admin.kb_another_price_full
         )
     elif message.text in LIST_BACK_COMMANDS:
         async with state.proxy() as data:
@@ -281,7 +281,7 @@ async def command_get_info_candles_having(message: types.Message):
                     message.from_user.id,
                     item.photo,
                     f" Свеча {item.name}\n- Цена: {item.price}"
-                    f"\n- Описание: {item.note}\n-  Количество: {item.quantity}",
+                    f"\n- Описание: {item.note}\n- Количество: {item.quantity}",
                     reply_markup=kb_admin.kb_candle_item_commands,
                 )
         await message.reply(

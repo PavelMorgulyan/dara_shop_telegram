@@ -100,28 +100,6 @@ async def giftbox_order_giftbox_note_choice(message: types.Message, state: FSMCo
 
 async def set_giftbox_order(data: dict, message: types.Message):
     with Session(engine) as session:
-        """new_cert_order = Orders(
-            order_type = 'гифтбокс',
-            order_name= None,
-            user_id= message.from_id,
-            order_photo= None,
-            tattoo_size= None,
-            tattoo_note= None,
-            order_note= data['giftbox_note'],
-            order_state= STATES['open'],
-            order_number= data['giftbox_order_number'],
-            creation_date= datetime.now(),
-            price= data['price'],
-            check_document= data['check_document'],
-            username= message.from_user.full_name,
-            schedule_id=None,
-            colored= None,
-            bodyplace= None,
-            tattoo_place_photo= None,
-            tattoo_place_video_note= None,
-            tattoo_place_video= None,
-            code= None
-        )"""
         new_cert_order = Orders(
             order_type="гифтбокс",
             user_id=message.from_id,

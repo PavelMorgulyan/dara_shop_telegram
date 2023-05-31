@@ -15,14 +15,6 @@ from handlers.client import (
     DARA_ID,
 )
 
-from db.db_delete_info import delete_info
-from db.db_getter import (
-    get_info,
-    get_tables_name,
-    get_info_many_from_table,
-    DB_NAME,
-    sqlite3,
-)
 from handlers.other import *
 
 from validate import check_pdf_document_payment, check_photo_payment
@@ -179,7 +171,7 @@ async def get_sketch_order_state(message: types.Message, state: FSMContext):
             MSG_DO_CLIENT_WANT_TO_DO_MORE,
             reply_markup= kb_admin.kb_tattoo_sketch_commands)
         
-    elif message.text in LIST_BACK_COMMANDS + LIST_CANCEL_COMMANDS + LIST_BACK_COMMANDS:
+    elif message.text in LIST_BACK_COMMANDS + LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()
         await bot.send_message(
             message.from_id,
@@ -630,7 +622,7 @@ async def get_sketch_price(message: types.Message, state: FSMContext):
     elif message.text == "Другая цена":
         await bot.send_message(
             message.from_id,
-            "Хорошо, укажи другую цену",
+            MSG_ADMIN_SET_ANOTHER_PRICE,
             reply_markup=kb_admin.kb_another_price_full,
         )
 
