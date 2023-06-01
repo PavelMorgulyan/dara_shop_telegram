@@ -171,7 +171,7 @@ async def get_sketch_order_state(message: types.Message, state: FSMContext):
             MSG_DO_CLIENT_WANT_TO_DO_MORE,
             reply_markup= kb_admin.kb_tattoo_sketch_commands)
         
-    elif message.text in LIST_BACK_COMMANDS + LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+    elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()
         await bot.send_message(
             message.from_id,
@@ -198,22 +198,28 @@ async def command_get_info_sketch_order(message: types.Message):
             orders = session.scalars(
                 select(Orders).where(Orders.order_type == "эскиз")
             ).all()
-
-        kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
-        await FSM_Admin_command_get_info_sketch_order.order_name.set()
-
-        for order in orders:
-            kb_orders.add(
-                KeyboardButton(
-                    f'№{order.order_number} {order.order_state}'
-                )
+        if orders == []:
+            await bot.send_message(
+                message.from_id,
+                MSG_NO_ORDER_IN_TABLE,
+                reply_markup=kb_admin.kb_tattoo_sketch_commands,
             )
-        kb_orders.add(kb_client.back_btn)
-        await bot.send_message(
-            message.from_user.id,
-            f"Какой заказ хочешь посмотреть?",
-            reply_markup=kb_orders,
-        )
+        else:
+            kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
+            await FSM_Admin_command_get_info_sketch_order.order_name.set()
+
+            for order in orders:
+                kb_orders.add(
+                    KeyboardButton(
+                        f'№{order.order_number} {order.order_state}'
+                    )
+                )
+            kb_orders.add(kb_client.back_btn)
+            await bot.send_message(
+                message.from_user.id,
+                f"Какой заказ хочешь посмотреть?",
+                reply_markup=kb_orders,
+            )
 
 
 async def get_name_for_view_sketch_order(message: types.Message, state: FSMContext):
@@ -327,49 +333,7 @@ async def delete_info_sketch_orders(message: types.Message, state: FSMContext):
         )
 
 
-# ------------------------------ посмотреть активные эскиз заказы-----------------------------------
-# 'посмотреть активные эскиз заказы',
-async def command_get_info_opened_sketch_orders(message: types.Message):
-    if (
-        message.text
-        in ["посмотреть активные эскиз заказы", "/посмотреть_активные_эскиз_заказы"]
-        and str(message.from_user.username) in ADMIN_NAMES
-    ):
-        with Session(engine) as session:
-            orders = session.scalars(
-                select(Orders)
-                .where(Orders.order_type == "эскиз")
-                .where(
-                    Orders.order_state.in_(
-                        [STATES["open"], STATES["processed"], STATES["paid"]]
-                    )
-                )
-            ).all()
-        await send_to_view_sketch_order(message, orders)
-        await bot.send_message(
-            message.from_user.id,
-            f"Всего активных заказов: {len(orders)}",
-            reply_markup=kb_admin.kb_tattoo_order_commands,
-        )
-
-
-# --------------------------- посмотреть активные эскиз заказы-----------------------------------
-# /посмотреть_закрытые_эскиз_заказы
-async def command_get_info_closed_sketch_orders(message: types.Message):
-    if (
-        message.text
-        in ["посмотреть закрытые эскиз заказы", "/посмотреть_закрытые_эскиз_заказы"]
-        and str(message.from_user.username) in ADMIN_NAMES
-    ):
-        with Session(engine) as session:
-            orders = session.scalars(
-                select(Orders)
-                .where(Orders.order_type == "эскиз")
-                .where(Orders.order_state.in_(list(STATES["closed"].values())))
-            ).all()
-        await send_to_view_sketch_order(message, orders)
-
-
+#----------------------------- CREATE NEW SKETCH ORDER------------------------
 class FSM_Admin_command_create_new_sketch_order(StatesGroup):
     get_description = State()
     get_photo_sketch = State()
@@ -385,7 +349,7 @@ async def command_create_new_sketch_order(message: types.Message):
         message.text.lower() in ["добавить эскиз заказ", "/добавить_эскиз_заказ"]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
-        await FSM_Admin_command_create_new_sketch_order.get_description.set()  # -> get_new_sketch_description
+        await FSM_Admin_command_create_new_sketch_order.get_description.set() # -> get_new_sketch_description
         await bot.send_message(
             message.from_id,
             "Ты ввела команду по созданию нового заказа эскиза переводного тату. \n\n"
@@ -793,6 +757,262 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
                 )
 
 
+
+class FSM_Admin_set_new_state_sketch_order(StatesGroup):
+    get_order_number = State()
+    set_new_order_state = State()
+    get_answer_check_document = State()
+    get_price_for_check_document = State()
+    get_check_document = State()
+
+# изменить статус эскиз заказа
+async def command_set_new_sketch_order_state(message: types.Message):
+    if (
+        message.text.lower() in ["изменить статус эскиз заказа", "/изменить_статус_эскиз_заказа"]
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        with Session(engine) as session:
+            orders = session.scalars(
+                select(Orders).where(Orders.order_type == "эскиз")
+            ).all()
+            
+        if orders == []:
+            await bot.send_message(
+                message.from_id,
+                MSG_NO_ORDER_IN_TABLE,
+                reply_markup=kb_admin.kb_tattoo_sketch_commands,
+            )
+        else:
+            kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
+            await FSM_Admin_set_new_state_sketch_order.get_order_number.set() #-> get_sketch_order_number
+
+            for order in orders:
+                kb_orders.add(
+                    KeyboardButton(
+                        f'{order.order_number} "{order.order_name}" статус: {order.order_state}'
+                    )
+                )
+            kb_orders.add(kb_client.back_btn)
+            await bot.send_message(
+                message.from_user.id,
+                f"Какой заказ хочешь изменить?",
+                reply_markup=kb_orders,
+            )
+
+
+async def get_sketch_order_number(message: types.Message, state: FSMContext):
+    with Session(engine) as session:
+        orders = session.scalars(
+            select(Orders).where(Orders.order_type == "эскиз")
+        ).all()
+    kb_orders = []
+    for order in orders:
+        kb_orders.append(f'{order.order_number} "{order.order_name}" статус: {order.order_state}')
+    
+    if message.text in kb_orders:
+        await FSM_Admin_set_new_state_sketch_order.next()
+        
+        async with state.proxy() as data:
+            data['order_number'] = int(message.text.split()[0])
+            data['current_order_status'] = message.text.split()[3]
+        
+        kb_new_status = ReplyKeyboardMarkup(resize_keyboard=True)
+        for status in status_distribution[message.text.split()[3]] + list(STATES['closed'].values()):
+            kb_new_status.add(KeyboardButton(status))
+        
+        await bot.send_message(
+            message.from_id, f"Какой статус выставляем?", reply_markup=kb_new_status,
+        )
+
+
+async def get_new_status_to_sketch_order(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        order_number = data['order_number']
+        current_order_status = data['current_order_status'] 
+        
+    if message.text in status_distribution[current_order_status]:
+        with Session(engine) as session:
+            order = session.scalars(
+                select(Orders).where(Orders.order_number == order_number)
+            ).one()
+            order.order_state = message.text
+            new_state = message.text
+            user_id = order.user_id
+            username = order.username
+            session.commit()
+            
+        if message.text in list(STATES["closed"].values()):
+            
+            await message.reply("Оповестить пользователя о смене статуса заказа?", 
+                reply_markup=kb_client.kb_yes_no)
+            
+        elif message.text in [STATES["paid"]]:  # 'Обработан'
+            await FSM_Admin_set_new_state_sketch_order.next()
+            await message.reply(
+                f"Хочешь добавить чек к заказу?", reply_markup=kb_client.kb_yes_no
+            )
+        elif message.text == kb_client.yes_str:
+            await bot.send_message(user_id, 
+                (
+                    f"❕ Уважаемый {username}!\n"
+                    f"❕ Статус заказа изменился с '{current_order_status}' на '{new_state}'.\n"
+                    f"За подробностями об изменении статуса заказа обращайтесь к "
+                    "@dara_redwan (https://t.me/dara_redwan)"
+                )
+            )
+            
+        elif message.text == kb_client.no_str:
+            await message.reply(
+                f'❕ Готово! Вы обновили статус заказа {order_number} на "{new_state}"',
+                reply_markup=kb_admin.kb_tattoo_order_commands,
+            )
+            await state.finish()  #  полностью очищает данные
+
+
+
+async def get_answer_for_getting_check_document(
+    message: types.Message, state: FSMContext
+):
+    if message.text == kb_client.yes_str:
+        await FSM_Admin_set_new_state_sketch_order.next()
+        await message.reply(
+            f"На какую сумму чек?", reply_markup=kb_admin.kb_price
+        )
+
+    elif message.text == kb_client.no_str:
+        async with state.proxy() as data:
+            tattoo_order_number = data["tattoo_order_number"]
+            new_state = data["new_state"]
+
+        await message.reply(
+            f"Готово! Вы обновили статус заказа {tattoo_order_number} на '{new_state}'",
+            reply_markup=kb_admin.kb_tattoo_order_commands,
+        )
+        await state.finish()
+    else:
+        await message.reply(
+            f"На этот вопрос можно ответит только 'Да' или 'Нет'. Выбери правильный ответ",
+            reply_markup=kb_client.kb_yes_no,
+        )
+
+
+async def get_price_for_check_document(message: types.Message, state: FSMContext):
+    if message.text in kb_admin.another_price_lst:
+        await bot.send_message(
+            message.from_id,
+            MSG_ADMIN_SET_ANOTHER_PRICE,
+            reply_markup=kb_admin.kb_another_price_full,
+        )
+
+    elif message.text.isdigit():
+        async with state.proxy() as data:
+            data["tattoo_order_price"] = message.text
+        await FSM_Admin_set_new_state_sketch_order.next() # -> get_check_document
+        await message.reply(
+            f"Приложи чек на эту сумму",
+            reply_markup=kb_client.kb_back_cancel,
+        )
+
+    elif message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
+        await state.finish()
+        await message.reply(
+            MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_tattoo_order_commands
+        )
+
+    else:
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def get_check_document(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        order_number = data["tattoo_order_number"]
+        price = str(data["tattoo_order_price"])
+
+    if message.content_type == "document":
+        check_doc_pdf = await check_pdf_document_payment(
+            user_id=message.from_id,
+            price=price,
+            file_name=message.document.file_name,
+            file_id=message.document.file_id,
+        )
+
+        if check_doc_pdf["result"]:
+            with Session(engine) as session:
+                order = session.scalars(select(Orders)
+                    .where(Orders.order_number == order_number)).one()
+                
+                new_check_item = CheckDocument(
+                        order_number=order_number, 
+                        telegram_user_id=order.user_id,
+                        doc= message.document.file_id,
+                    )
+                if order.check_document in [[], None]:
+                    order.check_document = [new_check_item]
+                else:
+                    order.check_document.append(new_check_item)
+                session.commit()
+            await state.finish()
+            await bot.send_message(
+                message.from_id,
+                f"🌿 Чек подошел! Заказ № {order_number} обрел свой чек! "
+                f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                reply_markup=kb_admin.kb_tattoo_order_commands,
+            )
+        else:
+            await message.reply(f"❌ Чек не подошел! %s" % check_doc_pdf["report_msg"])
+
+    if message.content_type == "text":
+        if message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
+            await state.finish()
+            await message.reply(
+                MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_tattoo_order_commands
+            )
+
+        elif message.text in LIST_BACK_COMMANDS:
+            await FSM_Admin_set_new_state_sketch_order.previous()
+            await message.reply(
+                f"{MSG_CLIENT_GO_BACK}❔ На какую сумму чек?",
+                reply_markup=kb_admin.kb_price,
+            )
+
+    if message.content_type == "photo":
+        message.photo[0].file_id
+        check_photo = await check_photo_payment(
+            message=message,
+            user_id=message.from_id,
+            price=price,
+            file_name=message.document.file_name,
+            file_id=message.photo[0].file_id,
+        )
+
+        if check_photo["result"]:
+            with Session(engine) as session:
+                order = session.scalars(select(Orders)
+                    .where(Orders.order_number == order_number)).one()
+                
+                if order.check_document in [None, []]:
+                    new_check_item = CheckDocument(
+                            order_number=order_number, 
+                            telegram_user_id=order.user_id,
+                            doc= message.photo[0].file_id,
+                        )
+                    order.check_document = [new_check_item]
+                else:
+                    order.check_document.append(new_check_item)
+                session.commit()
+            await state.finish()
+            await bot.send_message(
+                message.from_id,
+                f"🌿 Чек подошел! Заказ № {order_number} обрел свой чек! "
+                f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                reply_markup=kb_admin.kb_tattoo_order_commands,
+            )
+        else:
+            await message.reply(check_photo["report_msg"])  # type: ignore
+
+
+# TODO изменить эскиз заказ
+
 # ------------------------------------SKETCH ORDER-------------------------------------------
 def register_handlers_admin_sketch(dp: Dispatcher):
     dp.register_message_handler(
@@ -843,18 +1063,6 @@ def register_handlers_admin_sketch(dp: Dispatcher):
     )
 
     dp.register_message_handler(
-        command_get_info_opened_sketch_orders,
-        Text(equals="посмотреть активные эскиз заказы", ignore_case=True),
-        state=None,
-    )
-
-    dp.register_message_handler(
-        command_get_info_closed_sketch_orders,
-        Text(equals="посмотреть закрытые эскиз заказы", ignore_case=True),
-        state=None,
-    )
-
-    dp.register_message_handler(
         command_create_new_sketch_order, commands=["добавить_эскиз_заказ"]
     )
     dp.register_message_handler(
@@ -886,4 +1094,36 @@ def register_handlers_admin_sketch(dp: Dispatcher):
         get_sketch_check,
         content_types=["photo", "document", "text"],
         state=FSM_Admin_command_create_new_sketch_order.get_check,
+    )
+
+    dp.register_message_handler(
+        command_set_new_sketch_order_state, commands=["изменить_статус_эскиз_заказа"]
+    )
+    dp.register_message_handler(
+        command_set_new_sketch_order_state,
+        Text(equals="изменить статус эскиз заказа", ignore_case=True),
+        state=None,
+    )
+    dp.register_message_handler(
+        get_sketch_order_number,
+        state=FSM_Admin_set_new_state_sketch_order.get_order_number,
+    )
+    dp.register_message_handler(
+        get_new_status_to_sketch_order,
+        state=FSM_Admin_set_new_state_sketch_order.set_new_order_state,
+    )
+
+    dp.register_message_handler(
+        get_answer_for_getting_check_document,
+        state=FSM_Admin_set_new_state_sketch_order.get_answer_check_document,
+    )
+    dp.register_message_handler(
+        get_price_for_check_document,
+        state=FSM_Admin_set_new_state_sketch_order.get_price_for_check_document,
+    )
+
+    dp.register_message_handler(
+        get_check_document,
+        content_types=["photo", "document"],
+        state=FSM_Admin_set_new_state_sketch_order.get_check_document,
     )

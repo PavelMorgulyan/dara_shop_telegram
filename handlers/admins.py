@@ -81,7 +81,7 @@ async def command_create_json_file(message: types.Message):
         kb_tables_names = ReplyKeyboardMarkup(resize_keyboard=True)
         for ret in tables_names:
             kb_tables_names.add(KeyboardButton(ret[0]))  # выводим наименования таблиц
-        kb_tables_names.add(KeyboardButton(LIST_BACK_TO_HOME[0]))
+        kb_tables_names.add(kb_admin.home_btn)
         await FSM_Admin_create_json_file.table_name.set()
         await bot.send_message(
             message.from_id,
@@ -134,7 +134,7 @@ async def delete_table_command(message: types.Message):
             for table_name in inspector.get_table_names(schema=schema):
                 kb.add(KeyboardButton(table_name))
 
-        kb.add(KeyboardButton("Все таблицы")).add(KeyboardButton(LIST_BACK_TO_HOME[0]))
+        kb.add(KeyboardButton("Все таблицы")).add(kb_admin.home_btn)
         await FSM_Admin_delete_table.yes_no_delete_choice.set()
         await message.reply("Какую таблицу хочешь удалить?", reply_markup=kb)
 

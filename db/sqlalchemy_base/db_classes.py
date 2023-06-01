@@ -348,6 +348,7 @@ class SequinsItems(Base):
     name: Mapped[Optional[str]]
     quantity: Mapped[Optional[int]]
     photo: Mapped[Optional[str]]
+    price: Mapped[Optional[int]]
 
     def __repr__(self) -> dict:
         return {
@@ -355,6 +356,7 @@ class SequinsItems(Base):
             "name": self.name,
             "quantity": self.quantity,
             "photo": self.photo,
+            "price": self.price,
         }
 
 

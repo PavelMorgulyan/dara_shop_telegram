@@ -217,7 +217,7 @@ async def load_tattoo_name(message: types.Message, state: FSMContext):
             data["tattoo_name"] = message.text
         await FSM_Admin_tattoo_item.next()
         await message.reply(
-            "А теперь загрузи фотографию тату", reply_markup=kb_client.kb_back_cancel
+            "Загрузи фотографию тату", reply_markup=kb_client.kb_back_cancel
         )
 
 
@@ -426,7 +426,7 @@ async def command_get_info_tattoo(message: types.Message):
                 kb_tattoo_names.add(item.name)
             await FSM_Admin_get_info_tattoo_item.tattoo_name.set()
 
-            kb_tattoo_names.add(KeyboardButton(LIST_BACK_TO_HOME[0]))
+            kb_tattoo_names.add(kb_admin.home_btn)
             await message.reply(
                 "Какое тату хочешь посмотреть?", reply_markup=kb_tattoo_names
             )
@@ -624,7 +624,7 @@ async def delete_info_tattoo_in_table(message: types.Message):
             kb_tattoo_names = ReplyKeyboardMarkup(resize_keyboard=True)
             for item in tattoo_items:
                 kb_tattoo_names.add(item[0])
-            kb_tattoo_names.add(KeyboardButton(LIST_BACK_TO_HOME[0]))
+            kb_tattoo_names.add(kb_admin.home_btn)
             await FSM_Admin_delete_tattoo_item.delete_tattoo_name.set()
             await bot.send_message(
                 message.from_user.id,

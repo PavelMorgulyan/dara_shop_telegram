@@ -331,8 +331,7 @@ async def load_giftbox_tattoo_state(message: types.Message, state: FSMContext):
             
         for type in sequin_types:
             kb_sequin_types.add(type.name)
-        await message.reply("Выбери тип блесток", reply_markup= kb_sequin_types)
-        # TODO добавить возможность вносить тип блесток в бд
+        await message.reply("Выбери тип блесток в гифтбоксе", reply_markup= kb_sequin_types)
         
     elif message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()

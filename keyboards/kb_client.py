@@ -181,13 +181,13 @@ no_photo_in_tattoo_order = {
 }
 
 choice_place_tattoo = {
-    "client_know_place": "Да, я хочу выбрать место",
-    "client_has_no_idea_for_place": "Нет, я пока не знаю, где будет мое тату",
+    "client_know_place": "Выбрать место 👤",
+    "client_has_no_idea_for_place": "Пока не знаю, где будет мое тату 😓",
 }
 
 choice_get_photo_for_place_tattoo = {
-    "client_want_to_get_place": "Да, хочу отправить фото/видео 📎",
-    "client_dont_want_to_get_place": "Не буду отправлять, идем дальше ➡️",
+    "client_want_to_get_place": "Отправить фото/видео 📎",
+    "client_dont_want_to_get_place": "Не отправлять, идем дальше ➡️",
 }
 
 start_dialog_sketch_order = {"client_want_to_see_galery": "Посмотреть галерею 📃"}
@@ -195,8 +195,8 @@ start_dialog_sketch_order = {"client_want_to_see_galery": "Посмотреть 
 want_another_ai_img = {"want_another_ai_img": "Хочу еще раз попробовать создать эскиз"}
 
 phone_number = {
-    "client_send_contact": "Отправить свой контакт ☎️",
-    "client_dont_send_contact": "Не хочу оставлять свой телефон, только телеграм 💬",
+    "client_send_contact": "Отправить свой телефон ☎️",
+    "client_dont_send_contact": "Не оставлять свой телефон, только телеграм 💬",
 }
 
 client_choice_send_more_photo_to_skatch_order = {

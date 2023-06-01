@@ -58,44 +58,48 @@ async def get_tattoo_order_and_item_command_list(message: types.Message):
 async def send_to_view_tattoo_order(
     message: types.Message, tattoo_orders: ScalarResult["Orders"]
 ):
-    for order in tattoo_orders:
-        with Session(engine) as session:
-            user = session.scalars(
-                select(User).where(User.name == order.username)
-            ).all()
+    if tattoo_orders == []:
+            await bot.send_message(
+                message.from_id,
+                MSG_NO_ORDER_IN_TABLE,
+                reply_markup=kb_admin.kb_tattoo_order_commands,
+            )
+    else:
+        for order in tattoo_orders:
+            with Session(engine) as session:
+                user = session.scalars(
+                    select(User).where(User.name == order.username)
+                ).all()
 
-        if user != []:
-            for item in user:
-                username_telegram = (
-                    "Без телеграма"
-                    if item.telegram_name in ["", None]
-                    else item.telegram_name
-                )
-                username_phone = (
-                    "Без номера" if item.phone in ["", None] else item.phone
-                )
-        else:
-            username_telegram = "Без телеграма"
-            username_phone = "Без номера"
+            if user != []:
+                for item in user:
+                    username_telegram = (
+                        "Без телеграма"
+                        if item.telegram_name in ["", None]
+                        else item.telegram_name
+                    )
+                    username_phone = (
+                        "Без номера" if item.phone in ["", None] else item.phone
+                    )
+            else:
+                username_telegram = "Без телеграма"
+                username_phone = "Без номера"
 
-        msg = f"Тату заказ № {order.order_number} от {order.creation_date}\n"
+            msg = f"Тату заказ № {order.order_number} от {order.creation_date}\n"
 
-        msg += (
-            f"🪴 Тип тату: {order.order_type}\n"
-            f"🍃 Имя: {order.order_name}\n"
-            f"📏 Размер: {order.tattoo_size}\n"
-            f"📜 Описание тату: {order.tattoo_note}\n"
-            f"💬 Описание заказа: {order.order_note}\n"
-            f"🎨 {order.colored} тату\n"
-            f"👤 Местоположение тату: {order.bodyplace}\n"
-            f"- Цена заказа: {order.price}\n"
-            f"- Имя пользователя: {order.username}\n"
-            f"- Telegram пользователя: {username_telegram}\n"
-            f"- Телефон пользователя: {username_phone}\n"
-        )
-        # f'🎚 Количество основных деталей: {ret[16]}\n'\
-        with Session(engine) as session:
-            order = session.get(Orders, order.id)
+            msg += (
+                f"🪴 Тип тату: {order.order_type}\n"
+                f"🍃 Имя: {order.order_name}\n"
+                f"📏 Размер: {order.tattoo_size}\n"
+                f"📜 Описание тату: {order.tattoo_note}\n"
+                f"💬 Описание заказа: {order.order_note}\n"
+                f"🎨 {order.colored} тату\n"
+                f"👤 Местоположение тату: {order.bodyplace}\n"
+                f"- Цена заказа: {order.price}\n"
+                f"- Имя пользователя: {order.username}\n"
+                f"- Telegram пользователя: {username_telegram}\n"
+                f"- Телефон пользователя: {username_phone}\n"
+            )
             if order.order_type == "постоянное тату":
                 i = 0
                 if order.schedule_id is not None:
@@ -111,40 +115,52 @@ async def send_to_view_tattoo_order(
                         start_time = session.get(
                             ScheduleCalendar, schedule.schedule_id
                         ).start_datetime.strftime("%d/%m/%Y с %H:%M")
+                        
                         end_time = session.get(
                             ScheduleCalendar, schedule.schedule_id
                         ).end_datetime.strftime("%H:%M")
 
                         msg += f"\t{i}) {start_time} до {end_time}\n"
                 else:
-                    msg += f"🕒 Дата и время встречи не выбраны - свободных ячеек в календаре нет.\n"
+                    msg += (f"🕒 Дата и время встречи не выбраны - "
+                        "свободных ячеек в календаре нет.\n")
+            tattoo_photos = session.scalars(select(OrderPhoto)
+                .where(OrderPhoto.order_id == order.id)).all()
+            body_photos = session.scalars(select(TattooPlacePhoto)
+                .where(TattooPlacePhoto.order_id == order.id)).all()
 
-        if order.order_state in list(STATES["closed"].values()):
-            msg += f"❌ Состояние заказа: {order.order_state}\n"
-        else:
-            msg += f"📃 Состояние заказа: {order.order_state}\n"
+            if order.order_state in list(STATES["closed"].values()):
+                msg += f"❌ Состояние заказа: {order.order_state}\n"
+            else:
+                msg += f"📃 Состояние заказа: {order.order_state}\n"
+            
+            media = []
+            for photo in tattoo_photos + body_photos:
+                media.append(types.InputMediaPhoto(photo.photo))
 
-        with Session(engine) as session:
-            check_document = session.scalars(
-                select(CheckDocument).where(CheckDocument.id == order.order_number)
-            ).all()
-        if check_document not in [[], None]:
-            print(order.check_document)  # TODO сделать вывод чеков
-            for doc in check_document:
-                if doc is not None and doc.doc is not None:
-                    try:
-                        await bot.send_document(
-                            message.from_user.id, doc.doc, "Чек на оплату заказа"
-                        )
-                    except:
-                        await bot.send_photo(
-                            message.from_user.id, doc.doc, "Чек на оплату заказа"
-                        )
-                else:
-                    msg += "❌ Чек не добавлен"
-        else:
-            msg += "❌ Чек не добавлен"
-        await bot.send_message(message.from_id, msg)
+            await bot.send_media_group(message.from_user.id, media=media)
+            
+            with Session(engine) as session:
+                check_document = session.scalars(
+                    select(CheckDocument).where(CheckDocument.id == order.order_number)
+                ).all()
+            if check_document not in [[], None]:
+                print(order.check_document)  # TODO сделать вывод чеков
+                for doc in check_document:
+                    if doc is not None and doc.doc is not None:
+                        try:
+                            await bot.send_document(
+                                message.from_user.id, doc.doc, "Чек на оплату заказа"
+                            )
+                        except:
+                            await bot.send_photo(
+                                message.from_user.id, doc.doc, "Чек на оплату заказа"
+                            )
+                    else:
+                        msg += "❌ Чек не добавлен"
+            else:
+                msg += "❌ Чек не добавлен"
+            await bot.send_message(message.from_id, msg)
 
 
 # ------------------------------------------ посмотреть_тату_заказы--------------------------------
@@ -160,7 +176,11 @@ async def command_get_info_tattoo_orders(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         with Session(engine) as session:
-            orders = session.scalars(select(Orders)).all()
+            orders = session.scalars(
+                select(Orders)
+                    .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"],
+                        kb_admin.price_lst_types["shifting_tattoo"]]))
+                ).all()
             
         if orders == []:
             await bot.send_message(
@@ -181,13 +201,13 @@ async def get_status_name(message: types.Message, state: FSMContext):
     if message.text in statuses_order_lst:
         with Session(engine) as session:
             orders = session.scalars(
-                select(Orders).where(Orders.order_state == message.text)
+                select(Orders)
+                    .where(Orders.order_state == message.text)
+                    .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"],
+                        kb_admin.price_lst_types["shifting_tattoo"]]))
             ).all()
 
-        if orders == []:
-            await bot.send_message(message.from_user.id, MSG_NO_ORDER_IN_TABLE)
-        else:
-            await send_to_view_tattoo_order(message, orders)
+        await send_to_view_tattoo_order(message, orders)
 
         await bot.send_message(
             message.from_user.id,
@@ -233,7 +253,8 @@ async def command_get_info_tattoo_order(message: types.Message):
         with Session(engine) as session:
             orders = session.scalars(
                 select(Orders).where(
-                    Orders.order_type.in_(["постоянное тату", "переводное тату"])
+                    Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"],
+                        kb_admin.price_lst_types["shifting_tattoo"]])
                 )
             ).all()
 
@@ -242,7 +263,6 @@ async def command_get_info_tattoo_order(message: types.Message):
         else:
             kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
             await FSM_Admin_command_get_info_tattoo_order.order_name.set()
-            # await send_to_view_tattoo_order(message, orders_into_table)
             for order in orders:
                 kb_orders.add(
                     KeyboardButton(
@@ -251,7 +271,7 @@ async def command_get_info_tattoo_order(message: types.Message):
                     )
                 )
 
-            kb_orders.add(KeyboardButton(LIST_BACK_TO_HOME[0]))
+            kb_orders.add(kb_admin.home_btn)
             await bot.send_message(
                 message.from_user.id,
                 f"Какой заказ хочешь посмотреть?",
@@ -320,7 +340,7 @@ async def command_delete_info_tattoo_orders(message: types.Message):
                         f'{order.order_number} "{order.order_name}" {order.order_state}'
                     )
                 )
-            kb_tattoo_order_numbers.add(KeyboardButton(LIST_BACK_TO_HOME[0]))
+            kb_tattoo_order_numbers.add(kb_admin.home_btn)
             await FSM_Admin_delete_tattoo_order.tattoo_order_number.set()
             await message.reply(
                 "Какой заказ хотите удалить?", reply_markup=kb_tattoo_order_numbers
@@ -331,7 +351,8 @@ async def delete_info_tattoo_orders(message: types.Message, state: FSMContext):
     with Session(engine) as session:
         orders = session.scalars(
             select(Orders).where(
-                Orders.order_type.in_(["постоянное тату", "переводное тату"])
+                Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"],
+                    kb_admin.price_lst_types["shifting_tattoo"]])
             )
         ).all()
     choosen_kb_order_lst = []
@@ -394,7 +415,8 @@ async def command_tattoo_order_change_status(message: types.Message):
         with Session(engine) as session:
             orders = session.scalars(
                 select(Orders)
-                .where(Orders.order_type.in_(["постоянное тату", "переводное тату"]))
+                .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"],
+                    kb_admin.price_lst_types["shifting_tattoo"]]))
                 .where(Orders.user_id == message.from_id)
             ).all()
         kb_tattoo_order_numbers = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -407,7 +429,7 @@ async def command_tattoo_order_change_status(message: types.Message):
                         f'{order.order_number} "{order.order_name}" статус: {order.order_state}'
                     )
                 )
-            kb_tattoo_order_numbers.add(KeyboardButton(LIST_BACK_TO_HOME[0]))
+            kb_tattoo_order_numbers.add(kb_admin.home_btn)
             await FSM_Admin_tattoo_order_change_status.tattoo_order_number.set()
             await message.reply(
                 "У какого заказа хотите поменять статус?",
@@ -417,16 +439,32 @@ async def command_tattoo_order_change_status(message: types.Message):
 
 
 async def get_new_status_for_tattoo_order(message: types.Message, state: FSMContext):
-    if message.text != LIST_BACK_TO_HOME[0]:
+    with Session(engine) as session:
+        orders = session.scalars(
+            select(Orders)
+            .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"],
+                kb_admin.price_lst_types["shifting_tattoo"]]))
+            .where(Orders.user_id == message.from_id)
+        ).all()
+    tattoo_order_numbers_lst = []
+    for order in orders:
+        tattoo_order_numbers_lst.append(
+            f'{order.order_number} "{order.order_name}" статус: {order.order_state}'
+        )
+    if message.text in tattoo_order_numbers_lst:
         async with state.proxy() as data:
             data["tattoo_order_number"] = message.text.split()[0]
+            data['current_order_status'] = message.text.split()[3]
         await FSM_Admin_tattoo_order_change_status.next()
 
         await bot.send_message(message.from_id, MSG_SEND_ORDER_STATE_INFO)
+        
+        kb_new_status = ReplyKeyboardMarkup(resize_keyboard=True)
+        for status in status_distribution[message.text.split()[3]] + list(STATES['closed'].values()):
+            kb_new_status.add(KeyboardButton(status))
+        
         await bot.send_message(
-            message.from_id,
-            f"Хорошо, какой статус выставляем?",
-            reply_markup=kb_admin.kb_change_status_order,
+            message.from_id, f"Какой статус выставляем?", reply_markup=kb_new_status,
         )
 
     elif message.text in LIST_BACK_TO_HOME + LIST_BACK_COMMANDS:
@@ -442,36 +480,88 @@ async def get_new_status_for_tattoo_order(message: types.Message, state: FSMCont
 async def complete_new_status_for_tattoo_order(
     message: types.Message, state: FSMContext
 ):
+    '''   
+        Список действий:
+        0 - не меняется 
+        1 - отсылаем сообщение пользователю о действии
+        2 - просим добавить чек, если его нет
+        3 - подтверждаем оплату
+        4 - подтверждаем дату заказа (если есть)
+        
+            ------------------------------------------
+            Был         Стал         Действие
+            "Открыт": "Открыт"          0
+            "Открыт"  "Обработан"       1, 2
+            "Открыт": "Отклонен"        1
+            "Открыт": "Отложен"         1
+            "Открыт": "Аннулирован"     1
+            ------------------------------------------
+            Обработан   Открыт          1
+            Обработан   Обработан       0
+            Обработан   Оплачен         1
+            Обработан   Отклонен
+            Обработан   Отложен
+            Обработан   Аннулирован
+            ------------------------------------------
+            Оплачен   Открыт          1
+            Оплачен   Обработан       0
+            Оплачен   Оплачен         1
+            Оплачен   Выполняется
+            Оплачен   Выполнен
+            Оплачен   Отклонен
+            Оплачен   Отложен
+            Оплачен   Аннулирован
+    '''
     async with state.proxy() as data:
-        tattoo_order_number = data["tattoo_order_number"]
-        data["new_state"] = message.text
+        current_order_status = data['current_order_status']
+        
+    if message.text in status_distribution[current_order_status]:
+        with Session(engine) as session:
+            order = session.scalars(
+                select(Orders).where(Orders.order_number == order_number)
+            ).one()
+            username = order.username
+            user_id = order.user_id
+            order.order_state = message.text
+            schedule_id = order.schedule_id
+            session.commit()
 
-    with Session(engine) as session:
-        order = session.scalars(
-            select(Orders).where(Orders.order_number == tattoo_order_number)
-        ).one()
-        order.order_state = message.text
-        session.commit()
-
-    order = await get_info_many_from_table(
-        "tattoo_orders", "tattoo_order_number", tattoo_order_number
-    )
-    schedule_id = order[0][14]
-
-    if message.text in ["Аннулирован", "Отклонен"]:
-        await update_info("schedule_calendar", "id", schedule_id, "status", "Свободен")
-
-    if message.text in []:  # 'Обработан', 'Выполнен'
-        await FSM_Admin_tattoo_order_change_status.next()
-        await message.reply(
-            f"Хочешь добавить чек к заказу?", reply_markup=kb_client.kb_yes_no
-        )
-    else:
-        await message.reply(
-            f'Готово! Вы обновили статус заказа {tattoo_order_number} на "{message.text}"',
-            reply_markup=kb_admin.kb_tattoo_order_commands,
-        )
-        await state.finish()  #  полностью очищает данные
+        async with state.proxy() as data:
+            order_number = data["tattoo_order_number"]
+            data["new_state"] = message.text
+            new_state = message.text
+            current_order_status = data['current_order_status']    
+            
+        if message.text in list(STATES["closed"].values()):
+            with Session(engine) as session:
+                schedule = session.get(ScheduleCalendar, schedule_id)
+                schedule.status = "Свободен"
+                session.commit()
+                
+            await message.reply("Оповестить пользователя о смене статуса заказа?", 
+                reply_markup=kb_client.kb_yes_no)
+            
+        elif message.text in [STATES["paid"]]:  # 'Обработан'
+            await FSM_Admin_tattoo_order_change_status.next()
+            await message.reply(
+                f"Хочешь добавить чек к заказу?", reply_markup=kb_client.kb_yes_no
+            )
+        elif message.text == kb_client.yes_str:
+            await bot.send_message(user_id, 
+                (
+                    f"❕ Уважаемый {username}!\n"
+                    f"❕ Статус заказа изменился с '{current_order_status}' на '{new_state}'.\n"
+                    f"За подробностями об изменении статуса заказа обращайтесь к "
+                    "@dara_redwan (https://t.me/dara_redwan)"
+                )
+            )
+            
+        elif message.text == kb_client.no_str:
+            await message.reply(
+                f'❕ Готово! Вы обновили статус заказа {order_number} на "{new_state}"',
+                reply_markup=kb_admin.kb_tattoo_order_commands,
+            )
+            await state.finish()  #  полностью очищает данные
 
 
 async def get_answer_for_getting_check_document(
@@ -480,7 +570,7 @@ async def get_answer_for_getting_check_document(
     if message.text == kb_client.yes_str:
         await FSM_Admin_tattoo_order_change_status.next()
         await message.reply(
-            f"Хорошо, на какую сумму чек?", reply_markup=kb_admin.kb_price
+            f"На какую сумму чек?", reply_markup=kb_admin.kb_price
         )
 
     elif message.text == kb_client.no_str:
@@ -495,25 +585,25 @@ async def get_answer_for_getting_check_document(
         await state.finish()
     else:
         await message.reply(
-            f"На этот вопрос можно ответит только 'Да' или 'Нет'.Выбери правильный ответ",
+            f"На этот вопрос можно ответит только 'Да' или 'Нет'. Выбери правильный ответ",
             reply_markup=kb_client.kb_yes_no,
         )
 
 
 async def get_price_for_check_document(message: types.Message, state: FSMContext):
-    if message.text == "Другая цена":
+    if message.text in kb_admin.another_price_lst:
         await bot.send_message(
             message.from_id,
             MSG_ADMIN_SET_ANOTHER_PRICE,
-            reply_markup=kb_admin.kb_another_price,
+            reply_markup=kb_admin.kb_another_price_full,
         )
 
-    elif message.text in kb_admin.price + kb_admin.another_price:
+    elif message.text.isdigit():
         async with state.proxy() as data:
             data["tattoo_order_price"] = message.text
-        await FSM_Admin_tattoo_order_change_status.next()
+        await FSM_Admin_tattoo_order_change_status.next() # -> get_check_document
         await message.reply(
-            f"Хорошо, а теперь приложи чек на эту сумму",
+            f"Приложи чек на эту сумму",
             reply_markup=kb_client.kb_back_cancel,
         )
 
@@ -541,18 +631,25 @@ async def get_check_document(message: types.Message, state: FSMContext):
         )
 
         if check_doc_pdf["result"]:
-            await update_info(
-                "tattoo_orders",
-                "tattoo_order_number",
-                tattoo_order_number,
-                "check_document",
-                message.document.file_id,
-            )
+            with Session(engine) as session:
+                order = session.scalars(select(Orders)
+                    .where(Orders.order_number == tattoo_order_number)).one()
+                new_check_item = CheckDocument(
+                        order_number=tattoo_order_number, 
+                        telegram_user_id=order.user_id,
+                        doc= message.document.file_id,
+                    )
+                if order.check_document in [[], None]:
+                    order.check_document = [new_check_item]
+                else:
+                    order.check_document.append(new_check_item)
+                session.commit()
+            
             await state.finish()
             await bot.send_message(
                 message.from_id,
-                f"Чек подошел! Заказ № {tattoo_order_number} обрел свой чек! "
-                "Хочешь сделать что-нибудь еще?",
+                f"🌿 Чек подошел! Заказ № {tattoo_order_number} обрел свой чек! "
+                f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
                 reply_markup=kb_admin.kb_tattoo_order_commands,
             )
         else:
@@ -583,18 +680,26 @@ async def get_check_document(message: types.Message, state: FSMContext):
         )
 
         if check_photo["result"]:
-            await update_info(
-                "tattoo_orders",
-                "tattoo_order_number",
-                tattoo_order_number,
-                "check_document",
-                message.document.file_id,
-            )
+            with Session(engine) as session:
+                order = session.scalars(select(Orders)
+                    .where(Orders.order_number == tattoo_order_number)).one()
+                
+                if order.check_document in [None, []]:
+                    new_check_item = CheckDocument(
+                            order_number=tattoo_order_number, 
+                            telegram_user_id=order.user_id,
+                            doc= message.photo[0].file_id,
+                        )
+                    order.check_document = [new_check_item]
+                else:
+                    order.check_document.append(new_check_item)
+                session.commit()
+                
             await state.finish()
             await bot.send_message(
                 message.from_id,
                 f"Чек подошел! Заказ № {tattoo_order_number} обрел свой чек! "
-                "Хочешь сделать что-нибудь еще?",
+                f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
                 reply_markup=kb_admin.kb_tattoo_order_commands,
             )
         else:
@@ -615,11 +720,16 @@ async def command_command_change_info_tattoo_order(message: types.Message):
     if (
         message.text in ["изменить тату заказ", "/изменить_тату_заказ"]
         and str(message.from_user.username) in ADMIN_NAMES
-    ):
+    ):  
         with Session(engine) as session:
             orders = session.scalars(
                 select(Orders).where(
-                    Orders.order_type.in_(["постоянное тату", "переводное тату"])
+                    Orders.order_type.in_(
+                        [
+                            kb_admin.price_lst_types["constant_tattoo"],
+                            kb_admin.price_lst_types["shifting_tattoo"]
+                        ]
+                    )
                 )
             ).all()
         kb_tattoo_order_numbers = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -633,7 +743,7 @@ async def command_command_change_info_tattoo_order(message: types.Message):
                 )
             kb_tattoo_order_numbers.add(
                 KeyboardButton("Хочу сначала посмотреть заказ")
-            ).add(KeyboardButton(LIST_BACK_TO_HOME[0]))
+            ).add(kb_admin.home_btn)
             await FSM_Admin_change_tattoo_order.tattoo_order_number.set()
             await message.reply(
                 "У какого заказа хочешь поменять какую-либо информацию?",
@@ -646,9 +756,13 @@ async def get_tattoo_order_number(message: types.Message, state: FSMContext):
     with Session(engine) as session:
         orders = session.scalars(
             select(Orders).where(
-                Orders.order_type.in_(["постоянное тату", "переводное тату"])
-            )
-        ).all()
+                Orders.order_type.in_([
+                            kb_admin.price_lst_types["constant_tattoo"],
+                            kb_admin.price_lst_types["shifting_tattoo"]
+                        ]
+                    )
+                )
+            ).all()
     tattoo_str_list, tattoo_order_numbers = [], []
     kb_tattoo_order_numbers = ReplyKeyboardMarkup(resize_keyboard=True)
     kb_tattoo_order_numbers_with_status = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -695,9 +809,9 @@ async def get_tattoo_order_number(message: types.Message, state: FSMContext):
         with Session(engine) as session:
             order = session.scalars(
                 select(Orders).where(Orders.order_number == message.text)
-            ).one()
+            ).all()
         async with state.proxy() as data:
-            data["order"] = order
+            data["order"] = order[0]
 
         await send_to_view_tattoo_order(message, order)
 
@@ -711,6 +825,12 @@ async def get_tattoo_order_number(message: types.Message, state: FSMContext):
     elif message.text in tattoo_str_list:
         async with state.proxy() as data:
             data["order_number"] = message.text.split()[0]
+            with Session(engine) as session:
+                order = session.scalars(
+                        select(Orders)
+                            .where(Orders.order_number == message.text.split()[0])
+                    ).one()
+            data['order'] = order
             data["telegram"] = message.from_id
 
         await FSM_Admin_change_tattoo_order.next()
@@ -772,7 +892,7 @@ async def get_to_view_schedule(
                 f"{MSG_MY_FREE_CALENDAR_DATES}" f"{date_list_full_for_msg}",
             )
 
-    kb_schedule.add(LIST_BACK_TO_HOME)
+    kb_schedule.add(kb_admin.home_btn)
     await bot.send_message(
         message.from_id, "Хорошо, укажи новую дату встречи", reply_markup=kb_schedule
     )
@@ -783,15 +903,15 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
         schedule = session.scalars(
             select(ScheduleCalendar)
             .where(ScheduleCalendar.status.in_(["Свободен"]))
-            .where(ScheduleCalendar.event_type.in_(["тату заказ"]))
+            .where(ScheduleCalendar.event_type.in_(["постоянное тату"]))
         ).all()
     kb_items_list = []
     for date in schedule:
         month_name = await get_month_from_number(
             int(date.start_datetime.strftime("%m")), lang="ru"
         )
-        item_in_kb = f'{month_name} {date.start_datetime.strftime("%d/%m/%Y с %H:%M")}"\
-        f" по {date.end_datetime.strftime("%H:%M")} 🗓'
+        item_in_kb = f"{month_name} {date.start_datetime.strftime('%d/%m/%Y с %H:%M')}"\
+            f" по {date.end_datetime.strftime('%H:%M')} 🗓"
         kb_items_list.append(item_in_kb)
 
     async with state.proxy() as data:
@@ -807,16 +927,17 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
                 data["photo_type"] = message.text
             for i in range(3):
                 await FSM_Admin_change_tattoo_order.next()  # -> get_new_photo
-            img_item = kb_admin.tattoo_order_change_info_list[message.text].split()[1:]
+            img_item = kb_admin.tattoo_order_change_info_list[message.text].split()[1][1:]
             await bot.send_message(
                 message.from_id,
-                f"Хорошо, отправь новую фотографию/изображение {img_item}",
+                f"Отправь новую фотографию/изображение {img_item}",
+                reply_markup= kb_client.kb_back_cancel
             )
 
         elif message.text == "Цвет тату":
             await bot.send_message(
                 message.from_id,
-                "Хорошо, какой цвет будет у тату?",
+                "Какой цвет будет у тату?",
                 reply_markup=kb_client.kb_colored_tattoo_choice,
             )
 
@@ -829,7 +950,7 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                "Хорошо, укажи новое описание тату",
+                "Укажи новое описание тату",
                 reply_markup=kb_client.kb_cancel,
             )
 
@@ -839,7 +960,7 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                "Хорошо, укажи новое описание заказа",
+                "Укажи новое описание заказа",
                 reply_markup=kb_client.kb_cancel,
             )
 
@@ -847,7 +968,7 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
             await FSM_Admin_change_tattoo_order.next()  # -> process_hour_timepicker_start_session
             await bot.send_message(
                 message.from_id,
-                "Хорошо, укажи новое время встречи",
+                "Укажи новое время встречи",
                 reply_markup=await FullTimePicker().start_picker(),
             )
 
@@ -857,7 +978,7 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                "Хорошо, укажи новое имя тату",
+                "Укажи новое имя тату",
                 reply_markup=kb_client.kb_cancel,
             )
 
@@ -867,7 +988,7 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                "Хорошо, укажи новое имя пользователя",
+                "Укажи новое имя пользователя",
                 reply_markup=kb_client.kb_cancel,
             )
 
@@ -876,28 +997,28 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
                 data["menu_new_telegram"] = True
             await bot.send_message(
                 message.from_id,
-                "Хорошо, укажи новое Телеграм пользователя",
+                "Укажи новое Телеграм пользователя",
                 reply_markup=kb_client.kb_cancel,
             )
 
         elif message.text == "Место части тела для тату":
             await bot.send_message(
                 message.from_id,
-                "Хорошо, укажи новую часть тела",
+                "Укажи новую часть тела",
                 reply_markup=kb_client.kb_place_for_tattoo,
             )
 
         elif message.text == "Цена":
             await bot.send_message(
                 message.from_id,
-                "Хорошо, укажи новую цену",
+                "Укажи новую цену",
                 reply_markup=kb_admin.kb_price,
             )
 
         elif message.text == "Тип тату":  #! А мы вообще меняем тут "тип тату"?
             await bot.send_message(
                 message.from_id,
-                "Хорошо, укажи тип тату",
+                "Укажи тип тату",
                 reply_markup=kb_client.kb_client_choice_main_or_temporary_tattoo,
             )
 
@@ -1226,20 +1347,21 @@ async def get_new_photo(message: types.Message, state: FSMContext):
             photo_type = data["photo_type"]
             order_number = data["order_number"]
 
-        if photo_type == "Фотография тату":
+        if photo_type == "Изображение тату":
             with Session(engine) as session:
                 order = session.scalars(
                     select(Orders).where(Orders.order_number == order_number)
                 ).one()
-                order.order_photo = [
-                    (
-                        OrderPhoto(
-                            order_number=order.order_number,
-                            telegram_user_id=order.user_id,
-                            photo=message.photo[0].file_id,
-                        )
-                    )
-                ]
+                new_photo_item = OrderPhoto(
+                    order_number=order.order_number,
+                    telegram_user_id=order.user_id,
+                    photo=message.photo[0].file_id,
+                )
+                if order.order_photo is None:
+                    order.order_photo = [new_photo_item]
+                else:
+                    order.order_photo.append(new_photo_item)
+                    
                 session.commit()
 
         elif photo_type == "Фото части тела":
@@ -1247,15 +1369,15 @@ async def get_new_photo(message: types.Message, state: FSMContext):
                 order = session.scalars(
                     select(Orders).where(Orders.order_number == order_number)
                 ).one()
-                order.tattoo_place_photo = [
-                    (
-                        TattooPlacePhoto(
-                            order_number=order.order_number,
-                            telegram_user_id=order.user_id,
-                            photo=message.photo[0].file_id,
-                        )
-                    )
-                ]
+                new_body_photo_item = TattooPlacePhoto(
+                    order_number=order.order_number,
+                    telegram_user_id=order.user_id,
+                    photo=message.photo[0].file_id,
+                )
+                if order.tattoo_place_photo is None:
+                    order.tattoo_place_photo = [new_body_photo_item]
+                else:
+                    order.tattoo_place_photo.append(new_body_photo_item)
                 session.commit()
 
         await bot.send_message(
@@ -1331,7 +1453,7 @@ async def get_tattoo_type(message: types.Message, state: FSMContext):
             # tattoo_type = постоянное, переводное
             data["tattoo_type"] = message.text.split()[0].lower()
 
-            data["tattoo_photo"] = ""
+            data["tattoo_photo_tmp_lst"] = ""
             data["tattoo_order_photo_counter"] = 0
             data["tattoo_place_file"] = ""
             data["client_add_tattoo_place_photo"] = True
@@ -1357,21 +1479,25 @@ async def get_tattoo_type(message: types.Message, state: FSMContext):
 async def choice_tattoo_order_admin(message: types.Message, state: FSMContext):
     list_kb_tattoo_items = []
     if message.text == kb_client.yes_str:
-        admin_tattoo_items = await get_info_many_from_table("tattoo_items")
+        with Session(engine) as session:
+            admin_tattoo_items = session.scalars(select(TattooItems)).all()
         kb_tattoo_items_for_order = ReplyKeyboardMarkup(resize_keyboard=True)
         await bot.send_message(message.from_id, "Вот твоя галлерея:")
 
         for tattoo in admin_tattoo_items:
-            kb_tattoo_items_for_order.add(KeyboardButton(f"{tattoo[0]}"))
-            list_kb_tattoo_items.append(f"{tattoo[0]}")
-            tattoo = list(tattoo)  # ? TODO нужно ли выводить размер и цену?
-            msg = f"📃 Название: {tattoo[0]}\n🎨 Цвет: {tattoo[3]}\n"
+            kb_tattoo_items_for_order.add(KeyboardButton(f"{tattoo.name}"))
+            list_kb_tattoo_items.append(f"{tattoo.name}")
+            msg = f"📃 Название: {tattoo.name}\n🎨 Цвет: {tattoo.colored}\n"
             # \f'🔧 Количество деталей: {tattoo[5]}\n'
 
-            if tattoo[4].lower() != "без описания":
-                msg += f"💬 Описание: {tattoo[4]}\n"  # 💰 Цена: {tattoo[2]}\n'
+            if tattoo.note.lower() != "без описания":
+                msg += f"💬 Описание: {tattoo.note}\n"  # 💰 Цена: {tattoo[2]}\n'
+            
+            media = []
+            for photo in tattoo.photos:
+                media.append(types.InputMediaPhoto(photo.photo, msg))
 
-            await bot.send_photo(message.from_user.id, tattoo[1], msg)
+            await bot.send_media_group(message.from_user.id, media=media)
 
         # выдаем список тату - фотографии, название, цвет, описание
         await bot.send_message(
@@ -1381,14 +1507,16 @@ async def choice_tattoo_order_admin(message: types.Message, state: FSMContext):
         )
 
     elif message.text in list_kb_tattoo_items:
-        tattoo = await get_info_many_from_table("tattoo_items", "name", message.text)
+        with Session(engine) as session:
+            tattoo = session.scalars(select(TattooItems)
+                .where(TattooItems.name == message.text)).one()
         async with state.proxy() as data:
             data["telegram"] = message.from_user.id
             data["tattoo_name"] = message.text
-            data["price"] = list(tattoo[0])[2]  # price
-            data["tattoo_photo"] = list(tattoo[0])[1]  # photo
-            data["colored"] = list(tattoo[0])[3]  # colored
-            data["tattoo_note"] = list(tattoo[0])[4]  # colored
+            data["price"] = tattoo.price
+            data["tattoo_photo_tmp_lst"] = tattoo.photos 
+            data["colored"] = tattoo.colored
+            data["tattoo_note"] = tattoo.note  
             data["tattoo_from_galery"] = True
         for i in range(3):
             await FSM_Admin_tattoo_order.next()  # -> tattoo_size
@@ -1508,7 +1636,7 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
     elif message.content_type == "photo":
         async with state.proxy() as data:
             data["tattoo_from_galery"] = False
-            data["tattoo_photo"] += f"{message.photo[0].file_id}|"
+            data["tattoo_photo_tmp_lst"] += f"{message.photo[0].file_id}|"
             tattoo_order_photo_counter = data["tattoo_order_photo_counter"]
             data["tattoo_order_photo_counter"] = message.media_group_id
 
@@ -1632,10 +1760,10 @@ async def load_tattoo_order_schedule_choice(message: types.Message, state: FSMCo
             for date in schedule:
                 if "/" in date[3]:
                     date_time = datetime.strptime(
-                        f"{date[3]} 00:00:00", "%d/%m/%Y %H:%M"
+                        f"{date[3]} 00:00", "%d/%m/%Y %H:%M"
                     )
 
-                    if date_time >= datetime.datetime.now():
+                    if date_time >= datetime.now():
                         date_list += f"{date[4]} {date[3]} c {date[1]} по {date[2]}\n"
                         kb_date_schedule.add(
                             KeyboardButton(
@@ -1654,11 +1782,11 @@ async def load_tattoo_order_schedule_choice(message: types.Message, state: FSMCo
                             )
                         )
             kb_date_schedule.add(KeyboardButton("Отмена"))
-            month_today = int(datetime.datetime.strftime(datetime.datetime.now(), "%m"))
-            year_today = int(datetime.datetime.strftime(datetime.datetime.now(), "%Y"))
-            schedule_photo = await get_info_many_from_table(
-                "schedule_photo", "name", f"{month_today} {year_today}"
-            )
+            month_today = int(datetime.strftime(datetime.now(), "%m"))
+            year_today = int(datetime.strftime(datetime.now(), "%Y"))
+            with Session(engine) as session:
+                schedule_photo = session.scalars(select(SchedulePhoto)
+                    .where(SchedulePhoto.name == f"{month_today} {year_today}")).all()
             await FSM_Admin_tattoo_order.next()  # -> load_new_tattoo_order_date_from_schedule
 
             if schedule_photo != []:
@@ -1679,10 +1807,10 @@ async def load_tattoo_order_schedule_choice(message: types.Message, state: FSMCo
                 )
 
     elif message.text == "Хочу новую дату в календарь":
-        await FSM_Admin_tattoo_order.next()
-        await FSM_Admin_tattoo_order.next()  # -> load_datemiting
+        for i in range(2):
+            await FSM_Admin_tattoo_order.next()  # -> load_datemiting
         await message.reply(
-            f"Тогда создадим новую дату. Выбери пожалуйста, дату",
+            f"Тогда создадим новую дату. Выбери пожалуйста, новую дату",
             reply_markup=await DialogCalendar().start_calendar(),
         )
     else:
@@ -1736,6 +1864,7 @@ async def load_datemiting(
 
         else:
             async with state.proxy() as data:
+                data['date'] = date
                 data["date_meeting"] = f'{date.strftime("%d/%m/%Y")}'  #  message.text
                 data["month_number"] = int(f'{date.strftime("%m")}')
                 data["month_name"] = await get_month_from_number(
@@ -1796,18 +1925,19 @@ async def process_hour_timepicker_end(
             schedule_id = await generate_random_order_number(CODE_LENTH)
             data["schedule_id"] = schedule_id
 
-            new_schedule_event = {
-                "schedule_id": schedule_id,
-                "start_time": data["start_date_time"],
-                "end_time": data["end_date_time"],
-                "date": data["date_meeting"],
-                "month_name": data["month_name"],
-                "month_number": data["month_number"],
-                "status": "Занят",
-                "event_type": "тату заказ",
-            }
-
-        await set_to_table(tuple(new_schedule_event.values()), "schedule_calendar")
+            with Session(engine) as session:
+                new_schedule_event = ScheduleCalendar(
+                    start_datetime = datetime.strptime(
+                        f"{data['date']} {data['start_time']}", "%d/%m/%Y %H:%M"
+                    ),
+                    end_datetime= datetime.strptime(
+                        f"{data['date']} {r.time.strftime('%H:%M')}", "%d/%m/%Y %H:%M"
+                    ),
+                    status = 'Занят', 
+                    event_type = 'тату заказ'
+                )
+                session.add(new_schedule_event)
+                session.commit()
 
         await FSM_Admin_tattoo_order.next()  # -> load_tattoo_order_note
         await bot.send_message(
@@ -2040,9 +2170,9 @@ async def get_price_tattoo_order_after_choice(
         data["tattoo_order_number"] = await generate_random_order_number(
             ORDER_CODE_LENTH
         )
-        data["creation_date"] = datetime.strftime(datetime.now(), "%d/%m/%Y %H:%M")
+        data["creation_date"] = datetime.now()
         if not tattoo_from_galery:
-            new_tattoo_info = {
+            """ new_tattoo_info = {
                 "tattoo_name": data["tattoo_name"],
                 "tattoo_photo": data["tattoo_photo"],
                 "tattoo_price": data["tattoo_price"],
@@ -2050,7 +2180,7 @@ async def get_price_tattoo_order_after_choice(
                 "tattoo_note": data["tattoo_note"],
                 "creator": "admin",
             }
-            await set_to_table(tuple(new_tattoo_info.values()), "tattoo_items")
+            await set_to_table(tuple(new_tattoo_info.values()), "tattoo_items") """
             await bot.send_message(
                 message.from_user.id,
                 f" Отлично! В таблице tattoo_items появилась новая строка. "
@@ -2085,8 +2215,8 @@ async def get_tattoo_order_state(message: types.Message, state: FSMContext):
             data["order_state"] = STATES["open"]
             data["check_document"] = "Чек не добавлен"
             tattoo_order_number = data["tattoo_order_number"]
-        await FSM_Admin_tattoo_order.next()
-        await FSM_Admin_tattoo_order.next()
+        for i in range(2):
+            await FSM_Admin_tattoo_order.next()
         await bot.send_message(
             message.from_user.id,
             f"Заказ № {tattoo_order_number} почти оформлен! "
@@ -2114,8 +2244,8 @@ async def get_tattoo_order_check(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             tattoo_order_number = data["tattoo_order_number"]
             data["check_document"] = "Чек не добавлен"
-        await FSM_Admin_tattoo_order.next()
-        await FSM_Admin_tattoo_order.next()
+        for i in range(2):
+            await FSM_Admin_tattoo_order.next()
         await bot.send_message(
             message.from_user.id,
             f"Заказ № {tattoo_order_number} почти оформлен! "
@@ -2159,81 +2289,97 @@ async def get_tattoo_order_check_next(message: types.Message, state: FSMContext)
 # выбираем имя покупателя
 async def tattoo_order_load_user_name(message: types.Message, state: FSMContext):
     # Заполняем таблицу clients
-    tattoo_order_number = 0
+    order_photo_lst = []
+    tattoo_photo_lst = []
     async with state.proxy() as data:
         data["username"] = message.text
         tattoo_order_number = data["tattoo_order_number"]
-        tattoo_order_tuple_data = {
-            "telegram": data["telegram"],
-            "tattoo_name": data["tattoo_name"],
-            "tattoo_photo": data["tattoo_photo"],
-            "tattoo_size": data["tattoo_size"],
-            "date_meeting": data["date_meeting"],
-            "date_time": data["start_date_time"],
-            "tattoo_note": data["tattoo_note"],
-            "order_note": data["order_note"],
-            "order_state": data["order_state"],
-            "tattoo_order_number": data["tattoo_order_number"],
-            "creation_date": data["creation_date"],
-            "tattoo_price": data["tattoo_price"],
-            "check_document": data["check_document"],
-            "username": data["username"],
-            "schedule_id": data["schedule_id"],
-            "tattoo_colored": data["tattoo_colored"],
-            "tattoo_details_number": data["tattoo_details_number"],
-            "tattoo_body_place": data["tattoo_body_place"],
-            "tattoo_place_file": data["tattoo_place_file"],
-            "tattoo_type": data["tattoo_type"],
-            "tattoo_place_video_note": data["tattoo_place_video_note"],
-            "tattoo_place_video": data["tattoo_place_video"],
-        }
+        with Session(engine) as session:
+            
+            """
+                Определяем новое Тату - TattooItemPhoto
+            """
 
-        metting_calendar_event = {
-            "date_meeting": data["start_date_time"] + " " + data["date_meeting"],
-            "order_number": data["tattoo_order_number"],
-        }
-        await update_info(
-            "schedule_calendar", "id", data["schedule_id"], "status", "Занят"
+            if data["tattoo_photo_tmp_lst"] != "":
+                for photo in data["tattoo_photo_tmp_lst"].split("|"):
+                    # при split('|') возникает еще одна переменная '', ее необходимо не добавлять
+                    if photo != "":
+                        tattoo_photo_lst.append(
+                            TattooItemPhoto(
+                                photo=photo, tattoo_item_name=data["tattoo_name"]
+                            )
+                        )
+                        order_photo_lst.append(
+                            OrderPhoto(
+                                order_number=data["tattoo_order_number"],
+                                telegram_user_id=message.from_id,
+                                photo=photo,
+                            )
+                        )
+            else:
+                tattoo_photo_lst.append(
+                    TattooItemPhoto(photo=None, tattoo_item_name=data["tattoo_name"])
+                )
+            schedule_item = None
+            if data["schedule_id"] not in [None, []]:
+                schedule_item = [
+                    ScheduleCalendarItems(
+                        schedule_id=data["schedule_id"],
+                        order_number=data["tattoo_order_number"],
+                    )
+                ]
+            new_tattoo_order = Orders(
+                order_type=data["tattoo_type"],
+                order_name=data["tattoo_name"],
+                user_id=message.from_id,
+                order_photo=order_photo_lst,
+                tattoo_size=data["tattoo_size"],
+                tattoo_note=data["tattoo_note"],
+                order_note=data["order_note"],
+                order_state=data["order_state"],
+                order_number=data["tattoo_order_number"],
+                creation_date=data["creation_date"],
+                price=data["tattoo_price"],
+                check_document=data["check_document"],
+                username=data["username"],
+                schedule_id=schedule_item,
+                colored=data["tattoo_colored"],
+                # tattoo_details_number=  data['tattoo_details_number'],
+                bodyplace=data["tattoo_body_place"],
+                tattoo_place_photo=data["tattoo_place_photo"],
+                tattoo_place_video_note=data["tattoo_place_video_note"],
+                tattoo_place_video=data["tattoo_place_video"],
+            )
+            session.add(new_tattoo_order)
+            schedule = session.get(ScheduleCalendar, data["schedule_id"])
+            schedule.status = "Занят"
+            session.commit()
+            
+        start_time = datetime.strptime(
+            f"{data['date'].strftime('%Y-%m-%d')}T{data['start_time']}:00",
+            "%Y-%m-%dT%H:%M:%S"
         )
 
-        time_meeting = data["start_date_time"]
-        date_meeting = data["date_meeting"].split("/")
-        start_time = (
-            f"{date_meeting[2]}-{date_meeting[1]}-{date_meeting[0]}T{time_meeting}"
-        )
-        end_time_meeting = data["end_date_time"]
-
-        end_time = (
-            f"{date_meeting[2]}-{date_meeting[1]}-{date_meeting[0]}T{end_time_meeting}"
+        end_time = datetime.strptime(
+            f"{data['date'].strftime('%Y-%m-%d')}T{data['end_date_time']}:00",
+            "%Y-%m-%dT%H:%M:%S"
         )
 
         event = await obj.add_event(
             CALENDAR_ID,
             f"Новый тату заказ № {tattoo_order_number}",
-            "Название тату: "
-            + data["tattoo_name"]
-            + ", \n"
-            + "Описание тату: "
-            + data["tattoo_note"]
-            + ", \n"
-            + "Описание заказа: "
-            + data["order_note"]
-            + ", \n"
-            + f"Имя клиента: {message.from_user.full_name}\n",
+            f"Название тату: {data['tattoo_name']}, \n"
+            f"Описание тату: {data['tattoo_note']}, \n"
+            f"Описание заказа: {data['order_note']}, \n"
+            f"Имя клиента: {message.from_user.full_name}\n",
             start_time,  # '2023-02-02T09:07:00',
             end_time,  # '2023-02-03T17:07:00'
         )
-
-    print("tattoo_order_tuple_data.values():", tuple(tattoo_order_tuple_data.values()))
-    await set_to_table(tuple(tattoo_order_tuple_data.values()), "tattoo_orders")
-
-    user_name = ""
-    user = []
-    try:
-        user = await get_info_many_from_table("clients", "username", message.text)
-        user_name = list(user[0])[0]
-    except:
-        print("У вас еще не было заказов и пользователей")
+    
+    with Session(engine) as session:
+        user = session.scalars(select(User).where(User.name == message.text)).all()
+    if user!= []:
+        user_name = user[0].name
 
     await state.finish()
     await FSM_Admin_username_info.user_name.set()
@@ -2244,19 +2390,19 @@ async def tattoo_order_load_user_name(message: types.Message, state: FSMContext)
 
     if user != [] and user is not None:
         if message.text != user_name:
-            await FSM_Admin_username_info.next()
-            await FSM_Admin_username_info.next()
-            await message.reply("Хорошо, а теперь введи его телеграм")
+            for i in range(2):
+                await FSM_Admin_username_info.next() #-> load_telegram
+            await message.reply("Введи его телеграм")
         else:
-            await FSM_Admin_username_info.next()
+            await FSM_Admin_username_info.next() #-> answer_user_name
             await message.reply(
                 f"Это пользователь под именем {user_name}?",
                 reply_markup=kb_client.kb_yes_no,
             )
     else:
-        await FSM_Admin_username_info.next()
-        await FSM_Admin_username_info.next()
-        await message.reply("Хорошо, а теперь введи ссылку на его телеграм")
+        for i in range(2):
+            await FSM_Admin_username_info.next() #-> load_telegram
+        await message.reply("Введи ссылку на его телеграм")
 
 
 # TODO: ЗАКОНЧИТЬ ЗАПОЛНЕНИЕ НОВОГО ПОЛЬЗОВАТЕЛЯ ДЛЯ ТАТУ ЗАКАЗА, ДЛЯ АДМИНА
@@ -2290,7 +2436,7 @@ async def load_telegram(message: types.Message, state: FSMContext):
         data["telegram"] = message.text
     await FSM_Admin_username_info.next()
     await message.reply(
-        'Хорошо, а теперь введи его телефон, или нажми на кнопку "Я не знаю его телефона"',
+        'Введи его телефон, или нажми на кнопку "Я не знаю его телефона"',
         reply_markup=kb_admin.kb_admin_has_no_phone_username,
     )
 
@@ -2310,26 +2456,29 @@ async def load_phone(message: types.Message, state: FSMContext):
             await message.reply("Номер не корректен. Пожалуйста, введи номер заново.")
 
     async with state.proxy() as data:
-        new_client_info = {
-            "username": data["username"],
-            "telegram": data["telegram"],
-            "phone": number,
-        }
-        await set_to_table(tuple(new_client_info.values()), "clients")
+        with Session(engine) as session:
+            new_user = User(
+                name = data["username"],
+                telegram_name= data["telegram"],
+                phone = number
+            )
+            session.add(new_user)
+            session.commit()
+            
         username, telegram, phone = data["username"], data["telegram"], number
         tattoo_order_number = data["order_number"]
-        print("Таблица clients пополнилась новыми данными")
+
         await bot.send_message(
             message.from_user.id,
             f"Хорошо, твой заказ под номером {tattoo_order_number}"
             f" оформлен на пользователя {username} с телеграмом {telegram}, телефон: {phone}!",
-            reply_markup=kb_admin.kb_main,
+            reply_markup=kb_admin.kb_tattoo_order_commands,
         )
         await state.finish()  #  полностью очищает данные
 
 
 def register_handlers_admin_tattoo_order(dp: Dispatcher):
-    # -------------------------------------------------------TATTOO ORDER--------------------------------------------
+    # --------------------------------------TATTOO ORDER------------------------------
     dp.register_message_handler(
         get_tattoo_order_and_item_command_list, commands=["тату_заказы"]
     )
@@ -2366,7 +2515,7 @@ def register_handlers_admin_tattoo_order(dp: Dispatcher):
     )
 
     dp.register_message_handler(
-        command_delete_info_tattoo_orders, commands=["удалить_тату_заказ", "удалить"]
+        command_delete_info_tattoo_orders, commands=["удалить_тату_заказ"]
     )
     dp.register_message_handler(
         command_delete_info_tattoo_orders,
@@ -2410,7 +2559,7 @@ def register_handlers_admin_tattoo_order(dp: Dispatcher):
         state=FSM_Admin_tattoo_order_change_status.get_check_document,
     )
 
-    # ---------------------------------------------CHANGE TATTOO ORDER-------------------------------------
+    # --------------------------------CHANGE TATTOO ORDER-------------------------------------
     dp.register_message_handler(
         command_command_change_info_tattoo_order, commands=["изменить_тату_заказ"]
     )
@@ -2432,7 +2581,7 @@ def register_handlers_admin_tattoo_order(dp: Dispatcher):
         state=FSM_Admin_change_tattoo_order.new_photo,
     )
 
-    # --------------------------------------------CREATE TATTOO ORDER--------------------------------------
+    # --------------------------CREATE TATTOO ORDER--------------------------------------
     dp.register_message_handler(
         command_command_create_tattoo_orders, commands=["добавить_тату_заказ"]
     )

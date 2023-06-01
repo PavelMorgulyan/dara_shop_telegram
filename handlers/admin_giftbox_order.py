@@ -217,7 +217,7 @@ async def command_change_state_giftbox_order(message: types.Message):
                     KeyboardButton(f"{order.order_number} {order.order_state}")
                 )
 
-            kb_giftbox_numbers.add(KeyboardButton(LIST_BACK_TO_HOME[0]))
+            kb_giftbox_numbers.add(kb_admin.home_btn)
             await bot.send_message(
                 message.from_user.id,
                 f"У какого заказа хочешь поменять статус?",
