@@ -3,6 +3,8 @@ from aiogram.types import (
     KeyboardButton,
     ReplyKeyboardRemove,
     MenuButton,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
 )
 
 # from keyboards.kb_client import *
@@ -17,6 +19,7 @@ back_lst = ["Назад 🔄"]
 cancel_lst = ["Отмена ❌"]
 yes = KeyboardButton("Да 🍀")
 no = KeyboardButton("Нет ❌")
+home_btn = KeyboardButton(LIST_BACK_TO_HOME[0])
 back_btn = KeyboardButton(back_lst[0])
 cancel_btn = KeyboardButton(cancel_lst[0])
 later = KeyboardButton("Потом 🕒")
@@ -52,14 +55,13 @@ tattoo_order_commands = [
     "изменить тату заказ",
 ]
 
+
+
 tattoo_sketch_commands = [
     "добавить эскиз заказ",
     "посмотреть эскиз заказы",
     "посмотреть эскиз заказ",
     "удалить эскиз заказ",
-    "посмотреть активные эскиз заказы",
-    "посмотреть удаленные эскиз заказы",
-    "посмотреть закрытые эскиз заказы",
     "изменить статус эскиз заказа",
 ]
 
@@ -135,6 +137,7 @@ clients_commands = [
 sequins_commands = {
     "create":"добавить блестки",
     "view":"посмотреть блестки",
+    "change":"изменить блестки",
     "delete":"удалить блестки"
 }
 
@@ -154,7 +157,7 @@ price_lst_types = {
 
 tattoo_order_change_info_list = {
     "Имя тату": "tattoo_name",
-    "Фотография/изображение тату": "tattoo_photo",
+    "Изображение тату": "tattoo_photo",
     "Цвет тату": "colored",
     "Описание тату": "tattoo_note",
     "Описание заказа": "order_note",
@@ -169,7 +172,7 @@ tattoo_order_change_info_list = {
 }
 
 tattoo_order_change_photo = {
-    "Фотография тату": "tattoo_photo",
+    "Изображение тату": "tattoo_photo",
     "Фото части тела": "tattoo_place_file",
 }
 
@@ -307,7 +310,11 @@ admin_want_to_generate_img_from_ai_woman = "Сгенерируй мне моде
 
 phone_answer = ["Я не знаю его телефона"]
 
+seq_columns = {"Название":"name", "Фото":"photo", "Цена":"price", "Количество":"quantity"}
+
 price_lst = [str(i) for i in range(1000, 20000, 1000)]
+
+get_price_from_line_str = "Написать цену самому"
 
 another_price_full_lst = [str(i) for i in range(1000, 50000, 1000)]
 
@@ -327,18 +334,7 @@ no_note = ["Без описания"]
 
 creator_lst = ["admin", "client"]
 
-
 kb_back_home = create_kb(LIST_BACK_TO_HOME)
-
-""" kb_price = ReplyKeyboardMarkup(resize_keyboard=True
-    ).row(KeyboardButton('1 000'), KeyboardButton('2 000'), KeyboardButton('3 000'),
-        KeyboardButton('4 000')
-    ).row(KeyboardButton( '5 000'), KeyboardButton('6 000'), KeyboardButton('7 000'),
-        KeyboardButton('8 000')
-    ).row(KeyboardButton( '9 000'), KeyboardButton('10 000'), KeyboardButton('15 000'),
-        KeyboardButton('20 000')
-    ).add(KeyboardButton('Другая цена')).add(back_btn).add(cancel_btn) """
-
 
 kb_price = (
     create_kb_with_interval(price_lst, 5)
@@ -381,26 +377,39 @@ kb_client_want_to_try_another_later_img = create_kb(
     list(client_want_to_try_another_later_img.values()) + back_lst + cancel_lst
 )
 
-kb_order_statuses = create_kb(statuses_order_lst + back_lst + cancel_lst)
+kb_order_statuses = create_kb(statuses_order_lst + cancel_lst)
+
 kb_price_lst_types = create_kb(list(price_lst_types.values()) + cancel_lst)
+
 kb_admin_add_name_or_telegram_for_new_order = create_kb(
     list(admin_add_name_or_telegram_for_new_order.keys()) + cancel_lst
 )
+
 kb_admin_choice_watch_order_or_change_order = create_kb(
     list(admin_choice_watch_order_or_change_order.values()) + cancel_lst
 )
+
 kb_tattoo_order_change_info_list = create_kb(
     list(tattoo_order_change_info_list.keys()) + back_lst + cancel_lst
 )
-kb_another_price_full = create_kb(another_price_full_lst)
-kb_sizes = create_kb_with_interval(sizes_lst, 5).add(
-    KeyboardButton(LIST_BACK_TO_HOME[0])
+
+kb_set_another_price_from_line = InlineKeyboardMarkup().add(
+    InlineKeyboardButton(get_price_from_line_str, callback_data='get_price_from_line')
 )
+
+kb_another_price_full = create_kb_with_interval(another_price_full_lst, 5).add(
+    back_btn)    
+
+kb_sizes = create_kb_with_interval(sizes_lst, 5).add(back_btn)
+
 kb_no_note = create_kb(no_note + back_lst + LIST_BACK_TO_HOME)
+
 kb_creator_lst = create_kb(creator_lst)
+
 kb_new_tattoo_item_state = create_kb(
     list(new_tattoo_item_state.keys()) + LIST_BACK_TO_HOME
 )
+
 kb_price_list_commands = create_kb(price_list_commands + LIST_BACK_TO_HOME)
 kb_main = create_kb(commands_button)
 kb_in_stock = create_kb(list(in_stock_button.values()) + cancel_lst)
@@ -430,6 +439,7 @@ kb_admin_chioce_get_new_order_to_schedule_event = create_kb(
     list(admin_chioce_get_new_order_to_schedule_event.values()) + LIST_BACK_TO_HOME
 )
 
+kb_seq_columns = create_kb(list(seq_columns.keys()) + LIST_BACK_TO_HOME)
 
 kb_admin_choice_create_new_or_created_schedule_item = create_kb(
     list(admin_choice_create_new_or_created_schedule_item.values()) + LIST_BACK_TO_HOME

@@ -89,7 +89,9 @@ async def get_client_choice_main_or_temporary_tattoo(
     message: types.Message, state: FSMContext
 ):
     if message.text in list(kb_client.choice_main_or_temporary_tattoo.values()):
-        # защита от спама множества заказов. Клиент может заказать только по одному типу товара
+        # защита от спама множества заказов. 
+        # Клиент может заказать только по одному типу товара
+        # когда заказ у него открыт
         with Session(engine) as session:
             orders = session.scalars(
                 select(Orders)
@@ -164,7 +166,12 @@ async def get_client_choice_main_or_temporary_tattoo(
                 reply_markup=kb_client.kb_no_photo_in_tattoo_order,
             )
         else:
-            await bot.send_message(message.from_id, MSG_CLIENT_ALREADY_HAVE_OPEN_ORDER)
+            await bot.send_message(
+                message.from_id, 
+                MSG_CLIENT_ALREADY_HAVE_OPEN_ORDER,
+                reply_markup= kb_client.kb_client_main
+            )
+            await state.finish()
 
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()
@@ -929,7 +936,7 @@ async def view_schedule_to_client(message: types.Message, state: FSMContext):
         #!!! переходим в choice_tattoo_order_date_and_time_meeting
 
 
-# --------------------------------------------get_choice_tattoo_place---------------------------------
+# ----------------------------get_choice_tattoo_place---------------------------------
 async def get_choice_tattoo_place(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["client_add_tattoo_place_photo"] = False
@@ -1736,7 +1743,6 @@ async def fill_tattoo_order_table(message: types.Message, state: FSMContext):
             """
 
             if data["tattoo_photo_tmp_lst"] != "":
-                print(f"{data['tattoo_photo_tmp_lst']}")
                 for photo in data["tattoo_photo_tmp_lst"].split("|"):
                     # при split('|') возникает еще одна переменная '', ее необходимо не добавлять
                     if photo != "":
@@ -1792,15 +1798,21 @@ async def fill_tattoo_order_table(message: types.Message, state: FSMContext):
 
     async with state.proxy() as data:
         with Session(engine) as session:
-            schedule_item = None
+            schedule_item = []
             if data["schedule_id"] not in [None, []]:
+                schedule_event = session.scalars(
+                    select(ScheduleCalendar).where(
+                        ScheduleCalendar.id == data["schedule_id"]
+                    )
+                ).one()
+                schedule_event.status = "Занят"
+                
                 schedule_item = [
                     ScheduleCalendarItems(
                         schedule_id=data["schedule_id"],
                         order_number=data["tattoo_order_number"],
                     )
                 ]
-
             new_tattoo_order = Orders(
                 order_type=data["tattoo_type"],
                 order_name=data["tattoo_name"],
@@ -1827,71 +1839,63 @@ async def fill_tattoo_order_table(message: types.Message, state: FSMContext):
             session.add_all(new_table_items)
             session.commit()
 
-        with Session(engine) as session:
-            status = data["order_state"]
-            tattoo_order_number = data["tattoo_order_number"]
-            event_body_text = (
-                f"Название тату: {data['tattoo_name']}\n"
-                f"Описание тату: {data['tattoo_note']}\n"
-                f"Описание заказа: {data['order_note']}\n"
-                f"Имя клиента: {message.from_user.full_name}\n"
-                f"Телеграм клиента: @{message.from_user.username}"
-            )
-            # если заказ на постоянную татуировку
-            if data["tattoo_type"] == kb_admin.price_lst_types["constant_tattoo"]:
-                if data["schedule_id"] not in [None, []]:
-                    schedule_event = session.scalars(
-                        select(ScheduleCalendar).where(
-                            ScheduleCalendar.id == data["schedule_id"]
-                        )
-                    ).one()
-                    schedule_event.status = "Занят"
-                    session.commit()
+        status = data["order_state"]
+        tattoo_order_number = data["tattoo_order_number"]
+        event_body_text = (
+            f"Название тату: {data['tattoo_name']}\n"
+            f"Описание тату: {data['tattoo_note']}\n"
+            f"Описание заказа: {data['order_note']}\n"
+            f"Имя клиента: {message.from_user.full_name}\n"
+            f"Телеграм клиента: @{message.from_user.username}"
+        )
+        # если заказ на постоянную татуировку
+        if data["tattoo_type"] == kb_admin.price_lst_types["constant_tattoo"]:
+            # TODO дополнить id Шуны и добавить интеграцию с Google Calendar !!!
+            if DARA_ID != 0:
+                if data["date_meeting"] is not None:
+                    await bot.send_message(
+                        DARA_ID,
+                        f"Дорогая Тату-мастерица! \n"
+                        f"🕸 Поступил новый заказ на тату под номером {tattoo_order_number}!\n"
+                        f"📃 Статус заказа: {status}. \n"
+                        f"🕒 Дата встречи: {data['date_meeting']} в {data['start_date_time']} до "
+                        f"{data['end_date_time']}\n"
+                        f"💬 Имя клиента: {message.from_user.full_name}\n"
+                        f"💬 Телеграм клиента: @{message.from_user.username}",
+                    )
 
-                # TODO дополнить id Шуны и добавить интеграцию с Google Calendar !!!
-                if DARA_ID != 0:
-                    if data["date_meeting"] is not None:
-                        await bot.send_message(
-                            DARA_ID,
-                            f"Дорогая Тату-мастерица! \n"
-                            f"🕸 Поступил новый заказ на тату под номером {tattoo_order_number}!\n"
-                            f"📃 Статус заказа: {status}. \n"
-                            f"🕒 Дата встречи: {data['date_meeting']} в {data['start_date_time']} до "
-                            f"{data['end_date_time']}\n"
-                            f"💬 Имя клиента: {message.from_user.full_name}\n"
-                            f"💬 Телеграм клиента: @{message.from_user.username}",
-                        )
+                    event = await obj.add_event(
+                        CALENDAR_ID,
+                        f"Новый тату заказ № {tattoo_order_number}",
+                        f"{event_body_text}",
+                        data["date_meeting"].strftime(
+                            f"%Y-%m-%dT{data['start_date_time']}:00"
+                        ),
+                        data["date_meeting"].strftime(
+                            f"%Y-%m-%dT{data['end_date_time']}:00"
+                        ),
+                    )
+                else:
+                    await bot.send_message(
+                        DARA_ID,
+                        f"Дорогая Тату-мастерица! \n"
+                        f"🕸 Поступил новый заказ на тату под номером {tattoo_order_number}! \n"
+                        f"📃 Статус заказа: {status}. \n"
+                        f"🕒 Дата встречи неизвестна.  "
+                        "Необходимо договориться с клиентом о дате встречи.\n"
+                        f"💬 Имя клиента: {message.from_user.full_name}\n"
+                        f"💬 Телеграм клиента: @{message.from_user.username}",
+                    )
 
-                        event = await obj.add_event(
-                            CALENDAR_ID,
-                            f"Новый тату заказ № {tattoo_order_number}",
-                            f"{event_body_text}",
-                            data["date_meeting"].strftime(
-                                f"%Y-%m-%dT{data['start_date_time']}:00"
-                            ),
-                            data["date_meeting"].strftime(
-                                f"%Y-%m-%dT{data['end_date_time']}:00"
-                            ),
-                        )
-                    else:
-                        await bot.send_message(
-                            DARA_ID,
-                            f"Дорогая Тату-мастерица! \n"
-                            f"🕸 Поступил новый заказ на тату под номером {tattoo_order_number}! \n"
-                            f"📃 Статус заказа: {status}. \n"
-                            f"🕒 Дата встречи неизвестна. Необходимо договориться с клиентом о дате встречи.\n"
-                            f"💬 Имя клиента: {message.from_user.full_name}\n"
-                            f"💬 Телеграм клиента: @{message.from_user.username}",
-                        )
-
-                        event = await obj.add_event(
-                            CALENDAR_ID,
-                            f"Новый тату заказ № {tattoo_order_number}",
-                            f"{event_body_text}\n"
-                            f"Дата встречи неизвестна. Необходимо договориться с клиентом о дате встречи.",
-                            f'{datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}',
-                            f'{datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}',
-                        )
+                    event = await obj.add_event(
+                        CALENDAR_ID,
+                        f"Новый тату заказ № {tattoo_order_number}",
+                        f"{event_body_text}\n"
+                        f"Дата встречи неизвестна. "
+                        "Необходимо договориться с клиентом о дате встречи.",
+                        f'{datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}',
+                        f'{datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}',
+                    )
 
             else:  # если заказ на переводную татуировку
                 if DARA_ID != 0:
@@ -1941,7 +1945,7 @@ async def choiсe_tattoo_order_desctiption(message: types.Message, state: FSMCon
 
         await bot.send_message(
             message.from_id,
-            "❕ Хорошо! Опиши, чего именно ты Хотите,"
+            "❕ Опишите, чего именно вы хотите,"
             "и какие идеи у вас есть, это очень важно!",
             reply_markup=kb_client.kb_back_cancel,
         )
@@ -1952,7 +1956,7 @@ async def choiсe_tattoo_order_desctiption(message: types.Message, state: FSMCon
             data["client_fill_order_note"] = False
 
         await bot.send_message(
-            message.from_id, f"🚫 Хорошо, пока оставим заказ без описания"
+            message.from_id, f"🚫 Пока оставим заказ без описания"
         )
 
         await fill_tattoo_order_table(message, state)
@@ -1999,7 +2003,7 @@ async def choiсe_tattoo_order_desctiption(message: types.Message, state: FSMCon
             )
 
 
-# ---------------------------------------------GET VIEW TATTOO ORDER--------------------------------------
+# --------------------------------------GET VIEW TATTOO ORDER--------------------------------------
 async def send_to_client_view_tattoo_order(
     message: types.Message, orders: ScalarResult["Orders"]
 ):

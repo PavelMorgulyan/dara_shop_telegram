@@ -984,7 +984,8 @@ async def get_new_state_event_in_schedule(message: types.Message, state: FSMCont
             )
 
         # TODO При изменении статуса нужно проверять,
-        # TODO есть ли какой-либо заказ в это время, и менять дату расписания для заказа + оповещать пользователя
+        #  есть ли какой-либо заказ в это время, 
+        # и менять дату расписания для заказа + оповещать пользователя
         elif message.text == "Статус":
             for i in range(2):
                 await FSM_Admin_change_schedule.next()  # -> set_new_state_event_in_schedule
