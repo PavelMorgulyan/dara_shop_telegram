@@ -579,7 +579,7 @@ async def get_new_status_price_list(message: types.Message, state: FSMContext):
 
 
 async def update_new_status_price_list(message: types.Message, state: FSMContext):
-    if message.text == kb_admin.another_price_lst[0]:  # 'Другая цена'
+    if message.text in kb_admin.another_price_lst:  # 'Другая цена'
         await message.reply(
             MSG_ADMIN_SET_ANOTHER_PRICE, reply_markup=kb_admin.kb_another_price_full
         )

@@ -320,7 +320,7 @@ async def get_order_check_document_to_paid(message: types.Message, state=FSMCont
             await state.finish()  # type: ignore
 
         else:
-            await bot.send_message(message.from_id, check_doc["report_msg"])  # type: ignore
+            await bot.send_message(message.from_id, f"❌ Чек не подошел! {check_doc['report_msg']}")  # type: ignore
 
 
 def register_handlers_client_payload(dp: Dispatcher):

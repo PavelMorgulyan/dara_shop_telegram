@@ -47,7 +47,7 @@ async def command_load_сert_item(message: types.Message):
 
 
 async def load_сert_price(message: types.Message, state: FSMContext):
-    if message.text in kb_admin.price + kb_admin.another_price:
+    if message.text.isdigit():
         async with state.proxy() as data:
             data["price"] = message.text
             data["status"] = STATES["open"]
@@ -63,7 +63,7 @@ async def load_сert_price(message: types.Message, state: FSMContext):
         await bot.send_message(
             message.from_id,
             f"❔ На какую сумму хотите сертификат?",
-            reply_markup=kb_admin.kb_another_price,
+            reply_markup=kb_admin.kb_another_price_full,
         )
 
     elif any(text in message.text for text in LIST_CANCEL_COMMANDS):
@@ -320,14 +320,15 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
                 await bot.send_message(
                     DARA_ID,
                     f"❕Дорогая Тату-мастерица! "
-                    f"У пользователя {message.from_user.full_name} появился сертификат на сумму {price}\n"
+                    f"У пользователя {message.from_user.full_name} появился "
+                    f"сертификат на сумму {price}\n"
                     f"Номер сертификата: {cert_order_number}!\n"
                     f"Статус заказа: {status}",
                 )
 
         else:
             await bot.send_message(
-                message.from_id, f"❌ Чек не подошел. %s " % check_doc["repost_msg"]
+                message.from_id, f"❌ Чек не подошел. {check_doc['repost_msg']}"
             )
 
 
@@ -338,7 +339,7 @@ async def get_clients_cert_order(message: types.Message):
         orders = session.scalars(
             select(Orders)
             .where(Orders.user_id == message.from_id)
-            .where(order.order_type == "сертификат")
+            .where(Orders.order_type == "сертификат")
         ).all()
     if orders == []:
         await bot.send_message(

@@ -112,9 +112,11 @@ candle_item_commands = [
     "удалить свечу",
 ]
 
-sert_item_commands = [
+cert_item_commands = [
     "добавить заказ на сертификат",
-    "посмотреть заказанные сертификаты",
+    "посмотреть сертификаты",
+    "изменить сертификат",
+    "удалить сертификат",
 ]
 
 clients_commands = [
@@ -234,7 +236,7 @@ def create_kb(text: list) -> ReplyKeyboardMarkup:
     return kb
 
 
-# -----------------------------------------SCHEDULE------------------------------------------------------
+# -----------------------------------------SCHEDULE----------------------------
 days = [
     "Понедельник",
     "Вторник",
@@ -354,12 +356,26 @@ kb_change_price_list = (
     .add(cancel_btn)
 )
 
+sketch_column_names_to_change = {
+    "note":"Описание",
+    "price":"Цену",
+    "check":"Чек",
+    "user_name":"Имя клиента",
+    "user_telegram_name":"Телеграм клиента",
+    "photo":"Фото эскиза",
+}
 
 client_want_to_try_another_later_img = {
     "admin_want_to_generate_img_from_ai_woman": "Сгенерируй мне модель женщины",
     "client_want_to_get_example_text_for_ai_img": "Хочу примеры текста изображений",
     "description_ai_generation_img": "Хочу подробный текст с описанием о создании изображения",
     "correct_photo_from_ai_or_get_another": "Хочу попробовать еще раз с другими моими текстами 🎨"
+}
+
+add_or_delete_order_photo = {
+    "add":              "Добавить",
+    "delete":           "Удалить",
+    "delete_and_add":   "Удалить старую фото и добавить новую"
 }
 
 candle_choice = {"new_candle": "Новую", "having":"Выбрать из готовых"}
@@ -376,6 +392,10 @@ kb_sequins_commands = create_kb(list(sequins_commands.values()) + LIST_BACK_TO_H
 kb_client_want_to_try_another_later_img = create_kb(
     list(client_want_to_try_another_later_img.values()) + back_lst + cancel_lst
 )
+
+kb_add_or_delete_order_photo = create_kb(list(add_or_delete_order_photo.values())  + cancel_lst)
+
+kb_sketch_column_names_to_change = create_kb(list(sketch_column_names_to_change.values()) + cancel_lst)
 
 kb_order_statuses = create_kb(statuses_order_lst + cancel_lst)
 
@@ -448,7 +468,7 @@ kb_tattoo_order_commands = create_kb(tattoo_order_commands + LIST_BACK_TO_HOME)
 kb_tattoo_sketch_commands = create_kb(tattoo_sketch_commands + LIST_BACK_TO_HOME)
 kb_tattoo_items_commands = create_kb(tattoo_items_commands + LIST_BACK_TO_HOME)
 kb_clients_commands = create_kb(clients_commands + LIST_BACK_TO_HOME)
-kb_sert_item_commands = create_kb(sert_item_commands + LIST_BACK_TO_HOME)
+kb_cert_item_commands = create_kb(cert_item_commands + LIST_BACK_TO_HOME)
 kb_candle_item_commands = create_kb(candle_item_commands + LIST_BACK_TO_HOME)
 kb_schedule_commands = create_kb(schedule_commands + LIST_BACK_TO_HOME)
 kb_giftbox_item_commands = create_kb(giftbox_item_commands + LIST_BACK_TO_HOME)

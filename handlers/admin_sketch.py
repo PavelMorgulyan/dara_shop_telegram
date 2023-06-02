@@ -217,7 +217,7 @@ async def command_get_info_sketch_order(message: types.Message):
             kb_orders.add(kb_client.back_btn)
             await bot.send_message(
                 message.from_user.id,
-                f"Какой заказ хочешь посмотреть?",
+                MSG_WHICH_ADMIN_ORDER_WANT_TO_SEE,
                 reply_markup=kb_orders,
             )
 
@@ -374,7 +374,7 @@ async def fill_sketch_order_table(data: dict, message: types.Message):
             order_photo=data["sketch_photo_lst"],
             order_note=data["sketch_description"],
             order_state=data["state"],
-            order_number=data["tattoo_sketch_order_number"],
+            order_number=data["tattoo_sketch_order"],
             creation_date=data["creation_date"],
             price=data["price"],
             check_document=data["check_document"],
@@ -409,7 +409,7 @@ async def fill_client_table(data: dict, message: types.Message):
     with Session(engine) as session:
         client = session.scalars(
             select(User).where(User.telegram_name == data["telegram"])
-        ).one()
+        ).all()
 
     if client == []:
         with Session(engine) as session:
@@ -422,7 +422,7 @@ async def fill_client_table(data: dict, message: types.Message):
             session.add(new_user)
             session.commit()
         await message.reply(
-            f"Ты успешно добавила нового клиента! {MSG_DO_CLIENT_WANT_TO_DO_MORE}"
+            f"Ты успешно добавила нового клиента!"
         )
     await message.reply(
         f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
@@ -431,10 +431,10 @@ async def fill_client_table(data: dict, message: types.Message):
 
 
 async def get_new_sketch_description(message: types.Message, state: FSMContext):
-    tattoo_sketch_order_number = await generate_random_order_number(CODE_LENTH)
+    tattoo_sketch_order = await generate_random_order_number(CODE_LENTH)
     async with state.proxy() as data:
         data["first_photo"] = False
-        data["tattoo_sketch_order_number"] = tattoo_sketch_order_number
+        data["tattoo_sketch_order"] = tattoo_sketch_order
         data["sketch_photo_lst"] = []
         data["state"] = STATES["open"]
         data["check_document"] = None
@@ -472,6 +472,7 @@ async def get_new_sketch_description(message: types.Message, state: FSMContext):
 
 
 async def get_photo_sketch(message: types.Message, state: FSMContext):
+    print(await state.get_state())
     if message.content_type == "text":
         if message.text in LIST_CANCEL_COMMANDS:
             await state.finish()
@@ -493,7 +494,7 @@ async def get_photo_sketch(message: types.Message, state: FSMContext):
                 message.from_id,
                 "Хорошо, закончим с добавлением фотографий для нового эскиза.\n\n"
                 "Для какого пользователя заказ?\n"
-                'Введи его имя или телеграм (с символом "@") или ссылку с "https://t.me/".\n\n',
+                'Введи его имя или телеграм (с символом "@") или ссылку с "https://t.me/".',
                 #'P.s. Нажимая на пользователя в ТГ сверху будет его имя. '\
                 #'А имя с символом \"@\" - ссылка на телеграм',
                 reply_markup=kb_client.kb_cancel,
@@ -519,6 +520,7 @@ async def get_photo_sketch(message: types.Message, state: FSMContext):
 
 
 async def get_username_telegram(message: types.Message, state: FSMContext):
+    print(await state.get_state())
     if "@" in message.text or "https://t.me/" in message.text:
         async with state.proxy() as data:
             if "@" in message.text:
@@ -543,7 +545,7 @@ async def get_username_telegram(message: types.Message, state: FSMContext):
                 await FSM_Admin_command_create_new_sketch_order.next()  # -> get_sketch_price
                 await bot.send_message(
                     message.from_id,
-                    "Добавь цену эскиза переводного тату",
+                    "Добавь цену эскиза тату",
                     reply_markup=kb_admin.kb_price,
                 )
 
@@ -563,9 +565,21 @@ async def get_username_telegram(message: types.Message, state: FSMContext):
                 "phone": data["phone"],
             }
             await fill_client_table(new_client_data, message)
-
+            await FSM_Admin_command_create_new_sketch_order.next()  # -> get_sketch_price
+            await bot.send_message(
+                message.from_id,
+                "Добавь цену эскиза тату",
+            )
+            
     else:
         await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def process_callback_set_price_from_line(callback_query: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback_query.id)
+    await bot.send_message(callback_query.from_user.id, 
+        MSG_ADMIN_SET_ANOTHER_PRICE_FROM_LINE, reply_markup= kb_client.kb_cancel
+    )
 
 
 async def get_sketch_price(message: types.Message, state: FSMContext):
@@ -583,11 +597,14 @@ async def get_sketch_price(message: types.Message, state: FSMContext):
             MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_tattoo_sketch_commands
         )
 
-    elif message.text == "Другая цена":
+    elif message.text in kb_admin.another_price_lst:
+        await message.reply(
+            MSG_ADMIN_SET_ANOTHER_PRICE, reply_markup=kb_admin.kb_another_price_full
+        )
         await bot.send_message(
-            message.from_id,
-            MSG_ADMIN_SET_ANOTHER_PRICE,
-            reply_markup=kb_admin.kb_another_price_full,
+            message.from_id, 
+            MSG_ADMIN_CAN_SET_ANOTHER_PRICE,
+            reply_markup= kb_admin.kb_set_another_price_from_line
         )
 
     elif message.text in LIST_BACK_COMMANDS:
@@ -757,7 +774,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
                 )
 
 
-
+# ---------------------------------CHANGE STATUS SKETCH ORDER----------------------------
 class FSM_Admin_set_new_state_sketch_order(StatesGroup):
     get_order_number = State()
     set_new_order_state = State()
@@ -795,7 +812,7 @@ async def command_set_new_sketch_order_state(message: types.Message):
             kb_orders.add(kb_client.back_btn)
             await bot.send_message(
                 message.from_user.id,
-                f"Какой заказ хочешь изменить?",
+                MSG_WHICH_ADMIN_ORDER_WANT_TO_CHANGE,
                 reply_markup=kb_orders,
             )
 
@@ -909,7 +926,7 @@ async def get_price_for_check_document(message: types.Message, state: FSMContext
             data["tattoo_order_price"] = message.text
         await FSM_Admin_set_new_state_sketch_order.next() # -> get_check_document
         await message.reply(
-            f"Приложи чек на эту сумму",
+            MSG_ADMIN_GET_CHECK_TO_ORDER,
             reply_markup=kb_client.kb_back_cancel,
         )
 
@@ -959,7 +976,7 @@ async def get_check_document(message: types.Message, state: FSMContext):
                 reply_markup=kb_admin.kb_tattoo_order_commands,
             )
         else:
-            await message.reply(f"❌ Чек не подошел! %s" % check_doc_pdf["report_msg"])
+            await message.reply(f"❌ Чек не подошел! {check_doc_pdf['report_msg']}")
 
     if message.content_type == "text":
         if message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
@@ -1008,11 +1025,274 @@ async def get_check_document(message: types.Message, state: FSMContext):
                 reply_markup=kb_admin.kb_tattoo_order_commands,
             )
         else:
-            await message.reply(check_photo["report_msg"])  # type: ignore
+            await message.reply(f"❌ Чек не подошел! {check_doc_pdf['report_msg']}")  # type: ignore
+
+
+# ---------------------------------CHANGE SKETCH ORDER----------------------------
+class FSM_Admin_set_new_value_sketch_order(StatesGroup):
+    get_order_number = State()
+    set_new_order_state = State()
+    get_answer_check_document = State()
+    get_check_document = State()
 
 
 # TODO изменить эскиз заказ
+async def command_change_sketch_order(message: types.Message):
+    if (
+        message.text.lower() in ["изменить эскиз заказ", "/изменить_эскиз_заказ"]
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        with Session(engine) as session:
+            orders = session.scalars(
+                select(Orders).where(Orders.order_type == "эскиз")
+            ).all()
+            
+        if orders == []:
+            await bot.send_message(
+                message.from_id,
+                MSG_NO_ORDER_IN_TABLE,
+                reply_markup=kb_admin.kb_tattoo_sketch_commands,
+            )
+        else:
+            await FSM_Admin_set_new_value_sketch_order.get_order_number.set() #-> get_sketch_order_number
+            kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
+            for order in orders:
+                kb_orders.add(
+                    KeyboardButton(
+                        f'{order.order_number} "{order.order_name}" статус: {order.order_state}'
+                    )
+                )
+            kb_orders.add(kb_client.back_btn)
+            await bot.send_message(
+                message.from_user.id,
+                MSG_WHICH_ADMIN_ORDER_WANT_TO_CHANGE,
+                reply_markup=kb_orders
+            )
 
+
+async def get_sketch_order_number(message: types.Message, state: FSMContext):
+    with Session(engine) as session:
+        orders = session.scalars(
+            select(Orders).where(Orders.order_type == "эскиз")
+        ).all()
+    kb_orders = []
+    for order in orders:
+        kb_orders.append(f'{order.order_number} "{order.order_name}" статус: {order.order_state}')
+    
+    if message.text in kb_orders:
+        await FSM_Admin_set_new_value_sketch_order.next() #-> get_column_name_to_change_sketch_order
+        
+        async with state.proxy() as data:
+            data['order_number'] = int(message.text.split()[0])
+            data['current_order_status'] = message.text.split()[3]
+            
+        await bot.send_message(message.from_id, "Что изменить?",
+            reply_markup= kb_admin.kb_sketch_column_names_to_change)
+
+
+async def get_column_name_to_change_sketch_order(message: types.Message, state: FSMContext):
+    if message.text in list(kb_admin.sketch_column_names_to_change.values()):
+        async with state.proxy() as data:
+            data["column_name_to_new_value"] = message.text
+            await FSM_Admin_set_new_value_sketch_order.next() # -> get_new_value_to_sketch_order
+            
+    if message.text in [
+        kb_admin.sketch_column_names_to_change["note"], # "Описание",
+        kb_admin.sketch_column_names_to_change["user_name"] # "Имя клиента"
+        ]:
+        
+        await bot.send_message(message.from_id, f"Введи новое значение для {message.text}",
+            reply_markup= kb_client.kb_cancel)
+        
+    elif message.text == kb_admin.sketch_column_names_to_change["check"]:
+        await FSM_Admin_set_new_value_sketch_order.next()
+            
+        await bot.send_message(message.from_id, MSG_ADMIN_GET_CHECK_TO_ORDER,
+            reply_markup= kb_client.kb_cancel)
+        
+    elif message.text == kb_admin.sketch_column_names_to_change["photo"]: # :"Фото эскиза"
+        
+        await bot.send_message(message.from_id, "Добавить или удалить эскиз из заказа?",
+            reply_markup= kb_admin.kb_add_or_delete_order_photo)
+        
+    elif message.text == kb_admin.sketch_column_names_to_change["price"]:# "Цену"
+        await bot.send_message(message.from_id, MSG_ADMIN_SET_ANOTHER_PRICE,
+            reply_markup= kb_admin.kb_another_price_full)
+
+
+async def get_new_value_to_sketch_order(message: types.Message, state: FSMContext):
+    with Session(engine) as session:
+        order = session.scalars(select(Orders).where(Orders.order_number == order_number)).one()
+        photo_items_id = []
+        kb_photo_items = ReplyKeyboardMarkup(resize_keyboard= True)
+        for photo in order.order_photo:
+            item = f"фото {photo.id}"
+            photo_items_id.append(item)
+            kb_photo_items.add(KeyboardButton(item))
+            
+        if message.content_type == 'text':
+            async with state.proxy() as data:
+                order_number = data['order_number']
+                column_name = data["column_name_to_new_value"] 
+                
+            if message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+                await state.finish()
+                await bot.send_message(
+                    message.from_id,
+                    MSG_BACK_TO_HOME,
+                    reply_markup=kb_admin.giftbox_order_commands,
+                )
+            elif message.text == kb_client.yes_str: # если админ подтвердил действие об удалении
+                async with state.proxy() as data:
+                    photo_actions = data['photo_actions']
+                    photo_id = data["photo_id"] 
+                    
+                if 'delete' in photo_actions:
+                    photo = session.get(OrderPhoto, photo_id)
+                    order.order_photo.remove(photo)
+                    session.commit()
+                    await bot.send_message(message.from_id, MSG_PHOTO_WAS_DELETED)
+                    if len(photo_actions) == 1:
+                        await state.finish()
+                        await bot.send_message(
+                            message.from_id,
+                            MSG_DO_CLIENT_WANT_TO_DO_MORE, 
+                            reply_markup= kb_admin.kb_tattoo_sketch_commands
+                        )
+                    
+                if 'add' in photo_actions:
+                    await bot.send_message(
+                        message.from_id, MSG_CLIENT_LOAD_PHOTO, reply_markup= kb_client.kb_cancel
+                    )
+                    
+            elif message.text in photo_items_id: # если в сообщении есть id 
+                async with state.proxy() as data:
+                    data["photo_id"] = int(message.text.split()[1])
+                    
+                await bot.send_message(message.from_id, MSG_ADMIN_ACCESS_ACTION,
+                    reply_markup= kb_client.kb_yes_no)
+                
+            elif message.text == kb_admin.add_or_delete_order_photo["add"]: # Добавить
+                async with state.proxy() as data:
+                    data['photo_actions'] = ['add']
+                await bot.send_message(message.from_id, MSG_CLIENT_LOAD_PHOTO, 
+                    reply_markup= kb_client.kb_cancel)
+                
+            elif message.text == kb_admin.add_or_delete_order_photo["delete"]:
+                async with state.proxy() as data:
+                    data['photo_actions'] = ['delete']
+                await bot.send_message(
+                    message.from_id, MSG_WHICH_PHOTO_DELETE, reply_markup= kb_photo_items
+                )
+                
+            elif message.text == kb_admin.add_or_delete_order_photo["delete_and_add"]:
+                async with state.proxy() as data:
+                    data['photo_actions'] = ['delete', 'add']
+                    
+                await bot.send_message(
+                    message.from_id, MSG_WHICH_PHOTO_DELETE, reply_markup= kb_photo_items
+                )
+            
+            elif column_name == kb_admin.sketch_column_names_to_change["note"]:
+                order.order_note = message.text
+                
+            elif column_name == kb_admin.sketch_column_names_to_change["user_name"]:
+                order.username = message.text
+                
+                """ elif column_name == kb_admin.sketch_column_names_to_change["user_telegram_name"]:
+                    telegram_id = order.user_id
+                    user = session.scalars(select(User).where(User.telegram_id == telegram_id)).one()
+                    user.telegram_name = message.text 
+                """    
+            elif column_name == kb_admin.sketch_column_names_to_change["price"]:
+                if message.text.isdigit():
+                    order.order_note = int(message.text)
+                    
+            session.commit()
+            await bot.send_message(
+                message.from_id, f"Отлично! '{column_name}' был изменен на {message.text}"
+            )
+    with Session(engine) as session:
+        if message.content_type == 'photo':
+            new_photo_item = OrderPhoto(
+                order_number=order.order_number,
+                telegram_user_id=order.user_id,
+                photo=message.photo[0].file_id,
+            )
+            if order.order_photo is None:
+                order.order_photo = [new_photo_item]
+            else:
+                order.order_photo.append(new_photo_item)
+            
+            await bot.send_message(
+                message.from_id, f"Отлично! Изображение было добавлено!"
+            )
+            session.commit()
+            await bot.send_message(
+                message.from_id,
+                MSG_DO_CLIENT_WANT_TO_DO_MORE, 
+                reply_markup= kb_admin.kb_tattoo_sketch_commands
+            )
+
+
+async def get_check_to_sketch_order(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        order_number = data['order_number']
+    with Session(engine) as session:
+        order= session.scalars(
+            select(Orders)
+                .where(Orders.order_number == order_number)
+            ).one()
+    price = order.price
+    check_doc = {}
+    doc_name = order_number
+    if message.content_type == "document":
+        # print("message.document.file_name: ", message.document.file_name)
+        check_doc = await check_pdf_document_payment(
+            user_id=message.from_id,
+            price=str(price),
+            file_name=doc_name,
+            file_id=message.document.file_id,
+        )
+    elif message.content_type == "photo":
+        # print("message.photo img:", message.photo[0])
+        doc_name += ".jpg"
+        check_doc = await check_photo_payment(
+            message=message,
+            user_id=message.from_id,
+            price=str(price),
+            file_name=doc_name,
+            file_id=message.photo[0].file_id,
+        )
+
+    if check_doc["result"]:
+        check_document_successful_download = ""
+        if ".jpg" not in doc_name:
+            check_document_successful_download = message.document.file_id
+        else:
+            check_document_successful_download = message.photo[0].file_id
+        with Session(engine) as session:
+            new_check_document = CheckDocument(
+                order_number=order_number,
+                telegram_user_id=message.from_id,
+                doc=check_document_successful_download,
+            )
+            # session.add(new_check_document)
+            # TODO проверить добавление чека в заказ
+            order.check_document.append(new_check_document)
+            session.commit()
+
+        await bot.send_message(
+            message.from_id,
+            MSG_DO_CLIENT_WANT_TO_DO_MORE,
+            reply_markup=kb_client.kb_client_main,
+        )
+
+        await state.finish()  # type: ignore
+
+    else:
+        await bot.send_message(message.from_id, f"❌ Чек не подошел! {check_doc['report_msg']}")
+    
 # ------------------------------------SKETCH ORDER-------------------------------------------
 def register_handlers_admin_sketch(dp: Dispatcher):
     dp.register_message_handler(
@@ -1061,7 +1341,8 @@ def register_handlers_admin_sketch(dp: Dispatcher):
     dp.register_message_handler(
         delete_info_sketch_orders, state=FSM_Admin_delete_sketch_order.order_number
     )
-
+    
+    #----------------------------- CREATE NEW SKETCH ORDER------------------------
     dp.register_message_handler(
         command_create_new_sketch_order, commands=["добавить_эскиз_заказ"]
     )
@@ -1087,6 +1368,8 @@ def register_handlers_admin_sketch(dp: Dispatcher):
     dp.register_message_handler(
         get_sketch_price, state=FSM_Admin_command_create_new_sketch_order.get_price
     )
+    dp.register_callback_query_handler(process_callback_set_price_from_line,
+        state=FSM_Admin_command_create_new_sketch_order.get_price)
     dp.register_message_handler(
         get_sketch_state, state=FSM_Admin_command_create_new_sketch_order.get_state
     )
@@ -1095,7 +1378,8 @@ def register_handlers_admin_sketch(dp: Dispatcher):
         content_types=["photo", "document", "text"],
         state=FSM_Admin_command_create_new_sketch_order.get_check,
     )
-
+    
+    # ---------------------------------CHANGE STATUS SKETCH ORDER----------------------------
     dp.register_message_handler(
         command_set_new_sketch_order_state, commands=["изменить_статус_эскиз_заказа"]
     )
@@ -1127,3 +1411,19 @@ def register_handlers_admin_sketch(dp: Dispatcher):
         content_types=["photo", "document"],
         state=FSM_Admin_set_new_state_sketch_order.get_check_document,
     )
+    
+    # ---------------------------------CHANGE SKETCH ORDER----------------------------
+    dp.register_message_handler(
+        command_change_sketch_order,
+        Text(equals="изменить эскиз заказ", ignore_case=True),
+        state=None,
+    )
+    dp.register_message_handler(get_sketch_order_number, 
+        state= FSM_Admin_set_new_value_sketch_order.get_order_number)
+    dp.register_message_handler(get_column_name_to_change_sketch_order, 
+        state= FSM_Admin_set_new_value_sketch_order.set_new_order_state)
+    dp.register_message_handler(get_new_value_to_sketch_order, 
+        state= FSM_Admin_set_new_value_sketch_order.get_answer_check_document)
+    dp.register_message_handler(get_check_to_sketch_order, 
+        state= FSM_Admin_set_new_value_sketch_order.get_check_document)
+                                

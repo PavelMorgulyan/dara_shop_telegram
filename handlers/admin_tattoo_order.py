@@ -274,7 +274,7 @@ async def command_get_info_tattoo_order(message: types.Message):
             kb_orders.add(kb_admin.home_btn)
             await bot.send_message(
                 message.from_user.id,
-                f"Какой заказ хочешь посмотреть?",
+                MSG_WHICH_ADMIN_ORDER_WANT_TO_SEE,
                 reply_markup=kb_orders,
             )
 
@@ -432,7 +432,7 @@ async def command_tattoo_order_change_status(message: types.Message):
             kb_tattoo_order_numbers.add(kb_admin.home_btn)
             await FSM_Admin_tattoo_order_change_status.tattoo_order_number.set()
             await message.reply(
-                "У какого заказа хотите поменять статус?",
+                MSG_WHICH_ADMIN_ORDER_WANT_TO_CHANGE,
                 reply_markup=kb_tattoo_order_numbers,
             )
     # await message.delete()
@@ -603,7 +603,7 @@ async def get_price_for_check_document(message: types.Message, state: FSMContext
             data["tattoo_order_price"] = message.text
         await FSM_Admin_tattoo_order_change_status.next() # -> get_check_document
         await message.reply(
-            f"Приложи чек на эту сумму",
+            MSG_ADMIN_GET_CHECK_TO_ORDER,
             reply_markup=kb_client.kb_back_cancel,
         )
 
@@ -653,7 +653,7 @@ async def get_check_document(message: types.Message, state: FSMContext):
                 reply_markup=kb_admin.kb_tattoo_order_commands,
             )
         else:
-            await message.reply(f"Чек не подошел! %s" % check_doc_pdf["report_msg"])
+            await message.reply(f"❌ Чек не подошел! {check_doc_pdf['report_msg']}")
 
     if message.content_type == "text":
         if message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
@@ -703,7 +703,7 @@ async def get_check_document(message: types.Message, state: FSMContext):
                 reply_markup=kb_admin.kb_tattoo_order_commands,
             )
         else:
-            await message.reply(check_photo["report_msg"])  # type: ignore
+            await message.reply(f"❌ Чек не подошел! {check_photo['report_msg']}")  # type: ignore
 
 
 # ------------------------------------CHANGE TATTOO ORDER-----------------------------------
@@ -790,7 +790,7 @@ async def get_tattoo_order_number(message: types.Message, state: FSMContext):
     ]:
         await bot.send_message(
             message.from_id,
-            "Какой заказ хочешь посмотреть?",
+            MSG_WHICH_ADMIN_ORDER_WANT_TO_SEE,
             reply_markup=kb_tattoo_order_numbers,
         )
 
@@ -2237,7 +2237,7 @@ async def get_tattoo_order_check(message: types.Message, state: FSMContext):
         await FSM_Admin_tattoo_order.next()
         await bot.send_message(
             message.from_user.id,
-            "Приложи чек, пожалуйста. Для этого надо в файлах отправить документ с чеком.",
+            MSG_ADMIN_GET_CHECK_TO_ORDER,
         )
 
     elif message.text == kb_client.no_str:
@@ -2283,7 +2283,7 @@ async def get_tattoo_order_check_next(message: types.Message, state: FSMContext)
         )
 
     else:
-        await message.reply(check_doc_pdf["report_msg"])  # type: ignore
+        await message.reply(f"❌ Чек не подошел! {check_doc_pdf['report_msg']}")  # type: ignore
 
 
 # выбираем имя покупателя

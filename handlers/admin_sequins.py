@@ -366,7 +366,7 @@ async def get_seq_column_name_to_change(message: types.Message, state: FSMContex
         if message.text == "Цена":
             await bot.send_message(
                 message.from_id, 
-                MSG_ADMIN_CAN_SET_ANOTHER_PRICE,
+                "Добавь новую цену для блесток",
                 reply_markup= kb_admin.kb_set_another_price_from_line
             )
 

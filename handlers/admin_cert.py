@@ -1,12 +1,14 @@
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
+from prettytable import PrettyTable
 from create_bot import dp, bot
 from keyboards import kb_client, kb_admin
 from aiogram.dispatcher.filters import Text
 from handlers.client import CODE_LENTH, ORDER_CODE_LENTH, ADMIN_NAMES, CALENDAR_ID
 from handlers.other import generate_random_code, generate_random_order_number
 
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from validate import check_pdf_document_payment, check_photo_payment
 from db.db_setter import set_to_table
 from db.db_updater import update_info
@@ -22,7 +24,7 @@ from handlers.other import STATES
 from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
-
+import re
 
 # ------------------------------------ CERT COMMAND LIST-------------------------------------------
 # 'Сертификат',
@@ -33,7 +35,7 @@ async def get_cert_command_list(message: types.Message):
     ):
         await message.reply(
             "Какую команду по сертификатам хочешь выполнить?",
-            reply_markup=kb_admin.kb_sert_item_commands,
+            reply_markup=kb_admin.kb_cert_item_commands,
         )
 
 
@@ -120,12 +122,13 @@ async def load_сert_price(message: types.Message, state: FSMContext):
 
 
 async def load_сert_other_price(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["price"] = message.text
-    await FSM_Admin_сert_item.next()
-    await message.reply(
-        f"Пользователь оплатил сертфикат?", reply_markup=kb_client.kb_yes_no
-    )
+    if message.text in kb_admin.price_lst:
+        async with state.proxy() as data:
+            data["price"] = int(message.text)
+        await FSM_Admin_сert_item.next() #->admin_process_successful_cert_payment
+        await message.reply(
+            f"Пользователь оплатил сертфикат?", reply_markup=kb_client.kb_yes_no
+        )
 
 
 async def admin_process_successful_cert_payment(
@@ -176,7 +179,8 @@ async def admin_process_successful_cert_payment(
 async def get_check_answer_cert_from_admin(message: types.Message, state=FSMContext):
     if message.text == kb_client.yes_str:
         await FSM_Admin_сert_item.next()
-        await message.reply("Приложи документ или фотографию чека")
+        await message.reply(MSG_ADMIN_GET_CHECK_TO_ORDER, reply_markup= kb_client.kb_cancel)
+        
     elif message.text == kb_client.no_str:
         cert_order_number = 0
         async with state.proxy() as data:  # type: ignore
@@ -232,61 +236,59 @@ async def get_check_document_cert_from_admin(message: types.Message, state=FSMCo
 
     if check_doc_result["result"]:
         async with state.proxy() as data:  # type: ignore
-            cert_order_number = data["cert_order_number"]
+            order_number = data["cert_order_number"]
 
-            new_cert_order = {
-                "username": data["username"],
-                "price": data["price"],
-                "state": data["state"],
-                "code": data["code"],
-                "creation_date": data["creation_date"],
-                "cert_order_number": data["cert_order_number"],
-                "check_document": check_document,
-            }
+            new_cert_order = Orders(
+                username=data["username"],
+                price= data["price"],
+                state= data["state"],
+                code= data["code"],
+                creation_date= data["creation_date"],
+                order_number= data["cert_order_number"],
+                check_document= check_document,
+            )
+            with Session(engine) as session:
+                session.add(new_cert_order)
+                session.commit()
 
             # await set_to_table(tuple(new_cert_order.values()), 'сert_orders')
-
-        await state.finish()  # type: ignore
-        await FSM_Admin_cert_username_info.get_user_name.set()
-        async with state.proxy() as data:  # type: ignore
-            data["order_number"] = cert_order_number
-
         await bot.send_message(
             message.chat.id,
-            f"Админ, заказ под номером {cert_order_number} почти оформлен!"
+            f"Админ, заказ под номером {order_number} почти оформлен!"
             " Осталось только добавить имя, телеграм и телефон пользователя заказа."
             " Напиши имя пользователя.",
         )
+        await state.finish()  # type: ignore
+        await FSM_Admin_cert_username_info.get_user_name.set()
     else:
         await message.reply(
-            "Прости, не мог бы ты отправить документ с чеком заново. %s"
-            % check_doc_result[""]
+            await message.reply(f"❌ Чек не подошел! {check_doc_result['report_msg']}")
         )
 
 
 async def cert_load_user_name(message: types.Message, state: FSMContext):
-    user, user_telegram = "", ""
-    try:
-        user = await get_info_many_from_table("clients", "username", message.text)
-        user_telegram = list(user[0])[1]
-        print("user_telegram:", user_telegram)
-    except:
-        print("У вас еще не было пользователей")
-
+    
+    with Session(engine) as session:
+        user = session.scalars(select(User).where(User.name == message.text)).all()
+    
+    user_telegram_name = "Без телеграма" if user == [] or user[0].telegram_name is None \
+        else user[0].telegram_name
+        
+    phone = "Без телефона" if user == [] or user[0].phone is None else user[0].phone
     async with state.proxy() as data:
         data["username"] = message.text
-        data["telegram"] = list(user[0])[1]
-        data["phone"] = list(user[0])[2]
+        data["telegram"] = user_telegram_name
+        data["phone"] = phone
 
-    if message.text != list(user[0])[0]:
-        await FSM_Admin_cert_username_info.next()
-        await FSM_Admin_cert_username_info.next()
+    if user == []:
+        for i in range(2): #-> cert_load_telegram
+            await FSM_Admin_cert_username_info.next()
 
-        await message.reply("Хорошо, а теперь введи его телеграм")
+        await message.reply("Введи его телеграм")
     else:
         await FSM_Admin_cert_username_info.next()
         await message.reply(
-            f"Это пользователь под ником {user_telegram}?",
+            f"Это пользователь под ником {user_telegram_name}?",
             reply_markup=kb_client.kb_yes_no,
         )
 
@@ -323,12 +325,10 @@ async def cert_load_telegram(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["telegram"] = message.from_user.id
     await FSM_Admin_cert_username_info.next()
-    await message.reply("Хорошо, а теперь введи его телефон")
+    await message.reply("Введи его телефон")
 
 
 async def cert_load_phone(message: types.Message, state: FSMContext):
-    import re
-
     number = message.text
     result = re.match(
         r"^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?"
@@ -337,22 +337,23 @@ async def cert_load_phone(message: types.Message, state: FSMContext):
     )
 
     if not result:
-        await message.reply("Номер не корректен, пожалуйста, введи номер заново.")
+        await message.reply("Номер не корректен, пожалуйста, введи номер заново")
     else:
         async with state.proxy() as data:
-            new_client_info = {
-                "username": data["username"],
-                "telegram": data["telegram"],
-                "phone": message.text,
-            }
-            await set_to_table(tuple(new_client_info.values()), "clients")
+            new_client_info = User(
+                name=data["username"],
+                telegram_name=data["telegram"],
+                phone= message.text
+            )
+            with Session(engine) as session:
+                session.add(new_client_info)
+                session.commit()
             username, telegram, phone = data["username"], data["telegram"], message.text
             tattoo_order_number = data["tattoo_order_number"]
-            print("Таблица clients пополнилась новыми данными")
 
         await bot.send_message(
             message.from_user.id,
-            f"Хорошо, твой заказ под номером {tattoo_order_number}"
+            f"Заказ под номером {tattoo_order_number}"
             f" оформлен на пользователя {username} под ником @{telegram}, телефон {phone}!",
             reply_markup=kb_admin.kb_main,
         )
@@ -360,52 +361,99 @@ async def cert_load_phone(message: types.Message, state: FSMContext):
         await state.finish()
 
 
-# -------------------------------------------------------CREATE CERT COMMANDS------------------------------------------------------
-# /посмотреть_заказанные_сертификаты
+async def view_cert_order(orders: ScalarResult["Orders"], message: types.Message):
+    if orders == []:
+            await message.reply("⭕️ Пока у вас нет заказов на сертификатов в таблице")
+    else:
+        headers = [
+            "№",
+            "Тип заказа",
+            "Пользователь",
+            "Номер заказа",
+            "Статус",
+            "Цена",
+            "Код",
+            "Дата открытия"
+        ]
+        for order in orders:
+            table = PrettyTable(
+                headers, left_padding_width=1, right_padding_width=1
+            )  # Определяем таблицу
+            table.add_row(
+                [
+                    order.id,
+                    order.order_type,
+                    order.username,
+                    order.order_number,
+                    order.order_state,
+                    order.price,
+                    order.code,
+                    order.creation_date
+                ]
+            )
+            
+            # f" Чек на оплату: {}\n",
+            with Session(engine) as session:
+                checks = session.scalars(select(CheckDocument)
+                    .where(CheckDocument.order_number == order.order_number)).all()
+            
+            for check in checks:
+                try:
+                    await bot.send_document(message.from_id, check.doc)
+                except:
+                    await bot.send_photo(message.from_id, check.doc)
+                    
+            
+        await bot.send_message(
+            message.from_user.id, f"Всего заказов: {len(orders)}"
+        )
+
+# --------------------------------GET TO VIEW CERT COMMANDS-------------------------------------
+# /посмотреть_сертификаты
 async def command_get_info_сert_orders(message: types.Message):
     if (
         message.text.lower()
-        in ["посмотреть заказанные сертификаты", "/посмотреть_заказанные_сертификаты"]
+        in ["посмотреть сертификаты", "/посмотреть_сертификаты"]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
-        orders_into_table = await get_info_many_from_table("сert_orders")
-        if orders_into_table == []:
-            await message.reply("⭕️ Пока у вас нет заказов на сертификатов в таблице")
-        else:
-            number_deleted_order = 0
+        with Session(engine) as session:
+            orders = session.scalars(select(Orders)
+                .where(Orders.order_type == "сертификат")).all()
+            
+        await view_cert_order(orders, message)
+        
+        await bot.send_message(message.from_id,
+            MSG_DO_CLIENT_WANT_TO_DO_MORE,
+            reply_markup=kb_admin.kb_cert_item_commands,
+        )
 
-            for ret in orders_into_table:
-                try:
-                    username_phone = await get_info_many_from_table(
-                        "clients", "username", ret[0]
-                    )
-                    username_phone = list(username_phone[0])[2]
-                except:
-                    username_phone = "Нет номера"
 
-                await bot.send_message(
-                    message.from_user.id,
-                    f" Заказ сертификата № {ret[5]}\n"
-                    f" Имя пользователя сертификата: {ret[0]}\n"
-                    f" Телефон пользователя: {username_phone}\n"
-                    f" Цена сертификата: {ret[1]}\n"
-                    f" Код сертификата: {ret[3]}\n"
-                    f" Статус заказа: {ret[2]}\n"
-                    f" Дата открытия заказа: {ret[4]}\n"
-                    f" Чек на оплату: {ret[6]}\n",
-                )
-                number_deleted_order += 1
-                # else:
-                #    number_deleted_order += 1
-            await bot.send_message(
-                message.from_user.id,
-                f"Всего заказов: {number_deleted_order}",
-                reply_markup=kb_admin.kb_main,
+# TODO изменить сертификат, удалить сертификат
+# --------------------------------CHANGE CERT COMMANDS-------------------------------------
+
+# изменить сертификат
+async def command_change_cert_order(message: types.Message):
+    if (
+        message.text.lower()
+        in ["изменить сертификат", "/изменить_сертификат"]
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        with Session(engine) as session:
+            orders = session.scalars(select(Orders)
+                .where(Orders.order_type == "сертификат")).all()
+            
+        await view_cert_order(orders, message)
+        if orders != []:
+            kb = ReplyKeyboardMarkup(resize_keyboard=True)
+            for order in orders:
+                kb.add(order.order_number)
+            await bot.send_message(message.from_id,
+                MSG_WHICH_ADMIN_ORDER_WANT_TO_CHANGE,
+                reply_markup=kb
             )
 
-
 def register_handlers_admin_cert(dp: Dispatcher):
-    # -------------------------------------------------------CREATE CERT ORDER------------------------------------------------------
+    # -------------------------------------CREATE CERT ORDER-------------------------------------
     dp.register_message_handler(
         get_cert_command_list, commands="сертификат", state=None
     )
@@ -452,7 +500,7 @@ def register_handlers_admin_cert(dp: Dispatcher):
         cert_load_phone, state=FSM_Admin_cert_username_info.phone
     )  # добавляет всю инфу про пользователя
 
-    # -------------------------------------------------------COMMANDS CERT ORDER------------------------------------------------------
+    # -----------------------COMMANDS CERT ORDER----------------------------------
 
     dp.register_message_handler(
         command_get_info_сert_orders,

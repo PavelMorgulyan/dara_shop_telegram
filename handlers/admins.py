@@ -333,7 +333,7 @@ async def command_see_list(message: types.Message):
             + kb_admin.clients_commands
             + kb_admin.giftbox_item_commands
             + kb_admin.giftbox_order_commands
-            + kb_admin.sert_item_commands
+            + kb_admin.cert_item_commands
             + kb_admin.tattoo_order_commands
             + kb_admin.tattoo_items_commands
         ):
