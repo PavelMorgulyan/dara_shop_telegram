@@ -19,7 +19,7 @@ from db.db_getter import get_info_many_from_table
 from datetime import datetime
 from handlers.calendar_client import obj
 from msg.main_msg import *
-from handlers.other import STATES
+from handlers.other import STATES, status_distribution
 
 from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
@@ -45,7 +45,7 @@ async def create_cert_order(data: dict, message: types.Message):
         new_cert_order = Orders(
             order_type="сертификат",
             user_id=message.from_id,
-            order_state=STATES["open"],
+            order_state=data['state'],
             order_number=data["cert_order_number"],
             creation_date=datetime.now(),
             price=data["price"],
@@ -154,7 +154,7 @@ async def admin_process_successful_cert_payment(
 
             new_cert_order = {
                 "price": data["price"],
-                "status": data["state"],
+                "state": data["state"],
                 "code": data["code"],
                 "cert_order_number": data["cert_order_number"],
                 "check_document": data["check_document"],
@@ -237,19 +237,20 @@ async def get_check_document_cert_from_admin(message: types.Message, state=FSMCo
     if check_doc_result["result"]:
         async with state.proxy() as data:  # type: ignore
             order_number = data["cert_order_number"]
-
-            new_cert_order = Orders(
-                username=data["username"],
-                price= data["price"],
-                state= data["state"],
-                code= data["code"],
-                creation_date= data["creation_date"],
-                order_number= data["cert_order_number"],
-                check_document= check_document,
-            )
-            with Session(engine) as session:
-                session.add(new_cert_order)
-                session.commit()
+            new_check = [
+            CheckDocument(
+                order_number= order_number,
+                doc= check_document
+                )
+            ]       
+            new_cert_order = {
+                "price": data["price"],
+                "state": STATES['paid'],
+                "code": data["code"],
+                "cert_order_number": data["cert_order_number"],
+                "check_document": new_check,
+            }
+            await create_cert_order(new_cert_order, message)
 
             # await set_to_table(tuple(new_cert_order.values()), 'сert_orders')
         await bot.send_message(
@@ -261,9 +262,8 @@ async def get_check_document_cert_from_admin(message: types.Message, state=FSMCo
         await state.finish()  # type: ignore
         await FSM_Admin_cert_username_info.get_user_name.set()
     else:
-        await message.reply(
-            await message.reply(f"❌ Чек не подошел! {check_doc_result['report_msg']}")
-        )
+        await message.reply(f"❌ Чек не подошел! {check_doc_result['report_msg']}")
+        
 
 
 async def cert_load_user_name(message: types.Message, state: FSMContext):
@@ -428,32 +428,341 @@ async def command_get_info_сert_orders(message: types.Message):
         )
 
 
-# TODO изменить сертификат, удалить сертификат
-# --------------------------------CHANGE CERT COMMANDS-------------------------------------
+# TODO изменить статус сертификата, удалить сертификат
+# --------------------------------CHANGE STATE CERT COMMANDS----------------------------------
+class FSM_Admin_set_new_state_cert_order(StatesGroup):
+    get_order_number = State()
+    set_new_order_state = State()
+    get_answer_check_document = State()
+    get_price_for_check_document = State()
+    get_check_document = State()
+
 
 # изменить сертификат
-async def command_change_cert_order(message: types.Message):
+async def command_set_new_cert_order_state(message: types.Message):
     if (
-        message.text.lower()
-        in ["изменить сертификат", "/изменить_сертификат"]
+        message.text.lower() in ["изменить статус сертификата", "/изменить_статус_сертификата"]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         with Session(engine) as session:
-            orders = session.scalars(select(Orders)
-                .where(Orders.order_type == "сертификат")).all()
+            orders = session.scalars(
+                select(Orders).where(Orders.order_type == "сертификат")
+            ).all()
             
-        await view_cert_order(orders, message)
-        if orders != []:
-            kb = ReplyKeyboardMarkup(resize_keyboard=True)
+        if orders == []:
+            await bot.send_message(
+                message.from_id,
+                MSG_NO_ORDER_IN_TABLE,
+                reply_markup=kb_admin.kb_tattoo_cert_commands,
+            )
+        else:
+            kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
+            await FSM_Admin_set_new_state_cert_order.get_order_number.set() #-> get_cert_order_number
+
             for order in orders:
-                kb.add(order.order_number)
-            await bot.send_message(message.from_id,
+                kb_orders.add(
+                    KeyboardButton(
+                        f'{order.order_number} статус: {order.order_state}'
+                    )
+                )
+            kb_orders.add(kb_client.back_btn)
+            await bot.send_message(
+                message.from_user.id,
                 MSG_WHICH_ADMIN_ORDER_WANT_TO_CHANGE,
-                reply_markup=kb
+                reply_markup=kb_orders,
             )
 
+
+async def get_cert_order_number(message: types.Message, state: FSMContext):
+    with Session(engine) as session:
+        orders = session.scalars(
+            select(Orders).where(Orders.order_type == "сертификат")
+        ).all()
+    kb_orders = []
+    for order in orders:
+        kb_orders.append(f'{order.order_number} статус: {order.order_state}')
+    
+    if message.text in kb_orders:
+        await FSM_Admin_set_new_state_cert_order.next()
+        
+        async with state.proxy() as data:
+            data['order_number'] = int(message.text.split()[0])
+            data['current_order_status'] = message.text.split()[3]
+        
+        kb_new_status = ReplyKeyboardMarkup(resize_keyboard=True)
+        for status in status_distribution["сертификат"][message.text.split()[3]] \
+            + list(STATES['closed'].values()):
+            kb_new_status.add(KeyboardButton(status))
+        
+        await bot.send_message(
+            message.from_id, f"Какой статус выставляем?", reply_markup= kb_new_status,
+        )
+
+
+async def get_new_status_to_cert_order(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        order_number = data['order_number']
+        current_order_status = data['current_order_status'] 
+        
+    if message.text in status_distribution["сертификат"][current_order_status]:
+        with Session(engine) as session:
+            order = session.scalars(
+                select(Orders).where(Orders.order_number == order_number)
+            ).one()
+            order.order_state = message.text
+            new_state = message.text
+            user_id = order.user_id
+            username = order.username
+            session.commit()
+            
+        if message.text in list(STATES["closed"].values()):
+                
+                await message.reply("Оповестить пользователя о смене статуса сертификата?", 
+                    reply_markup=kb_client.kb_yes_no)
+                
+        elif message.text in [STATES["paid"]]:  # 'Обработан'
+            await FSM_Admin_set_new_state_cert_order.next()
+            await message.reply(
+                f"Хочешь добавить чек к сертификату?", reply_markup=kb_client.kb_yes_no
+            )
+        elif message.text == kb_client.yes_str:
+            await bot.send_message(user_id, 
+                (
+                    f"❕ Уважаемый {username}!\n"
+                    f"❕ Статус сертификата {order_number} изменился с '{current_order_status}' на '{new_state}'.\n"
+                    f"За подробностями об изменении статуса заказа обращайтесь к "
+                    "@dara_redwan (https://t.me/dara_redwan)"
+                )
+            )
+            
+        elif message.text == kb_client.no_str:
+            await message.reply(
+                f'❕ Готово! Вы обновили статус сертификата {order_number} на "{new_state}"',
+                reply_markup=kb_admin.kb_cert_item_commands,
+            )
+            await state.finish()  #  полностью очищает данные
+
+
+async def get_answer_for_getting_check_document(
+    message: types.Message, state: FSMContext
+):
+    if message.text == kb_client.yes_str:
+        await FSM_Admin_set_new_state_cert_order.next()
+        await message.reply(
+            f"На какую сумму чек?", reply_markup=kb_admin.kb_price
+        )
+
+    elif message.text == kb_client.no_str:
+        async with state.proxy() as data:
+            tattoo_order_number = data["tattoo_order_number"]
+            new_state = data["new_state"]
+
+        await message.reply(
+            f"Готово! Вы обновили статус заказа {tattoo_order_number} на '{new_state}'",
+            reply_markup=kb_admin.kb_cert_item_commands,
+        )
+        await state.finish()
+    else:
+        await message.reply(
+            f"На этот вопрос можно ответит только 'Да' или 'Нет'. Выбери правильный ответ",
+            reply_markup=kb_client.kb_yes_no,
+        )
+
+
+async def get_price_for_check_document(message: types.Message, state: FSMContext):
+    if message.text in kb_admin.another_price_lst:
+        await bot.send_message(
+            message.from_id,
+            MSG_ADMIN_SET_ANOTHER_PRICE,
+            reply_markup=kb_admin.kb_another_price_full,
+        )
+
+    elif message.text.isdigit():
+        async with state.proxy() as data:
+            data["tattoo_order_price"] = message.text
+        await FSM_Admin_set_new_state_cert_order.next() # -> get_check_document
+        await message.reply(
+            MSG_ADMIN_GET_CHECK_TO_ORDER,
+            reply_markup=kb_client.kb_back_cancel,
+        )
+
+    elif message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
+        await state.finish()
+        await message.reply(
+            MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_cert_item_commands
+        )
+
+    else:
+        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def get_check_document(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        order_number = data["tattoo_order_number"]
+        price = str(data["tattoo_order_price"])
+
+    if message.content_type == "document":
+        check_doc_pdf = await check_pdf_document_payment(
+            user_id=message.from_id,
+            price=price,
+            file_name=message.document.file_name,
+            file_id=message.document.file_id,
+        )
+
+        if check_doc_pdf["result"]:
+            with Session(engine) as session:
+                order = session.scalars(select(Orders)
+                    .where(Orders.order_number == order_number)).one()
+                
+                new_check_item = CheckDocument(
+                        order_number=order_number, 
+                        telegram_user_id=order.user_id,
+                        doc= message.document.file_id,
+                    )
+                if order.check_document in [[], None]:
+                    order.check_document = [new_check_item]
+                else:
+                    order.check_document.append(new_check_item)
+                session.commit()
+            await state.finish()
+            await bot.send_message(
+                message.from_id,
+                f"🌿 Чек подошел! Заказ № {order_number} обрел свой чек! "
+                f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                reply_markup=kb_admin.kb_cert_item_commands,
+            )
+        else:
+            await message.reply(f"❌ Чек не подошел! {check_doc_pdf['report_msg']}")
+
+    if message.content_type == "text":
+        if message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
+            await state.finish()
+            await message.reply(
+                MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_cert_item_commands
+            )
+
+        elif message.text in LIST_BACK_COMMANDS:
+            await FSM_Admin_set_new_state_cert_order.previous()
+            await message.reply(
+                f"{MSG_CLIENT_GO_BACK}❔ На какую сумму чек?",
+                reply_markup=kb_admin.kb_price,
+            )
+
+    if message.content_type == "photo":
+        message.photo[0].file_id
+        check_photo = await check_photo_payment(
+            message=message,
+            user_id=message.from_id,
+            price=price,
+            file_name=message.document.file_name,
+            file_id=message.photo[0].file_id,
+        )
+
+        if check_photo["result"]:
+            with Session(engine) as session:
+                order = session.scalars(select(Orders)
+                    .where(Orders.order_number == order_number)).one()
+                
+                if order.check_document in [None, []]:
+                    new_check_item = CheckDocument(
+                            order_number=order_number, 
+                            telegram_user_id=order.user_id,
+                            doc= message.photo[0].file_id,
+                        )
+                    order.check_document = [new_check_item]
+                else:
+                    order.check_document.append(new_check_item)
+                session.commit()
+            await state.finish()
+            await bot.send_message(
+                message.from_id,
+                f"🌿 Чек подошел! Заказ № {order_number} обрел свой чек! "
+                f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                reply_markup=kb_admin.kb_cert_item_commands,
+            )
+        else:
+            await message.reply(f"❌ Чек не подошел! {check_doc_pdf['report_msg']}")  # type: ignore
+
+
+# -------------------------------------------- удалить сертификат---------------------------------
+class FSM_Admin_delete_cert_order(StatesGroup):
+    order_number = State()
+
+
+# /удалить сертификат - полное удаление сертификата из таблицы
+async def command_delete_info_cert_order(message: types.Message):
+    if (
+        message.text in ["удалить сертификат", "/удалить_сертификат"]
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        with Session(engine) as session:
+            orders = session.scalars(
+                select(Orders).where(Orders.order_type == "сертификат")
+            ).all()
+
+        if orders == []:
+            await message.reply(MSG_NO_ORDER_IN_TABLE)
+            await bot.send_message(
+                message.from_id,
+                f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                reply_markup=kb_admin.kb_cert_item_commands,
+            )
+        else:
+            await bot.send_message(message.from_id, MSG_DELETE_FUNCTION_NOTE)
+            kb_cert_order_numbers = ReplyKeyboardMarkup(resize_keyboard=True)
+            for order in orders:
+                # выводим наименования тату
+                kb_cert_order_numbers.add(
+                    KeyboardButton(
+                        f'{order.id}) №{order.order_number} {order.order_state}'
+                    )
+                )
+
+            kb_cert_order_numbers.add(KeyboardButton("Назад"))
+            await FSM_Admin_delete_cert_order.order_number.set()
+            await message.reply(
+                "Какой заказ хотите удалить?", reply_markup=kb_cert_order_numbers
+            )
+
+
+async def delete_info_cert_orders(message: types.Message, state: FSMContext):
+    with Session(engine) as session:
+        orders = session.scalars(
+            select(Orders).where(Orders.order_type == "сертификат")
+        ).all()
+    order_kb_lst = []
+    for order in orders:
+        order_kb_lst.append(
+            f'{order.id}) №{order.order_number} {order.order_state}'
+        )
+
+    if message.text in order_kb_lst:
+        with Session(engine) as session:
+            order = session.get(Orders, message.text.split(")")[0])
+            session.delete(order)
+            session.commit()
+
+        await message.reply(f"Cертификат {message.text.split()[1][1:]} удален")
+        await bot.send_message(
+            message.from_user.id,
+            f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+            reply_markup=kb_admin.kb_cert_item_commands,
+        )
+        await state.finish()
+
+    elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+        await message.reply(
+            MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_cert_item_commands
+        )
+        await state.finish()
+    else:
+        await bot.send_message(
+            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+        )
+
+
 def register_handlers_admin_cert(dp: Dispatcher):
-    # -------------------------------------CREATE CERT ORDER-------------------------------------
+    # ---------------------------CREATE CERT ORDER-----------------------------
     dp.register_message_handler(
         get_cert_command_list, commands="сертификат", state=None
     )
@@ -483,7 +792,7 @@ def register_handlers_admin_cert(dp: Dispatcher):
         state=FSM_Admin_сert_item.cert_get_check_answer,
     )  # Хочешь приложить чек перевода?  Да / нет
     dp.register_message_handler(
-        get_check_document_cert_from_admin,
+        get_check_document_cert_from_admin, content_types= ['document', 'photo', 'text'],
         state=FSM_Admin_сert_item.cert_get_check_document,
     )
 
@@ -504,11 +813,56 @@ def register_handlers_admin_cert(dp: Dispatcher):
 
     dp.register_message_handler(
         command_get_info_сert_orders,
-        commands="посмотреть_заказанные_сертификаты",
+        commands="посмотреть_сертификаты",
         state=None,
     )
     dp.register_message_handler(
         command_get_info_сert_orders,
-        Text(equals="посмотреть заказанные сертификаты", ignore_case=True),
+        Text(equals="посмотреть сертификаты", ignore_case=True),
         state=None,
+    )
+    # ---------------------------------CHANGE STATUS CERT ORDER----------------------------
+    dp.register_message_handler(
+        command_set_new_cert_order_state, commands=["изменить_статус_сертификата"]
+    )
+    dp.register_message_handler(
+        command_set_new_cert_order_state,
+        Text(equals="изменить статус сертификата", ignore_case=True),
+        state=None,
+    )
+    dp.register_message_handler(
+        get_cert_order_number,
+        state=FSM_Admin_set_new_state_cert_order.get_order_number,
+    )
+    dp.register_message_handler(
+        get_new_status_to_cert_order,
+        state=FSM_Admin_set_new_state_cert_order.set_new_order_state,
+    )
+
+    dp.register_message_handler(
+        get_answer_for_getting_check_document,
+        state=FSM_Admin_set_new_state_cert_order.get_answer_check_document,
+    )
+    dp.register_message_handler(
+        get_price_for_check_document,
+        state=FSM_Admin_set_new_state_cert_order.get_price_for_check_document,
+    )
+
+    dp.register_message_handler(
+        get_check_document,
+        content_types=["photo", "document"],
+        state=FSM_Admin_set_new_state_cert_order.get_check_document,
+    )
+    
+    # ---------------------------------DELETE STATUS CERT ORDER----------------------------
+    dp.register_message_handler(
+        command_delete_info_cert_order, commands=["удалить_сертификат"]
+    )
+    dp.register_message_handler(
+        command_delete_info_cert_order,
+        Text(equals="удалить сертификат", ignore_case=True),
+        state=None,
+    )
+    dp.register_message_handler(
+        delete_info_cert_orders, state=FSM_Admin_delete_cert_order.order_number
     )

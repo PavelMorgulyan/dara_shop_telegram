@@ -13,6 +13,7 @@ import typing
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import declarative_base, sessionmaker, scoped_session
 
+
 """ class Base(DeclarativeBase):
     pass """
 
@@ -23,8 +24,9 @@ Base = declarative_base()
 
 class User(Base):
     __tablename__ = "user_account"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str]  #  = mapped_column(String(30))   # message.from_user.full_name
+    name: Mapped[str] #  = mapped_column(String(30)) # message.from_user.full_name
     telegram_name: Mapped[Optional[str]]  #
     telegram_id: Mapped[Optional[str]]  # message.from_id
     phone: Mapped[Optional[str]]
@@ -41,6 +43,7 @@ class User(Base):
 
 class ScheduleCalendar(Base):
     __tablename__ = "schedule_calendar"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     start_datetime: Mapped[Optional[datetime]]
     end_datetime: Mapped[Optional[datetime]]
@@ -59,6 +62,7 @@ class ScheduleCalendar(Base):
 
 class ScheduleCalendarItems(Base):
     __tablename__ = "schedule_calendar_order_items"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     # schedulecalendar_mapped_id: Mapped["ScheduleCalendar"] = mapped_column(ForeignKey("schedule_calendar.id"))
     schedule_id: Mapped[int]
@@ -76,6 +80,7 @@ class ScheduleCalendarItems(Base):
 
 class TattooItems(Base):
     __tablename__ = "tattoo_items"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[Optional[str]]
     photos: Mapped[List["TattooItemPhoto"]] = relationship(
@@ -106,6 +111,7 @@ class TattooItems(Base):
 
 class TattooItemPhoto(Base):
     __tablename__ = "tattoo_items_photo"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     tattoo_item_id: Mapped[int] = mapped_column(ForeignKey("tattoo_items.id"))
     photo: Mapped[str]
@@ -134,6 +140,7 @@ class TattooItemPhoto(Base):
 
 class Orders(Base):
     __tablename__ = "orders"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     order_type: Mapped[
         str
@@ -196,6 +203,7 @@ class Orders(Base):
 
 class OrderPhoto(Base):
     __tablename__ = "tattoo_photo"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     order_id: Mapped[Optional[int]] = mapped_column(ForeignKey("orders.id"))
     order_number: Mapped[
@@ -218,6 +226,7 @@ class OrderPhoto(Base):
 
 class TattooPlacePhoto(Base):
     __tablename__ = "tattoo_place_photo"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     order_id: Mapped[Optional[int]] = mapped_column(ForeignKey("orders.id"))
     order_number: Mapped[Optional[int]]
@@ -236,6 +245,7 @@ class TattooPlacePhoto(Base):
 
 class TattooPlaceVideoNote(Base):
     __tablename__ = "tattoo_place_video_note"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     order_id: Mapped[Optional[int]] = mapped_column(ForeignKey("orders.id"))
     order_number: Mapped[
@@ -256,6 +266,7 @@ class TattooPlaceVideoNote(Base):
 
 class TattooPlaceVideo(Base):
     __tablename__ = "tattoo_place_video"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
     order_number: Mapped[
@@ -276,6 +287,7 @@ class TattooPlaceVideo(Base):
 
 class CheckDocument(Base):
     __tablename__ = "check_document"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     order_number: Mapped[int]
     order_number_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
@@ -294,6 +306,7 @@ class CheckDocument(Base):
 
 class OrderPriceList(Base):
     __tablename__ = "price_list"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     type: Mapped[
         Optional[str]
@@ -314,6 +327,7 @@ class OrderPriceList(Base):
 
 class SchedulePhoto(Base):
     __tablename__ = "schedule_photo"
+    
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[Optional[str]]
     photo: Mapped[Optional[str]]

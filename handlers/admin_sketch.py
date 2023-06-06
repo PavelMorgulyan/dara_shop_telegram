@@ -161,7 +161,7 @@ async def get_sketch_order_state(message: types.Message, state: FSMContext):
         with Session(engine) as session:
             orders = session.scalars(
                 select(Orders)
-                    .where(Orders.order_type == "эскиз")
+                    .where(Orders.order_type == kb_admin.price_lst_types["sketch"])
                     .where(Orders.order_state == message.text)
             ).all()
         await send_to_view_sketch_order(message, orders)
@@ -196,7 +196,7 @@ async def command_get_info_sketch_order(message: types.Message):
     ):
         with Session(engine) as session:
             orders = session.scalars(
-                select(Orders).where(Orders.order_type == "эскиз")
+                select(Orders).where(Orders.order_type == kb_admin.price_lst_types["sketch"])
             ).all()
         if orders == []:
             await bot.send_message(
@@ -225,7 +225,7 @@ async def command_get_info_sketch_order(message: types.Message):
 async def get_name_for_view_sketch_order(message: types.Message, state: FSMContext):
     with Session(engine) as session:
         orders = session.scalars(
-            select(Orders).where(Orders.order_type == "эскиз")
+            select(Orders).where(Orders.order_type == kb_admin.price_lst_types["sketch"])
         ).all()
     order_list = []
     for order in orders:
@@ -269,7 +269,7 @@ async def command_delete_info_sketch_order(message: types.Message):
     ):
         with Session(engine) as session:
             orders = session.scalars(
-                select(Orders).where(Orders.order_type == "эскиз")
+                select(Orders).where(Orders.order_type == kb_admin.price_lst_types["sketch"])
             ).all()
 
         if orders == []:
@@ -300,7 +300,7 @@ async def command_delete_info_sketch_order(message: types.Message):
 async def delete_info_sketch_orders(message: types.Message, state: FSMContext):
     with Session(engine) as session:
         orders = session.scalars(
-            select(Orders).where(Orders.order_type == "эскиз")
+            select(Orders).where(Orders.order_type == kb_admin.price_lst_types["sketch"])
         ).all()
     order_kb_lst = []
     for order in orders:
@@ -370,7 +370,7 @@ async def command_create_new_sketch_order(message: types.Message):
 async def fill_sketch_order_table(data: dict, message: types.Message):
     with Session(engine) as session:
         new_sketch = Orders(
-            order_type="эскиз",
+            order_type=kb_admin.price_lst_types["sketch"],
             order_photo=data["sketch_photo_lst"],
             order_note=data["sketch_description"],
             order_state=data["state"],
@@ -388,11 +388,8 @@ async def fill_sketch_order_table(data: dict, message: types.Message):
     event = await obj.add_event(
         CALENDAR_ID,
         f"Новый эскиз заказ № {data['id']}",
-        "Описание эскиза: "
-        + data["sketch_description"]
-        + " \n"
-        + "Имя клиента:"
-        + data["telegram"],
+        f"Описание эскиза: {data['sketch_description']}\n"
+        f"Имя клиента:{data['telegram']}",
         f'{date.strftime("%Y-%m-%dT%H:%M:%S")}',  # '2023-02-02T09:07:00',
         f'{date.strftime("%Y-%m-%dT%H:%M:%S")}',  # '2023-02-03T17:07:00'
     )
@@ -790,7 +787,7 @@ async def command_set_new_sketch_order_state(message: types.Message):
     ):
         with Session(engine) as session:
             orders = session.scalars(
-                select(Orders).where(Orders.order_type == "эскиз")
+                select(Orders).where(Orders.order_type == kb_admin.price_lst_types["sketch"])
             ).all()
             
         if orders == []:
@@ -820,7 +817,7 @@ async def command_set_new_sketch_order_state(message: types.Message):
 async def get_sketch_order_number(message: types.Message, state: FSMContext):
     with Session(engine) as session:
         orders = session.scalars(
-            select(Orders).where(Orders.order_type == "эскиз")
+            select(Orders).where(Orders.order_type == kb_admin.price_lst_types["sketch"])
         ).all()
     kb_orders = []
     for order in orders:
@@ -834,11 +831,12 @@ async def get_sketch_order_number(message: types.Message, state: FSMContext):
             data['current_order_status'] = message.text.split()[3]
         
         kb_new_status = ReplyKeyboardMarkup(resize_keyboard=True)
-        for status in status_distribution[message.text.split()[3]] + list(STATES['closed'].values()):
+        for status in status_distribution[kb_admin.price_lst_types["sketch"]][message.text.split()[3]]\
+            + list(STATES['closed'].values()):
             kb_new_status.add(KeyboardButton(status))
         
         await bot.send_message(
-            message.from_id, f"Какой статус выставляем?", reply_markup=kb_new_status,
+            message.from_id, f"Какой статус выставляем?", reply_markup= kb_new_status,
         )
 
 
@@ -847,7 +845,7 @@ async def get_new_status_to_sketch_order(message: types.Message, state: FSMConte
         order_number = data['order_number']
         current_order_status = data['current_order_status'] 
         
-    if message.text in status_distribution[current_order_status]:
+    if message.text in status_distribution[kb_admin.price_lst_types["sketch"]][current_order_status]:
         with Session(engine) as session:
             order = session.scalars(
                 select(Orders).where(Orders.order_number == order_number)
@@ -884,7 +882,6 @@ async def get_new_status_to_sketch_order(message: types.Message, state: FSMConte
                 reply_markup=kb_admin.kb_tattoo_order_commands,
             )
             await state.finish()  #  полностью очищает данные
-
 
 
 async def get_answer_for_getting_check_document(
@@ -1044,7 +1041,7 @@ async def command_change_sketch_order(message: types.Message):
     ):
         with Session(engine) as session:
             orders = session.scalars(
-                select(Orders).where(Orders.order_type == "эскиз")
+                select(Orders).where(Orders.order_type == kb_admin.price_lst_types["sketch"])
             ).all()
             
         if orders == []:
@@ -1073,7 +1070,7 @@ async def command_change_sketch_order(message: types.Message):
 async def get_sketch_order_number(message: types.Message, state: FSMContext):
     with Session(engine) as session:
         orders = session.scalars(
-            select(Orders).where(Orders.order_type == "эскиз")
+            select(Orders).where(Orders.order_type == kb_admin.price_lst_types["sketch"])
         ).all()
     kb_orders = []
     for order in orders:
@@ -1292,7 +1289,8 @@ async def get_check_to_sketch_order(message: types.Message, state: FSMContext):
 
     else:
         await bot.send_message(message.from_id, f"❌ Чек не подошел! {check_doc['report_msg']}")
-    
+
+
 # ------------------------------------SKETCH ORDER-------------------------------------------
 def register_handlers_admin_sketch(dp: Dispatcher):
     dp.register_message_handler(
@@ -1408,7 +1406,7 @@ def register_handlers_admin_sketch(dp: Dispatcher):
 
     dp.register_message_handler(
         get_check_document,
-        content_types=["photo", "document"],
+        content_types=["photo", "document", "text"],
         state=FSM_Admin_set_new_state_sketch_order.get_check_document,
     )
     

@@ -55,8 +55,6 @@ tattoo_order_commands = [
     "изменить тату заказ",
 ]
 
-
-
 tattoo_sketch_commands = [
     "добавить эскиз заказ",
     "посмотреть эскиз заказы",
@@ -115,7 +113,7 @@ candle_item_commands = [
 cert_item_commands = [
     "добавить заказ на сертификат",
     "посмотреть сертификаты",
-    "изменить сертификат",
+    "изменить статус сертификата",
     "удалить сертификат",
 ]
 
@@ -388,6 +386,8 @@ admin_choice_create_new_or_created_schedule_item = {
 }
 
 kb_sequins_commands = create_kb(list(sequins_commands.values()) + LIST_BACK_TO_HOME)
+
+# kb_cert_change_column_names = create_kb(list(cert_change_column_names.values()) + LIST_BACK_TO_HOME)
 
 kb_client_want_to_try_another_later_img = create_kb(
     list(client_want_to_try_another_later_img.values()) + back_lst + cancel_lst

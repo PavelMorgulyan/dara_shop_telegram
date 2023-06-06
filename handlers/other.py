@@ -52,11 +52,40 @@ STATES = {
 }
 
 status_distribution = {
-    STATES["open"]:         [STATES["processed"]],
-    STATES["processed"]:    [STATES["open"], STATES["paid"]],
-    STATES["paid"]:         [STATES["processed"], STATES["in_work"]],
-    STATES["in_work"]:      [STATES["processed"], STATES["paid"]],
-    STATES["complete"]:     [STATES["processed"], STATES["paid"], STATES["in_work"]],
+    "эскиз": {
+        STATES["open"]:         [STATES["processed"]],
+        STATES["processed"]:    [STATES["open"], STATES["paid"]],
+        STATES["paid"]:         [STATES["processed"], STATES["in_work"]],
+        STATES["in_work"]:      [STATES["processed"], STATES["paid"]],
+        STATES["complete"]:     [STATES["processed"], STATES["paid"], STATES["in_work"]],
+    },
+    "сертификат": {
+        STATES["open"]:         [STATES["processed"]],
+        STATES["processed"]:    [STATES["open"], STATES["paid"]],
+        STATES["paid"]:         [STATES["processed"]],
+        STATES["complete"]:     [STATES["processed"], STATES["paid"]],
+    },
+    "гифтбокс": {
+        STATES["open"]:         [STATES["processed"]],
+        STATES["processed"]:    [STATES["open"], STATES["paid"]],
+        STATES["paid"]:         [STATES["processed"], STATES["in_work"]],
+        STATES["in_work"]:      [STATES["processed"], STATES["paid"]],
+        STATES["complete"]:     [STATES["processed"], STATES["paid"], STATES["in_work"]],
+    },
+    "постоянное тату": {
+        STATES["open"]:         [STATES["processed"]],
+        STATES["processed"]:    [STATES["open"], STATES["paid"]],
+        STATES["paid"]:         [STATES["processed"], STATES["in_work"]],
+        STATES["in_work"]:      [STATES["processed"], STATES["paid"]],
+        STATES["complete"]:     [STATES["processed"], STATES["paid"], STATES["in_work"]],
+    },
+    "переводное тату": {
+        STATES["open"]:         [STATES["processed"]],
+        STATES["processed"]:    [STATES["open"], STATES["paid"]],
+        STATES["paid"]:         [STATES["processed"], STATES["in_work"]],
+        STATES["in_work"]:      [STATES["processed"], STATES["paid"]],
+        STATES["complete"]:     [STATES["processed"], STATES["paid"], STATES["in_work"]],
+    }
 }
 
 DAYS = {

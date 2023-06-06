@@ -460,7 +460,9 @@ async def get_new_status_for_tattoo_order(message: types.Message, state: FSMCont
         await bot.send_message(message.from_id, MSG_SEND_ORDER_STATE_INFO)
         
         kb_new_status = ReplyKeyboardMarkup(resize_keyboard=True)
-        for status in status_distribution[message.text.split()[3]] + list(STATES['closed'].values()):
+        for status in status_distribution[kb_admin.price_lst_types["constant_tattoo"]][message.text.split()[3]]\
+            + list(STATES['closed'].values()):
+                
             kb_new_status.add(KeyboardButton(status))
         
         await bot.send_message(
@@ -515,7 +517,7 @@ async def complete_new_status_for_tattoo_order(
     async with state.proxy() as data:
         current_order_status = data['current_order_status']
         
-    if message.text in status_distribution[current_order_status]:
+    if message.text in status_distribution[kb_admin.price_lst_types["constant_tattoo"]][current_order_status]:
         with Session(engine) as session:
             order = session.scalars(
                 select(Orders).where(Orders.order_number == order_number)

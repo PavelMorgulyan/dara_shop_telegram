@@ -13,50 +13,38 @@ from msg.main_msg import (
     MSG_ERROR_CHECK_VALIDATE_NOT_CORRECT_CHECK_DOCUMENT,
 )
 
+async def create_price_lst_in_check(price):
+    return [
+        price + " 000",
+        price + " 000,00",
+        price + " 000.00",
+        price + ".000",
+        price + ".000,00",
+        price + ".000.00",
+        price + ".000",
+    ] 
 
 async def check_pdf_document_payment(
     user_id: int, price: str, file_name: str, file_id
 ) -> dict[str, bool | str]:
     receiver_name_bool, price_check_bool, phone_number_bool, check_header_bool = (
-        False,
-        False,
-        False,
-        False,
-    )
+        False, False, False, False,
+    ) 
+    
 
     files = await bot.get_file(file_id)
-    src = (
-        "C:\\files\\checks\\"
-        + str(user_id)
-        + "\\"
-        + files.file_path.split(".")[0]
-        + "_"
-        + file_name
-    )
+    src = f"C:\\files\\checks\\{user_id}\\{files.file_path.split('.')[0]}_{file_name}"
     # file_info = await bot.get_file(file_id) # await file_info.download(src)
     await bot.download_file_by_id(file_id, src)
     price_lst = []
-
-    if " " in price:
-        price_lst = [
-            price,
-            price.replace(" ", "."),
-            price.replace(" ", ".") + ",00",
-            price.replace(" ", ".") + ".00",
-            price.replace(" ", ""),
-        ]
-
-    else:
-        price_lst = [
-            price,
-            price.replace("000", ".000"),
-            price.replace("000", ".000") + ",00",
-            price.replace("000", ".000") + ".00",
-        ]
-
-    if "," not in price:
-        price_lst = [price, price + ",00"]  # '5 000,00'
-
+    if len(price) == 3:
+        price_lst = await create_price_lst_in_check(price[0]) + [price]
+    elif len(price) == 4:
+        price_lst = await create_price_lst_in_check(price[0:1]) + [price]
+    elif len(price) == 5:
+        price_lst = await create_price_lst_in_check(price[0:2]) + [price]
+        
+    print(f"price_lst: {price_lst}")
     receiver_name_str = "Дария Редван Э"
 
     pdf_document = fitz.open(src)
@@ -112,14 +100,7 @@ async def check_photo_payment(
     # file_info = await bot.get_file(file_id)
     # await file_info.download(src)
     file = await bot.get_file(file_id)
-    src = (
-        "C:\\files\\checks\\"
-        + str(user_id)
-        + "\\"
-        + file.file_path.split(".")[0]
-        + "_"
-        + file_name
-    )
+    src = f"C:\\files\\checks\\{user_id}\\{file.file_path.split('.')[0]}_{file_name}"
     # await bot.download_file_by_id(file_id = file_id, destination_dir= src )
     await message.photo[-1].download(src)
 
