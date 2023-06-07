@@ -638,7 +638,6 @@ async def get_check_document(message: types.Message, state: FSMContext):
                     .where(Orders.order_number == tattoo_order_number)).one()
                 new_check_item = CheckDocument(
                         order_number=tattoo_order_number, 
-                        telegram_user_id=order.user_id,
                         doc= message.document.file_id,
                     )
                 if order.check_document in [[], None]:
@@ -689,7 +688,6 @@ async def get_check_document(message: types.Message, state: FSMContext):
                 if order.check_document in [None, []]:
                     new_check_item = CheckDocument(
                             order_number=tattoo_order_number, 
-                            telegram_user_id=order.user_id,
                             doc= message.photo[0].file_id,
                         )
                     order.check_document = [new_check_item]

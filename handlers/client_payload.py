@@ -282,7 +282,6 @@ async def get_order_check_document_to_paid(message: types.Message, state=FSMCont
             with Session(engine) as session:
                 new_check_document = CheckDocument(
                     order_number=order_number,
-                    telegram_user_id=message.from_id,
                     doc=check_document_successful_download,
                 )
                 # session.add(new_check_document)

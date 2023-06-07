@@ -313,9 +313,12 @@ async def cert_answer_user_name(message: types.Message, state: FSMContext):
                 reply_markup=kb_admin.kb_main,
             )
         await state.finish()
+        
     elif message.text == kb_client.no_str:
         await FSM_Admin_cert_username_info.next()
-        await message.reply("Хорошо, это другой пользователь, введи его телеграм")
+        await message.reply(
+            "Ответ принят, это другой пользователь. Введи его телеграм", reply_markup= kb_client.kb_cancel
+        )
 
     else:
         await message.reply('Ответь на вопрос "Да" или "Нет"')
@@ -325,40 +328,48 @@ async def cert_load_telegram(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["telegram"] = message.from_user.id
     await FSM_Admin_cert_username_info.next()
-    await message.reply("Введи его телефон")
+    await bot.send_message(
+        message.from_id, "Хочешь добавить телефон клиента?", reply_markup= kb_client.kb_yes_no
+    )
 
 
 async def cert_load_phone(message: types.Message, state: FSMContext):
-    number = message.text
-    result = re.match(
-        r"^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?"
-        r"[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$",
-        number,
-    )
-
-    if not result:
-        await message.reply("Номер не корректен, пожалуйста, введи номер заново")
+    if message.text == kb_client.yes_str:
+        await message.reply("Введи его телефон")
+        
+    elif message.text == kb_client.no_str:
+        await message.reply("Пользователь будет без телефона")
+        
     else:
-        async with state.proxy() as data:
-            new_client_info = User(
-                name=data["username"],
-                telegram_name=data["telegram"],
-                phone= message.text
-            )
-            with Session(engine) as session:
-                session.add(new_client_info)
-                session.commit()
-            username, telegram, phone = data["username"], data["telegram"], message.text
-            tattoo_order_number = data["tattoo_order_number"]
-
-        await bot.send_message(
-            message.from_user.id,
-            f"Заказ под номером {tattoo_order_number}"
-            f" оформлен на пользователя {username} под ником @{telegram}, телефон {phone}!",
-            reply_markup=kb_admin.kb_main,
+        number = message.text
+        result = re.match(
+            r"^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?"
+            r"[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$",
+            number,
         )
+        if not result:
+            await message.reply("Номер не корректен, пожалуйста, введи номер заново")
+        else:
+            async with state.proxy() as data:
+                new_client_info = User(
+                    name=data["username"],
+                    telegram_name=data["telegram"],
+                    phone= message.text
+                )
+                with Session(engine) as session:
+                    session.add(new_client_info)
+                    session.commit()
+                username, telegram, phone = data["username"], data["telegram"], message.text
+                order_number = data["cert_order_number"]
 
-        await state.finish()
+            await bot.send_message(
+                message.from_user.id,
+                f"Заказ под номером {order_number}"
+                f" оформлен на пользователя {username} под ником @{telegram}, телефон {phone}!",
+                reply_markup=kb_admin.kb_main,
+            )
+
+            await state.finish()
 
 
 async def view_cert_order(orders: ScalarResult["Orders"], message: types.Message):
@@ -615,10 +626,9 @@ async def get_check_document(message: types.Message, state: FSMContext):
                     .where(Orders.order_number == order_number)).one()
                 
                 new_check_item = CheckDocument(
-                        order_number=order_number, 
-                        telegram_user_id=order.user_id,
-                        doc= message.document.file_id,
-                    )
+                    order_number=order_number, 
+                    doc= message.document.file_id
+                )
                 if order.check_document in [[], None]:
                     order.check_document = [new_check_item]
                 else:
@@ -665,10 +675,9 @@ async def get_check_document(message: types.Message, state: FSMContext):
                 
                 if order.check_document in [None, []]:
                     new_check_item = CheckDocument(
-                            order_number=order_number, 
-                            telegram_user_id=order.user_id,
-                            doc= message.photo[0].file_id,
-                        )
+                        order_number=order_number, 
+                        doc= message.photo[0].file_id
+                    )
                     order.check_document = [new_check_item]
                 else:
                     order.check_document.append(new_check_item)

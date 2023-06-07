@@ -291,7 +291,6 @@ class CheckDocument(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     order_number: Mapped[int]
     order_number_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
-    telegram_user_id: Mapped[int]  # = mapped_column(ForeignKey("user.id"))
     doc: Mapped[Optional[str]]
     doc_id: Mapped["Orders"] = relationship(back_populates="check_document")
 
@@ -299,7 +298,6 @@ class CheckDocument(Base):
         return {
             "id": self.id,
             "order_number": self.order_number,
-            "telegram_user_id": self.telegram_user_id,
             "doc": self.doc,
         }
 

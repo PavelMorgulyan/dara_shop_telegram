@@ -264,7 +264,6 @@ async def process_successful_giftbox_payment(message: types.Message, state=FSMCo
             CheckDocument(
                 order_number=giftbox_order_number,
                 doc="Заказ оплачен",
-                telegram_user_id=message.from_id,
             )
         ]
         new_giftbox_order = {
@@ -340,7 +339,6 @@ async def process_successful_giftbox_payment_by_photo(
                 CheckDocument(
                     order_number=giftbox_order_number,
                     doc=check_document,
-                    telegram_user_id=message.from_id,
                 )
             ]
 

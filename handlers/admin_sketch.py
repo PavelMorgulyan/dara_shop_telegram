@@ -717,8 +717,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
             if check_doc_pdf["result"]:
                 data["check_document"] = CheckDocument(
                     order_number=data["tattoo_sketch_order"],
-                    telegram_user_id=None,
-                    doc=message.document.file_id,
+                    doc=message.document.file_id
                 )
                 new_sketch_order = {
                     "order_id": data["tattoo_sketch_order"],
@@ -750,8 +749,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
             if check_doc_photo["result"]:
                 data["check_document"] = CheckDocument(
                     order_number=data["tattoo_sketch_order"],
-                    telegram_user_id=None,
-                    doc=message.photo[0].file_id,
+                    doc=message.photo[0].file_id
                 )
                 new_sketch_order = {
                     "order_id": data["tattoo_sketch_order"],
@@ -957,7 +955,6 @@ async def get_check_document(message: types.Message, state: FSMContext):
                 
                 new_check_item = CheckDocument(
                         order_number=order_number, 
-                        telegram_user_id=order.user_id,
                         doc= message.document.file_id,
                     )
                 if order.check_document in [[], None]:
@@ -1006,10 +1003,9 @@ async def get_check_document(message: types.Message, state: FSMContext):
                 
                 if order.check_document in [None, []]:
                     new_check_item = CheckDocument(
-                            order_number=order_number, 
-                            telegram_user_id=order.user_id,
-                            doc= message.photo[0].file_id,
-                        )
+                        order_number=order_number, 
+                        doc= message.photo[0].file_id
+                    )
                     order.check_document = [new_check_item]
                 else:
                     order.check_document.append(new_check_item)
@@ -1271,8 +1267,7 @@ async def get_check_to_sketch_order(message: types.Message, state: FSMContext):
         with Session(engine) as session:
             new_check_document = CheckDocument(
                 order_number=order_number,
-                telegram_user_id=message.from_id,
-                doc=check_document_successful_download,
+                doc=check_document_successful_download
             )
             # session.add(new_check_document)
             # TODO проверить добавление чека в заказ
