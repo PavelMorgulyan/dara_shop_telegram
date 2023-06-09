@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
 from datetime import datetime
-
+from handlers.client import DARA_ID
 
 # 📷 ⏱ 🛠 ⚙️ 📎 ❤️ ☎️ 🗓 💬 🕒 🔴 🟢 🟡 ⁉️‼️ ❓❕❌
 # ⭕️ 🛑 ⛔️ 🌿 ☘️ 🍀 🌴 🍃 🕸 💳 🎉 🎁 📃 🎫 📏 📜 🏷
@@ -306,6 +306,16 @@ async def get_order_check_document_to_paid(message: types.Message, state=FSMCont
                 in kb_client.choice_order_type_to_payloading["сертификат"]
             ):
                 await bot.send_message(message.from_id, f"🎫 Код сертификата: {code}")
+                
+            if DARA_ID != 0:
+                await bot.send_message(
+                        DARA_ID,
+                        f"🔆 Дорогая Тату-мастерица!\n"
+                        f"❕ Заказ на {current_order_type} под номером {order_number} имеет новый статус заказа!\n"
+                        f"📃 Статус заказа: {STATES['paid']}.\n"
+                        f"💬 Имя клиента: {message.from_user.full_name}\n"
+                        f"💬 Телеграм клиента: @{message.from_user.username}",
+                    )
 
             elif current_order_type == kb_admin.price_lst_types["constant_tattoo"]:
                 await bot.send_message(message.from_id, f"🎉 Жду сеанса!")

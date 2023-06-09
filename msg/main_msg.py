@@ -592,3 +592,5 @@ MSG_WHICH_ADMIN_ORDER_WANT_TO_SEE = "Какой заказ хочешь посм
 MSG_WHICH_ADMIN_ORDER_WANT_TO_CHANGE = "Какой заказ хочешь изменить?"
 
 MSG_WHICH_ADMIN_ORDER_WANT_TO_DELETE = "Какой заказ хочешь удалить?"
+
+MSG_DO_CLIENT_WILL_GET_MSG_ABOUT_CHANGING_STATUS = "Оповестить пользователя о смене статуса?"

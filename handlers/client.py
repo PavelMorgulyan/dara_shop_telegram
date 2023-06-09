@@ -76,6 +76,10 @@ async def open_date_command(message: types.Message):
             .where(ScheduleCalendar.status == "Свободен")
             .where(ScheduleCalendar.event_type == "тату заказ")
         ).all()
+        
+        schedule_photo = session.scalars(select(SchedulePhoto)
+            .where(SchedulePhoto.name == datetime.now().strftime("%m %Y"))
+        ).all()
 
     date_list = ""
     for date in schedule:
@@ -83,12 +87,7 @@ async def open_date_command(message: types.Message):
             f"🗓 {date.start_datetime.strftime('%H:%M')} до"
             f" {date.end_datetime.strftime('%H:%M %d/%m/%Y')}\n"
         )
-    month_today = int(datetime.strftime(datetime.now(), "%m"))
-    year_today = int(datetime.strftime(datetime.now(), "%Y"))
-
-    schedule_photo = await get_info_many_from_table(
-        "schedule_photo", "name", f"{month_today} {year_today}"
-    )
+        
     if schedule_photo != [] and schedule != []:
         await bot.send_photo(
             message.from_user.id,
@@ -207,7 +206,7 @@ async def choice_consultation_event_date(message: types.Message, state: FSMConte
         ):  # TODO дополнить id Шуны и добавить интеграцию с Google Calendar !!!
             await bot.send_message(
                 DARA_ID,
-                f"Дорогая Тату-мастерица! "
+                f"🔆 Дорогая Тату-мастерица! "
                 f"У тебя новая консультация! "
                 f"Дата встречи: {message.text}\n"
                 f"Телеграм клиента: @{message.from_user.username}",
