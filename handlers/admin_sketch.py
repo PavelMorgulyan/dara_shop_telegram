@@ -843,12 +843,16 @@ async def get_new_status_to_sketch_order(message: types.Message, state: FSMConte
         order_number = data['order_number']
         current_order_status = data['current_order_status'] 
         
-    if message.text in status_distribution[kb_admin.price_lst_types["sketch"]][current_order_status]:
+    if message.text in status_distribution[kb_admin.price_lst_types["sketch"]][current_order_status] + \
+        list(STATES["closed"].values()):
         with Session(engine) as session:
             order = session.scalars(
                 select(Orders).where(Orders.order_number == order_number)
             ).one()
             order.order_state = message.text
+            async with state.proxy() as data:
+                data['new_state'] = message.text
+                data['user_id'] = order.user_id
             new_state = message.text
             user_id = order.user_id
             username = order.username
@@ -864,22 +868,34 @@ async def get_new_status_to_sketch_order(message: types.Message, state: FSMConte
             await message.reply(
                 f"Хочешь добавить чек к заказу?", reply_markup=kb_client.kb_yes_no
             )
-        elif message.text == kb_client.yes_str:
-            await bot.send_message(user_id, 
-                (
-                    f"❕ Уважаемый {username}!\n"
-                    f"❕ Статус заказа изменился с '{current_order_status}' на '{new_state}'.\n"
-                    f"За подробностями об изменении статуса заказа обращайтесь к "
-                    "@dara_redwan (https://t.me/dara_redwan)"
-                )
-            )
+    elif message.text == kb_client.yes_str:
+        async with state.proxy() as data:
+            new_state = data['new_state']
+            user_id = data['user_id'] 
             
-        elif message.text == kb_client.no_str:
-            await message.reply(
-                f'❕ Готово! Вы обновили статус заказа {order_number} на "{new_state}"',
-                reply_markup=kb_admin.kb_tattoo_order_commands,
+        await bot.send_message(user_id, 
+            (
+                f"❕ Уважаемый {username}!\n"
+                f"❕ Статус заказа изменился с '{current_order_status}' на '{new_state}'.\n"
+                f"За подробностями об изменении статуса заказа обращайтесь к "
+                "@dara_redwan (https://t.me/dara_redwan)"
             )
-            await state.finish()  #  полностью очищает данные
+        )
+        await message.reply(
+            f'❕ Готово! Вы обновили статус заказа {order_number} на "{new_state}"',
+            reply_markup=kb_admin.kb_tattoo_order_commands,
+        )
+        await state.finish()  #  полностью очищает данные
+        
+    elif message.text == kb_client.no_str:
+        async with state.proxy() as data:
+            new_state = data['new_state']
+            user_id = data['user_id'] 
+        await message.reply(
+            f'❕ Готово! Вы обновили статус заказа {order_number} на "{new_state}"',
+            reply_markup=kb_admin.kb_tattoo_order_commands,
+        )
+        await state.finish()  #  полностью очищает данные
 
 
 async def get_answer_for_getting_check_document(
