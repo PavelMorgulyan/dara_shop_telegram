@@ -37,13 +37,19 @@ class FSM_Client_сert_item(StatesGroup):
 
 # /хочу_сертификат Отправляем цену сертификата
 async def command_load_сert_item(message: types.Message):
-    if message.text in ["Xочу сертификат 🎫", "/get_certificate"]:
-        await FSM_Client_сert_item.сert_price.set()
-        await bot.send_message(
-            message.from_id,
-            "❔ На какую цену хотите сертификат?",
-            reply_markup=kb_admin.kb_price,
-        )
+    await FSM_Client_сert_item.сert_price.set()
+    with Session(engine) as session:
+        user = session.scalars(select(User).where(User.telegram_id == message.from_id)).all()
+        
+    if user == []:
+        await bot.send_message(message.from_id, MSG_INFO_START_ORDER) 
+        await bot.send_message(message.from_id, MSG_INFO_START_CERT_ORDER)
+        
+    await bot.send_message(
+        message.from_id,
+        "❔ На какую цену хотите сертификат?",
+        reply_markup=kb_admin.kb_price,
+    )
 
 
 async def load_сert_price(message: types.Message, state: FSMContext):
@@ -66,7 +72,7 @@ async def load_сert_price(message: types.Message, state: FSMContext):
             reply_markup=kb_admin.kb_another_price_full,
         )
 
-    elif any(text in message.text for text in LIST_CANCEL_COMMANDS):
+    elif any(text in message.text for text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME):
         await state.finish()
         await bot.send_message(
             message.from_id,
@@ -75,7 +81,7 @@ async def load_сert_price(message: types.Message, state: FSMContext):
         )
     else:
         await bot.send_message(
-            message.from_id, f"⭕️ Пожалуйста, выберете сумму из списка"
+            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -167,7 +173,7 @@ async def load_сert_payment_choice(message: types.Message, state: FSMContext):
         if user == []:
             await bot.send_message(
                 message.chat.id,
-                f"🍀 Ваш сертификат почти оформлен! Код сертификата будет выдан после оплаты.",
+                f"🍀 Сертификат почти оформлен! Код сертификата будет выдан после оплаты.",
             )
             await bot.send_message(
                 message.chat.id,
@@ -179,7 +185,7 @@ async def load_сert_payment_choice(message: types.Message, state: FSMContext):
         else:
             await bot.send_message(
                 message.chat.id,
-                f"🍀 Ваш сертификат оформлен! Номер заказа: {data['cert_order_number']}. "
+                f"🍀 Сертификат оформлен! Номер заказа: {data['cert_order_number']}. "
                 "Код сертификата будет выдан после оплаты.\n\n",
             )
             await bot.send_message(
@@ -205,8 +211,8 @@ async def load_сert_payment_choice(message: types.Message, state: FSMContext):
     else:
         await bot.send_message(
             message.from_id,
-            "⛔️ Пожалуйста, выбери из двух вариантов оплаты:"
-            " сейчас или потом. Или отмени действие.",
+            "⛔️ Пожалуйста, выберите из двух вариантов оплаты:"
+            " сейчас или потом. Или отмените действие.",
         )
 
 
@@ -281,7 +287,7 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
             await bot.send_message(
                 message.chat.id,
                 f"🎉 Заказ оплачен! \n"
-                f"🎫 Вот ваш код на сертификат на сумму {price}: {code}. \n\n"
+                f"🎫 Код на сертификат на сумму {price}: {code}. \n\n"
                 "❕ Сертификат действует неограничено по времени!",
             )
 
@@ -293,7 +299,7 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
             if user == []:
                 await bot.send_message(
                     message.chat.id,
-                    f"🎉 Ваш заказ сертификата под номером {cert_order_number} почти оформлен!",
+                    f"🎉 Сертификат под номером {cert_order_number} почти оформлен!",
                 )
 
                 await bot.send_message(
@@ -308,8 +314,8 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
             else:
                 await bot.send_message(
                     message.chat.id,
-                    f"🎉 Ваш заказ сертификата под номером {cert_order_number} оформлен!\n\n"
-                    "🟢 Хотите сделать что-нибудь еще?",
+                    f"🎉 Сертификат под номером {cert_order_number} оформлен!\n\n"
+                    f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
                     reply_markup=kb_client.kb_client_main,
                 )
 
@@ -345,7 +351,7 @@ async def get_clients_cert_order(message: types.Message):
         await bot.send_message(
             message.from_id,
             "⭕️ У тебя пока нет сертификатов. "
-            'Ты можешь приобрести сертификат по кнопке "Хочу сертификат" в главном меню.',
+            'Можно приобрести сертификат по кнопке "Сертификат" в главном меню.',
             reply_markup=kb_client.kb_choice_order_view,
         )
     else:

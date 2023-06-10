@@ -53,6 +53,12 @@ async def start_create_new_tattoo_sketch_order(message: types.Message):
             .where(Orders.order_state.in_([STATES["open"]]))
             .where(Orders.user_id == message.from_id)
         ).all()
+        user = session.scalars(select(User).where(User.telegram_id == message.from_id)).all()
+        
+    if user == []:
+        await bot.send_message(message.from_id, MSG_INFO_START_ORDER) 
+        await bot.send_message(message.from_id, MSG_INFO_SKETCH_ORDER)
+    
     if orders == []:
         await FSM_Client_tattoo_sketch_order.tattoo_sketch_note.set()
         await bot.send_message(
@@ -155,13 +161,45 @@ async def fill_sketch_order_table(data: dict, message: types.Message):
         )
 
 
+async def send_to_view_tattoo_admin_sketch(message: types.Message):
+    with Session(engine) as session:
+        tattoo = session.scalars(select(TattooItems).where(TattooItems.name == message.text)).one()
+        # ? TODO нужно ли выводить размер и цену?
+        msg = f"📃 Название: {tattoo.name}\n🎨 Цвет: {tattoo.colored}\n"
+
+        if tattoo.note.lower() not in ["без описания", None]:
+            msg += f"💬 Описание: {tattoo.note}\n"  # 💰 Цена: {tattoo.price}\n'
+
+        with Session(engine) as session:
+            photos = session.scalars(
+                select(TattooItemPhoto).where(
+                    TattooItemPhoto.tattoo_item_name == tattoo.name
+                )
+            ).all()
+        media = []
+        for photo in photos:
+            media.append(types.InputMediaPhoto(photo.photo, msg))
+
+        await bot.send_media_group(message.from_user.id, media=media)
+
+
 async def get_sketch_desc_order(message: types.Message, state: FSMContext):
     tattoo_sketch_order_number = await generate_random_order_number(CODE_LENTH)
     async with state.proxy() as data:
         data["tattoo_sketch_order_number"] = tattoo_sketch_order_number
         data["sketch_order_photo_counter"] = 0
         data["sketch_photo"] = []
-
+    with Session(engine) as session:
+        tattoo_items = session.scalars(
+            select(TattooItems).where(TattooItems.creator == "admin")
+        ).all()
+    kb_tattoo_names = ReplyKeyboardMarkup(resize_keyboard= True)
+    tattoo_name_lst = []
+    for tattoo in tattoo_items:
+        tattoo_name_lst.append(tattoo.name)
+        kb_tattoo_names.add(KeyboardButton(tattoo.name))
+        
+    kb_tattoo_names.add(kb_client.back_btn).add(kb_client.cancel_btn)
     if message.text in LIST_CANCEL_COMMANDS:
         await state.finish()
         await bot.send_message(
@@ -181,34 +219,14 @@ async def get_sketch_desc_order(message: types.Message, state: FSMContext):
     elif (
         message.text == kb_client.start_dialog_sketch_order["client_want_to_see_galery"]
     ):
-        with Session(engine) as session:
-            tattoo_items = session.scalars(
-                select(TattooItems).where(TattooItems.creator == "admin")
-            ).all()
-
-        await bot.send_message(message.from_id, "📃 Вот мои эскизы для тату")
-        for tattoo in tattoo_items:
-            # ? TODO нужно ли выводить размер и цену?
-            msg = f"📃 Название: {tattoo.name}\n🎨 Цвет: {tattoo.colored}\n"
-            # \f'🔧 Количество деталей: {tattoo[5]}\n'
-
-            if tattoo.note not in ["без описания", None]:
-                msg += f"💬 Описание: {tattoo.note}\n"  # 💰 Цена: {tattoo.price}\n'
-
-            with Session(engine) as session:
-                photos = session.scalars(
-                    select(TattooItemPhoto).where(
-                        TattooItemPhoto.tattoo_item_name == tattoo.name
-                    )
-                ).all()
-            media = []
-            for photo in photos:
-                media.append(types.InputMediaPhoto(photo.photo, msg))
-
-            await bot.send_media_group(message.from_user.id, media=media)
-
         await bot.send_message(
-            message.from_user.id, "❔ Какое описание хочешь оставить для своего эскиза?"
+            message.from_id, "📃 Какое тату показать?", reply_markup= kb_tattoo_names
+        )
+    elif message.text in tattoo_name_lst:
+        await send_to_view_tattoo_admin_sketch(message)
+        await bot.send_message(
+            message.from_user.id, "❔ Какое описание оставить для эскиза? Напиши ответ в строке.",
+            reply_markup= kb_client.kb_back_cancel
         )
 
     # переход: Хочешь отправить фото твоей идеи для переводной татуировки?' -> Да
@@ -216,7 +234,7 @@ async def get_sketch_desc_order(message: types.Message, state: FSMContext):
         await FSM_Client_tattoo_sketch_order.next()  # -> get_photo_sketch_order
         await bot.send_message(
             message.from_id,
-            "📎 Хорошо, отправь фото твоей идеи для эскиза тату!",
+            "📎 Отправь фото идеи для эскиза тату!",
             reply_markup=kb_client.kb_back_cancel,
         )
 

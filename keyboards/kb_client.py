@@ -95,11 +95,11 @@ tattoo_body_places = [
 client_still_want_his_sketch = "Все же хочу свой эскиз для тату 🙅‍♂️"
 
 client_main = {
-    "client_want_tattoo": "Хочу тату 🕸",
-    "client_want_consultation": "Хочу консультацию 🌿",
-    "client_want_tattoo_sketch": "Хочу эскиз тату 🎨",
-    "client_want_giftbox": "Хочу гифтбокс 🎁",
-    "client_want_cert": "Xочу сертификат 🎫",
+    "client_want_tattoo": "Тату 🕸",
+    "client_want_consultation": "Консультация 🌿",
+    "client_want_tattoo_sketch": "Эскиз 🎨",
+    "client_want_giftbox": "Гифтбокс 🎁",
+    "client_want_cert": "Сертификат 🎫",
     "free_dates": "Свободные даты 🗓",
     "clients_orders": "Мои заказы 📃",
     "client_schedule": "Сеансы 🕒",
@@ -201,7 +201,7 @@ phone_number = {
 
 client_choice_send_more_photo_to_skatch_order = {
     "more_photo": "Отправить еще фото 📎",
-    "end_order": "Закончить заказ эскиза ⭕️",
+    "end_order": "Закончить заказ эскиза ➡️",
 }
 
 kb_phone_number = (
@@ -344,7 +344,7 @@ kb_place_for_tattoo = create_kb(tattoo_body_places + back_lst + cancel_lst)
 
 giftbox_note_dict = {
     "client_want_to_add_something": "Да, мне есть чего добавить! 🌿",
-    "client_dont_add_something": "Нет, мне нечего добавить ➡️",
+    "client_dont_add_something": "Нечего добавить ➡️",
 }
 
 kb_giftbox_note = create_kb(list(giftbox_note_dict.values()) + cancel_lst)

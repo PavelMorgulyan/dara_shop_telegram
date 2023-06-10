@@ -178,7 +178,7 @@ async def command_create_new_date_to_schedule(message: types.Message):
         # [ 'Хочу ввести конкретную дату', 'Хочу выбрать день недели и месяц']
         await message.reply(
             "Хорошо, давай добавим новую дату в твоем расписании. "
-            "Это будет тату работа или консультация?",
+            "Это будет тату работа, коррекция или консультация?",
             reply_markup=kb_admin.kb_type_of_schedule,
         )
 
@@ -527,8 +527,7 @@ async def get_view_schedule(user_id: int, schedule: ScalarResult[ScheduleCalenda
                 ).all()
 
             if orders != []:
-                for order in orders:
-                    order_number += f"{order.order_number}\n"
+                order_number += f"{orders[0].order_number}"
             else:
                 order_number = "Нет заказов"
             i += 1

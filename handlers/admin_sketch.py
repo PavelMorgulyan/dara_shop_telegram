@@ -54,7 +54,7 @@ async def get_tattoo_sketch_order_and_item_command_list(message: types.Message):
 
 
 # --------------------------------------  SKETCH COMMANDS -----------------------------------
-async def send_to_view_sketch_order(
+async def send_to_view_sketch_orders(
     message: types.Message, orders: ScalarResult["Orders"]
 ):
     if orders == []:
@@ -69,8 +69,8 @@ async def send_to_view_sketch_order(
                 "Тип заказа",
                 "Номер заказа",
                 "Время заказа",
-                "Описание",
-                "Пользователь"
+                # "Описание",
+                "Пользователь",
                 "Статус",
             ]
         table = PrettyTable(
@@ -84,57 +84,49 @@ async def send_to_view_sketch_order(
                     select(User).where(User.telegram_id == order.user_id)
                 ).one()
             # Определяем таблицу
-            note = order.order_note if len(order.order_note) < 10 else order.order_note[:10]
+            note = order.order_note if len(order.order_note) < 20 else order.order_note[:20]
             table.add_row(
                 [
                     order.id,
                     order.order_type,
                     order.order_number,
                     order.creation_date.strftime('%H:%M %d/%m/%Y'),
-                    note,
+                    # note,
                     user.telegram_name,
+                    order.order_state
                 ]
             )
         await bot.send_message(
             message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
         )
-        """  message_to_send = (
-            f"№ Заказа эскиза {order.order_number} от {order.creation_date.strftime('%H:%M %d/%m/%Y')}\n"
-            f"- Описание эскиза: {order.order_note}\n"
-            f"- Состояние заказа: {order.order_state}\n"
-            f"- Имя пользователя: {username}\n"
-            f"- Telegram пользователя: {username_telegram}\n"
-            f"- Телефон пользователя: {username_phone}\n"
-        )
 
-        try:
-            if "|" not in order[2]:
-                await bot.send_photo(
-                    message.from_user.id, order[2], message_to_send
-                )
-            else:
-                media = []
 
-                for i in range(len(order[2].split("|")) - 1):
-                    media.append(
-                        types.InputMediaPhoto(
-                            order[2].split("|")[i], message_to_send
-                        )
-                    )
-                # print(f'media: {media}\n\norder[2]:{order[2]}')
-                await bot.send_chat_action(
-                    message.chat.id, types.ChatActions.UPLOAD_DOCUMENT
-                )
-                await bot.send_media_group(message.chat.id, media=media)
-                await bot.send_message(message.from_id, message_to_send)
-        except:
-                await bot.send_message(message.from_id, message_to_send) """
-        await bot.send_message(
-            message.from_user.id,
-            f"Всего заказов: {len(orders)}",
-            reply_markup=kb_admin.kb_tattoo_sketch_commands,
-        )
+async def send_to_view_sketch_order(message: types.Message, order: Orders):
+    with Session(engine) as session:
+        user = session.scalars(
+            select(User).where(User.telegram_id == order.user_id)
+        ).one()
+        photos= session.scalars(select(OrderPhoto).where(OrderPhoto.order_number == order.order_number)).all()
+        
+    msg = (
+        f"№ Заказа эскиза {order.order_number} от {order.creation_date.strftime('%H:%M %d/%m/%Y')}\n"
+        f"- Описание эскиза: {order.order_note}\n"
+        f"- Состояние заказа: {order.order_state}\n"
+        f"- Имя пользователя: {user.name}\n"
+        f"- Telegram пользователя: {user.telegram_name}\n"
+    )
+    
+    media = []
+    for photo in photos:
+        media.append(types.InputMediaPhoto(photo.photo, msg))
 
+        # await bot.send_media_group(message.from_user.id, media=media)
+    # print(f'media: {media}\n\norder[2]:{order[2]}')
+    await bot.send_chat_action(
+        message.chat.id, types.ChatActions.UPLOAD_DOCUMENT
+    )
+    await bot.send_media_group(message.chat.id, media=media)
+    #await bot.send_message(message.from_id, msg)
 
 
 class FSM_Admin_get_info_sketch_orders(StatesGroup):
@@ -164,7 +156,7 @@ async def get_sketch_order_state(message: types.Message, state: FSMContext):
                     .where(Orders.order_type == kb_admin.price_lst_types["sketch"])
                     .where(Orders.order_state == message.text)
             ).all()
-        await send_to_view_sketch_order(message, orders)
+        await send_to_view_sketch_orders(message, orders)
         await state.finish()
         await bot.send_message(
             message.from_id, 
@@ -237,7 +229,7 @@ async def get_name_for_view_sketch_order(message: types.Message, state: FSMConte
         with Session(engine) as session:
             order = session.scalars(
                 select(Orders).where(Orders.order_number == message.text.split()[0][1:])
-            ).all()
+            ).one()
         await send_to_view_sketch_order(message, order)
         await bot.send_message(
             message.from_user.id,
@@ -290,10 +282,10 @@ async def command_delete_info_sketch_order(message: types.Message):
                     )
                 )
 
-            kb_sketch_order_numbers.add(KeyboardButton("Назад"))
+            kb_sketch_order_numbers.add(kb_client.cancel_btn)
             await FSM_Admin_delete_sketch_order.order_number.set()
             await message.reply(
-                "Какой заказ хотите удалить?", reply_markup=kb_sketch_order_numbers
+                "Какой заказ удалить?", reply_markup=kb_sketch_order_numbers
             )
 
 

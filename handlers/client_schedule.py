@@ -20,8 +20,7 @@ from datetime import datetime
 
 
 # Перенести сеанс
-# Посмотреть мои сеансы
-
+# Посмотреть мои сеансы 📃
 
 class FSM_Client_client_create_new_schedule_event(StatesGroup):
     get_order_number = State()
@@ -57,38 +56,63 @@ async def command_client_create_new_schedule_event(message: types.Message):
             .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"]]))
             .where(Orders.user_id == message.from_id)
             .where(Orders.order_state.in_([STATES["in_work"]]))
-        ).one()
+        ).all()
+        
+        opened_orders = session.scalars(
+            select(Orders)
+            .join(ScheduleCalendarItems.schedule_mapped_id)
+            .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"]]))
+            .where(Orders.user_id == message.from_id)
+            .where(Orders.order_state.not_in([STATES["in_work"]]))
+        ).all()
+        
+    if opened_orders != [] and order == []:
+        await bot.send_message(
+            message.from_id,
+            (
+                f"Уважаемый Клиент! У Вас еще нет заказов, в статусе \"{STATES['in_work']}\"\n"
+                "Добавить новый сеанс можно только к заказам в этом статусе.\n"
+                "По всем вопросам обращайтесь к https://t.me/dara_redwan"
+            )
+        )
+        
+        await bot.send_message(
+            message.from_id,
+            MSG_DO_CLIENT_WANT_TO_DO_MORE,
+            reply_markup= kb_client.kb_client_schedule_menu
+        )
+    else:
         schedule_event = session.scalars(
             select(ScheduleCalendar)
             # .where(ScheduleCalendar.status == 'Закрыт')
-            .where(ScheduleCalendar.id == order.schedule_id)
+            .where(ScheduleCalendar.id == order[0].schedule_id)
         ).all()
+        
         closed_schedule_event = session.scalars(
             select(ScheduleCalendar)
             .where(ScheduleCalendar.status == "Закрыт")
-            .where(ScheduleCalendar.id == order.schedule_id)
+            .where(ScheduleCalendar.id == order[0].schedule_id)
         ).all()
+        if schedule_event != [] and len(closed_schedule_event) == len(schedule_event):
+            # Если заказ оплачен и имеет статус "в работе", а сеанс уже прошел
+            kb = ReplyKeyboardMarkup(resize_keyboard=True)
+            kb.add(KeyboardButton(f"№{order[0].order_number} {order[0].order_state}"))
+            kb.add(kb_client.back_btn).add(kb_client.cancel_btn)
+            await FSM_Client_client_create_new_schedule_event.get_order_number.set()
 
-    if schedule_event != [] and len(closed_schedule_event) == len(schedule_event):
-        # Если заказ оплачен и имеет статус "в работе", а сеанс уже прошел
-        kb = ReplyKeyboardMarkup(resize_keyboard=True)
-        kb.add(KeyboardButton(f"№{order.order_number} {order.order_state}"))
-        kb.add(kb_client.back_btn).add(kb_client.cancel_btn)
-        await FSM_Client_client_create_new_schedule_event.get_order_number.set()
+            await bot.send_message(
+                message.from_id,
+                "❕ Пожалуйста, выберите заказ для нового сеанса. "
+                "Список заказов находится у вас в списке кнопок.",
+                reply_markup=kb,
+            )
 
-        await bot.send_message(
-            message.from_id,
-            "❕ Пожалуйста, выберите заказ для нового сеанса. "
-            "Список заказов находится у вас в списке кнопок.",
-            reply_markup=kb,
-        )
-
-    elif len(closed_schedule_event) < len(schedule_event):
-        await bot.send_message(
-            message.from_id,
-            "❌ У вас уже есть открытый сеанс.\n"
-            '❕ Посмотреть данные о сеансе можно по кнопке "Посмотреть мои сеансы"',
-        )
+        elif len(closed_schedule_event) < len(schedule_event):
+            await bot.send_message(
+                message.from_id,
+                "❌ У вас уже есть открытый сеанс.\n"
+                '❕ Посмотреть данные о сеансе можно по кнопке "Посмотреть мои сеансы"',
+            )
 
 
 async def get_order_number_to_create_new_schedule_event_in_order(
@@ -208,8 +232,6 @@ async def get_schedule_number_to_create_new_event_in_order(
 
 
 # -------------------------------------------CHANGE_SCHEDULE_EVENT_CLIENT-------------------------------
-
-
 class FSM_Client_client_change_schedule_event(StatesGroup):
     client_get_answer_yes_no = State()
     get_order_number = State()
@@ -232,16 +254,44 @@ async def command_client_change_schedule_event(message: types.Message):
             # .where(Orders.order_state.in_([STATES['in_work'],
             # STATES['open'], STATES['complete'], STATES['paid']]))
         ).all()
-    await bot.send_message(
-        message.from_id, MSG_QUESTION_CLIENT_ABOUT_CHANGING_SCHEDULE_EVENT
-    )
-    # -> get_client_answer_to_change_schedule
-    await FSM_Client_client_change_schedule_event.client_get_answer_yes_no.set()
-    await bot.send_message(
-        message.from_id,
-        "❔ Хотите продолжить изменение даты сеанса?",
-        reply_markup=kb_client.kb_yes_no,
-    )
+        
+        opened_orders = session.scalars(
+            select(Orders)
+            .join(ScheduleCalendarItems.schedule_mapped_id)
+            .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"]]))
+            .where(Orders.user_id == message.from_id)
+            .where(Orders.order_state.in_([STATES["open"]] + list(STATES['closed'].values())))
+            # .where(Orders.order_state.in_([STATES['in_work'],
+            # STATES['open'], STATES['complete'], STATES['paid']]))
+        ).all()
+    if orders == [] and opened_orders == []:
+        await bot.send_message(message.from_id, MSG_CLIENT_HAVE_NO_ORDER)
+        await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_CREATE_ORDER)
+        
+    elif orders == [] and opened_orders != []:
+        await bot.send_message(
+            message.from_id, 
+            (
+                f"⛔️ Уважаемый Клиент! У вас нет заказов в статусах"
+                f" \"{STATES['processed']}\", \"{STATES['paid']}\" и \"{STATES['in_work']}\".\n\n"
+                f"❕ Ожидайте, пока администратор изменит ваш заказ на один из этих статусов."
+            )
+        )
+        await bot.send_message(
+            message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE
+        )
+        
+    else:
+        await bot.send_message(
+            message.from_id, MSG_QUESTION_CLIENT_ABOUT_CHANGING_SCHEDULE_EVENT
+        )
+        # -> get_client_answer_to_change_schedule
+        await FSM_Client_client_change_schedule_event.client_get_answer_yes_no.set()
+        await bot.send_message(
+            message.from_id,
+            MSG_DO_CLIENT_WANT_TO_CONTINUE_CHANGING_SCHEDULE_EVENT,
+            reply_markup=kb_client.kb_yes_no,
+        )
 
 
 async def get_client_answer_to_change_schedule(
@@ -263,7 +313,7 @@ async def get_client_answer_to_change_schedule(
                 )
             ).all()
 
-        msg = "Ваши сеансы:\n"
+        msg = "Cеансы:\n"
         event_time_lst = []
         orders_view_lst = []
         order_number_with_date_dict = {}

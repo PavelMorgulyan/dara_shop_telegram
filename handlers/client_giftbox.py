@@ -38,7 +38,7 @@ class FMS_Client_get_info_from_user(StatesGroup):
 
 
 async def giftbox_command(message: types.Message):
-    if message.text.lower() in ["хочу гифтбокс 🎁", "/get_giftbox", "get_giftbox"]:
+    if message.text.lower() in ["гифтбокс 🎁", "/get_giftbox", "get_giftbox"]:
         # защита от спама множества заказов. Клиент может заказать только по одному типу товара
         with Session(engine) as session:
             orders = session.scalars(
@@ -47,6 +47,12 @@ async def giftbox_command(message: types.Message):
                 .where(Orders.order_state.in_([STATES["open"]]))
                 .where(Orders.user_id == message.from_id)
             ).all()
+            user = session.scalars(select(User).where(User.telegram_id == message.from_id)).all()
+        
+        if user == []:
+            await bot.send_message(message.from_id, MSG_INFO_START_ORDER) 
+            await bot.send_message(message.from_id, MSG_INFO_GIFTBOX_ORDER)
+
         if orders == []:
             await FSM_Client_giftbox_having.giftbox_note_choice.set()  # -> giftbox_order_giftbox_note_choice
             await bot.send_photo(

@@ -48,7 +48,7 @@ class ScheduleCalendar(Base):
     start_datetime: Mapped[Optional[datetime]]
     end_datetime: Mapped[Optional[datetime]]
     status: Mapped[Optional[str]]  # Свободен, Занят, Закрыт
-    event_type: Mapped[Optional[str]]
+    event_type: Mapped[Optional[str]] # тату заказ, коррекция, консультация
 
     def __repr__(self) -> dict:
         return {

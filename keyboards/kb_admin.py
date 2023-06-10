@@ -287,7 +287,7 @@ new_date_choice = {
 
 free_or_close_event_in_schedule = ["Свободен", "Занят"]
 
-type_of_schedule_lst = ["Тату заказ", "Консультация"]
+type_of_schedule_lst = ["Тату заказ", "Коррекция", "Консультация"]
 
 choice_new_date_or_no_date_in_tattoo_order = {
     "new_date": "Хочу поставить новую дату для этого тату заказа",

@@ -111,14 +111,17 @@ async def open_date_command(message: types.Message):
         )
 
 
+#-------------------------------correction-----------------------------
+# TODO сделать функцию записаться на коррекцию
+
+#-------------------------------CONSULTATION-----------------------------
 class FSM_Client_consultation(StatesGroup):
     choice_consultation_event_date = State()
 
-
-# хочу консультацию
+# консультация
 async def consultation_client_command(message: types.Message):
     if message.text.lower() in [
-        "хочу консультацию 🌿",
+        "консультация 🌿",
         "/get_consultation",
         "get_consultation",
     ]:
@@ -141,7 +144,7 @@ async def consultation_client_command(message: types.Message):
         else:
             # TODO нужно ли выдавать фото расписания для консультаций?
             kb_date_schedule = ReplyKeyboardMarkup(resize_keyboard=True)
-            msg_date_str = "Вот мои свободные даты для консультаций в этом месяце:\n"
+            msg_date_str = "Вот свободные даты для консультаций в этом месяце:\n"
 
             for date in schedule:
                 day = date.start_datetime.strftime("%d/%m/%Y")

@@ -19,3 +19,4 @@ db_dara_store_telegram.db
 /handlers/client_generate_tattoo_item.py
 /handlers/client_new_giftbox.py
 /db/json
+to_do_list_file.txt
