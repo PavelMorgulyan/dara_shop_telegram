@@ -262,7 +262,7 @@ async def giftbox_candle_state(message: types.Message, state: FSMContext):
         await FSM_Admin_giftbox_item.next() #-> load_tattoo_theme
         await message.reply(
             f"Хорошо, а теперь добавь тему тату в этом гифтбоксе."
-            f' На данный момент у тебя есть эти темы: {", ".join(TATTOO_THEMES)}.'
+            f" На данный момент у тебя есть эти темы: {', '.join(TATTOO_THEMES)}."
             f" Какую выбираешь?",
             reply_markup=kb_tattoo_theme,
         )
@@ -352,7 +352,7 @@ async def load_giftbox_sequins_type(message: types.Message, state: FSMContext):
         
             with Session(engine) as session:
                 data["sequins_id"] = session.scalars(select(SequinsItems)
-                                                    .where(SequinsItems.name == message.text)).one().id
+                    .where(SequinsItems.name == message.text)).one().id
         
         await FSM_Admin_giftbox_item.next()
         await message.reply(
@@ -386,7 +386,6 @@ async def load_giftbox_sequins_state(message: types.Message, state: FSMContext):
             session.add(new_giftbox_item)
             session.commit()
         
-        # await set_to_table(tuple(data.values()), "giftbox_items")
         await message.reply(
             f"Готово! Вы добавили гифтбокс {data['giftbox_name']} в таблицу!", reply_markup=kb_admin.kb_giftbox_item_commands
         )
@@ -536,7 +535,7 @@ async def get_name_for_info_giftbox_item(message: types.Message, state: FSMConte
         await send_to_view_gifbox_item(message, orders)
         await bot.send_message(
             message.from_user.id,
-            f"Что еще хочешь посмотреть?",
+            MSG_DO_CLIENT_WANT_TO_DO_MORE,
             reply_markup=kb_admin.kb_main,
         )
         await state.finish()

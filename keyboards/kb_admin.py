@@ -81,6 +81,7 @@ giftbox_order_commands = [
     "поменять статус гифтбокс заказа",
 ]
 
+# TODO изменить гифтбокс
 giftbox_item_commands = [
     "добавить новый гифтбокс",
     "поменять цену гифтбокса",
@@ -103,10 +104,11 @@ schedule_commands = [
 
 candle_item_commands = [
     "добавить свечу",
+    "посмотреть свечу",
     "посмотреть список свечей",
     "посмотреть список имеющихся свечей",
     "посмотреть список не имеющихся свечей",
-    "посмотреть свечу",
+    "изменить свечу",
     "удалить свечу",
 ]
 
@@ -316,6 +318,14 @@ schedule_for_tattoo_order_choice = [
 
 admin_want_to_generate_img_from_ai_woman = "Сгенерируй мне модель женщины"
 
+candle_item_columns = {
+    "name": "Название",
+    "price":"Цена",
+    "note": "Описание",
+    "photo": "Фотография",
+    "quantity":"Количество"
+}
+
 phone_answer = ["Я не знаю его телефона"]
 
 seq_columns = {"Название":"name", "Фото":"photo", "Цена":"price", "Количество":"quantity"}
@@ -437,6 +447,8 @@ kb_creator_lst = create_kb(creator_lst)
 kb_new_tattoo_item_state = create_kb(
     list(new_tattoo_item_state.keys()) + LIST_BACK_TO_HOME
 )
+
+kb_candle_item_columns = create_kb(list(candle_item_columns.values()) + LIST_BACK_TO_HOME)
 
 kb_price_list_commands = create_kb(price_list_commands + LIST_BACK_TO_HOME)
 kb_main = create_kb(commands_button)
