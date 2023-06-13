@@ -338,7 +338,7 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
         await message.reply(MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_main)
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 def register_handlers_admin_generate_img(dp: Dispatcher):

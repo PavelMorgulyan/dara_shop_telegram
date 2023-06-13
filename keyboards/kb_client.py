@@ -103,6 +103,7 @@ client_main = {
     "free_dates": "Свободные даты 🗓",
     "clients_orders": "Мои заказы 📃",
     "client_schedule": "Сеансы 🕒",
+    "client_correction": "Коррекция",
     "payload_order": "Оплатить заказ 💳",
     "about_tattoo_master": "О тату мастере 🧾",
     "important_info": "Важная информация ❕",

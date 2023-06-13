@@ -321,7 +321,7 @@ async def delete_info_sketch_orders(message: types.Message, state: FSMContext):
         await state.finish()
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -407,11 +407,12 @@ async def fill_client_table(data: dict, message: types.Message):
                 telegram_id=None,
                 telegram_name=data["telegram"],
                 phone=data["phone"],
+                status= clients_status['active']
             )
             session.add(new_user)
             session.commit()
         await message.reply(
-            f"Ты успешно добавила нового клиента!"
+            f"Новый клиент успешно добавлен!"
         )
     await message.reply(
         f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
@@ -489,7 +490,7 @@ async def get_photo_sketch(message: types.Message, state: FSMContext):
                 reply_markup=kb_client.kb_cancel,
             )
         else:
-            await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+            await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
     if message.content_type == "photo":
         async with state.proxy() as data:
@@ -561,7 +562,7 @@ async def get_username_telegram(message: types.Message, state: FSMContext):
             )
             
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def process_callback_set_price_from_line(callback_query: types.CallbackQuery, state: FSMContext):
@@ -608,7 +609,7 @@ async def get_sketch_price(message: types.Message, state: FSMContext):
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_sketch_state(message: types.Message, state: FSMContext):
@@ -653,7 +654,7 @@ async def get_sketch_state(message: types.Message, state: FSMContext):
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_sketch_check(message: types.Message, state: FSMContext):
@@ -695,7 +696,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
             )
 
         else:
-            await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+            await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
     elif message.content_type == "document":
         async with state.proxy() as data:
@@ -940,7 +941,7 @@ async def get_price_for_check_document(message: types.Message, state: FSMContext
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_check_document(message: types.Message, state: FSMContext):

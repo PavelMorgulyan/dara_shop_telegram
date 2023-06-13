@@ -197,7 +197,7 @@ async def get_client_choice_main_or_temporary_tattoo(
 
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -486,12 +486,12 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
 
                 else:
                     await bot.send_message(
-                        message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+                        message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
                     )
 
             except:
                 await bot.send_message(
-                    message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+                    message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
                 )
 
     elif message.content_type == "photo":
@@ -725,11 +725,11 @@ async def change_menu_tattoo_from_galery(message: types.Message, state: FSMConte
                 )
             else:
                 await bot.send_message(
-                    message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+                    message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
                 )
         except:
             await bot.send_message(
-                message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+                message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
             )
 
 
@@ -833,7 +833,7 @@ async def load_tattoo_order_size(message: types.Message, state: FSMContext):
             )
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -874,7 +874,7 @@ async def get_choice_colored_or_not(message: types.Message, state: FSMContext):
         )
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -887,8 +887,8 @@ async def view_schedule_to_client(message: types.Message, state: FSMContext):
     with Session(engine) as session:
         schedule = session.scalars(
             select(ScheduleCalendar)
-            .where(ScheduleCalendar.status == "Свободен")
-            .where(ScheduleCalendar.event_type == "тату заказ")
+            .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
+            .where(ScheduleCalendar.event_type.in_(["тату заказ", "свободное"]))
         ).all()
 
     if schedule == []:
@@ -1142,7 +1142,7 @@ async def get_choice_tattoo_place(message: types.Message, state: FSMContext):
             )
         else:
             await bot.send_message(
-                message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+                message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
             )
 
 
@@ -1377,7 +1377,7 @@ async def get_size_tattoo_from_galery(message: types.Message, state: FSMContext)
             )
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -1510,7 +1510,7 @@ async def choice_tattoo_order_date_and_time_meeting(
 
             else:
                 await bot.send_message(
-                    message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+                    message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
                 )
 
 
@@ -1604,7 +1604,7 @@ async def process_hour_timepicker(
                 new_schedule_event = ScheduleCalendar(
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
-                    status="Занят",
+                    status=kb_admin.schedule_event_status['close'],
                     event_type=data["order_type"],
                 )
                 session.add(new_schedule_event)
@@ -1799,6 +1799,7 @@ async def fill_tattoo_order_table(message: types.Message, state: FSMContext):
                     telegram_name=f"@{message.from_user.username}",
                     telegram_id=message.from_id,
                     phone=None,
+                    status=clients_status['active']
                 )
                 session.add(new_user)
                 session.commit()
@@ -1813,7 +1814,7 @@ async def fill_tattoo_order_table(message: types.Message, state: FSMContext):
                         ScheduleCalendar.id == data["schedule_id"]
                     )
                 ).one()
-                schedule_event.status = "Занят"
+                schedule_event.status = kb_admin.schedule_event_status['close']
                 
                 schedule_item = [
                     ScheduleCalendarItems(
@@ -2007,7 +2008,7 @@ async def choiсe_tattoo_order_desctiption(message: types.Message, state: FSMCon
             await fill_tattoo_order_table(message, state)
         else:
             await bot.send_message(
-                message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+                message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
             )
 
 
@@ -2039,7 +2040,7 @@ async def send_to_client_view_tattoo_order(
                         status = session.get(
                             ScheduleCalendar, schedule.schedule_id
                         ).status
-                        status = "Скоро встреча" if status == "Занят" else "Прошел"
+                        status = "Скоро встреча" if status == kb_admin.schedule_event_status['close'] else "Прошел"
                         start_time = session.get(
                             ScheduleCalendar, schedule.schedule_id
                         ).start_datetime.strftime("%d/%m/%Y с %H:%M")
@@ -2215,7 +2216,7 @@ async def get_tattoo_order_number_to_view(message: types.Message, state: FSMCont
 
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -2446,7 +2447,7 @@ async def get_new_photo(message: types.Message, state: FSMContext):
 
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 

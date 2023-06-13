@@ -177,8 +177,8 @@ async def command_create_new_date_to_schedule(message: types.Message):
         await FSM_Admin_create_new_date_to_schedule.event_type_choice.set()
         # [ 'Хочу ввести конкретную дату', 'Хочу выбрать день недели и месяц']
         await message.reply(
-            "Хорошо, давай добавим новую дату в твоем расписании. "
-            "Это будет тату работа, коррекция или консультация?",
+            "Давай добавим новую дату в твоем расписании. "
+            "Это будет тату работа, коррекция, консультация или свободное время?",
             reply_markup=kb_admin.kb_type_of_schedule,
         )
 
@@ -192,15 +192,23 @@ async def choice_event_type_in_schedule(message: types.Message, state: FSMContex
         await FSM_Admin_create_new_date_to_schedule.next()  # -> choice_how_to_create_new_date_to_schedule
         # 'Хочу ввести конкретную дату', 'Хочу выбрать день недели и месяц'
         await message.reply(
-            f"Хорошо, ты выбрала добавить в расписание {message.text}."
+            f"Ты выбрала добавить в расписание \"{message.text}\"."
             " Хочешь ввести конкретную дату, или просто выбрать месяц и день недели?",
             reply_markup=kb_admin.kb_new_date_choice,
         )
-    else:
-        await message.reply(
-            "Выбери, пожалуйста, слова из представленного \
-            выбора - тату заказ или консультация."
+        await bot.send_message(
+            message.from_id, 
+            MSG_INFO_ADMIN_CREATE_NEW_SCHEDULE_EVENT
         )
+        
+    elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
+        await state.finish()
+        await message.reply(
+            MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_schedule_commands
+        )
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        
 
 
 # выбираем год или конкретную дату
@@ -226,7 +234,7 @@ async def choice_how_to_create_new_date_to_schedule(
         )
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -253,7 +261,7 @@ async def get_schedule_year(message: types.Message, state: FSMContext):
         )
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -270,7 +278,7 @@ async def get_schedule_month(message: types.Message, state: FSMContext):
         )
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -615,13 +623,13 @@ async def command_view_schedule(message: types.Message):
 # /посмотреть_мое_занятое_расписание
 async def command_view_busy_schedule(message: types.Message):
     if (
-        message.text == "посмотреть мое занятое расписание"
+        message.text == "посмотреть мое kb_admin.schedule_event_status['close']ое расписание"
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         with Session(engine) as session:
             schedule = session.scalars(
                 select(ScheduleCalendar)
-                .where(ScheduleCalendar.status == "Занят")
+                .where(ScheduleCalendar.status == kb_admin.schedule_event_status['close'])
                 .order_by(ScheduleCalendar.start_datetime)
             ).all()
         await get_view_schedule(message.from_user.id, schedule)
@@ -637,7 +645,7 @@ async def command_view_opened_schedule(message: types.Message):
             Session(engine)
             .scalars(
                 select(ScheduleCalendar)
-                .where(ScheduleCalendar.status == "Свободен")
+                .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
                 .order_by(ScheduleCalendar.start_datetime)
             )
             .all()
@@ -906,7 +914,7 @@ async def get_event_date(
             MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_schedule_commands
         )
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def update_schedule_table(state: FSMContext):
@@ -1024,7 +1032,7 @@ async def get_new_state_event_in_schedule(message: types.Message, state: FSMCont
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # выбираем новое время начала или конца рабочего дня
@@ -1127,7 +1135,10 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
                     "Информация об изменении статусов календаря"',
             )
 
-            if old_schedule_state == "Занят" and new_schedule_state == "Свободен":
+            if (
+                    old_schedule_state == kb_admin.schedule_event_status['close']
+                    and new_schedule_state == kb_admin.schedule_event_status['free']
+                ):
                 await FSM_Admin_change_schedule.next()  # -> get_answer_choice_new_date_or_no_date_in_tattoo_order
 
                 # 'Хочу поставить новую дату для этого тату заказа',
@@ -1140,7 +1151,8 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
                     reply_markup=kb_admin.kb_choice_new_date_or_no_date_in_tattoo_order,
                 )
 
-            elif old_schedule_state == "Свободен" and new_schedule_state == "Занят":
+            elif old_schedule_state == kb_admin.schedule_event_status['free'] and \
+                new_schedule_state == kb_admin.schedule_event_status['close']:
                 # "Добавить самому новый заказ в этот календарный день",
                 # "Выбрать из тех заказов, у которых нет даты сеанса",
                 # "Оставить данный календарный день занятым без заказов"
@@ -1240,7 +1252,7 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_answer_choice_new_date_or_no_date_in_tattoo_order(
@@ -1248,7 +1260,7 @@ async def get_answer_choice_new_date_or_no_date_in_tattoo_order(
 ):
     with Session(engine) as session:
         schedule_events = session.scalars(
-            select(ScheduleCalendar).where(ScheduleCalendar.status == "Свободен")
+            select(ScheduleCalendar).where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
         ).all()
 
     schedule_events_kb_lst = []
@@ -1423,7 +1435,7 @@ async def get_answer_choice_new_date_or_no_date_in_tattoo_order(
         )
         await state.finish()
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 @dp.callback_query_handler(
@@ -1533,7 +1545,7 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
             new_schedule_event = ScheduleCalendar(
                 start_datetime=start_time_in_tattoo_order,
                 end_datetime=end_time_in_tattoo_order,
-                status="Занят",
+                status=kb_admin.schedule_event_status['close'],
                 event_type="тату заказ",
             )
             session.add(new_schedule_event)
@@ -1581,7 +1593,7 @@ async def get_anwser_to_notify_client(message: types.Message, state: FSMContext)
         await state.finish()
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 

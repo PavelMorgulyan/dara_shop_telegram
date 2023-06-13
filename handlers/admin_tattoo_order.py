@@ -370,7 +370,7 @@ async def delete_info_tattoo_orders(message: types.Message, state: FSMContext):
                 select(ScheduleCalendar).where(ScheduleCalendar.id == order.schedule_id)
             ).one()
             session.delete(order)
-            schedule_event.status = "Свободен"
+            schedule_event.status = kb_admin.schedule_event_status['free']
             session.commit()
 
         # service.events().delete(calendarId='primary', eventId='eventId').execute()
@@ -476,7 +476,7 @@ async def get_new_status_for_tattoo_order(message: types.Message, state: FSMCont
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def complete_new_status_for_tattoo_order(
@@ -537,7 +537,7 @@ async def complete_new_status_for_tattoo_order(
         if message.text in list(STATES["closed"].values()):
             with Session(engine) as session:
                 schedule = session.get(ScheduleCalendar, schedule_id)
-                schedule.status = "Свободен"
+                schedule.status = kb_admin.schedule_event_status['free']
                 session.commit()
                 
             await message.reply("Оповестить пользователя о смене статуса заказа?", 
@@ -616,7 +616,7 @@ async def get_price_for_check_document(message: types.Message, state: FSMContext
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_check_document(message: types.Message, state: FSMContext):
@@ -846,7 +846,7 @@ async def get_tattoo_order_number(message: types.Message, state: FSMContext):
             reply_markup=kb_tattoo_order_numbers,
         )
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # ---------------------------------------get_new_state_info-----------------------------------
@@ -1084,7 +1084,7 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
             async with state.proxy() as data:
                 data["schedule_to_change"] = schedule_to_change
             # TODO проверить правильность
-            schedule_to_change.status = "Свободен"
+            schedule_to_change.status = kb_admin.schedule_event_status['free']
             session.commit()
 
         await bot.send_message(
@@ -1167,7 +1167,7 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
                     )
                 ).one()
 
-                schedule_to_change.status = "Занят"
+                schedule_to_change.status = kb_admin.schedule_event_status['close']
                 session.commit()
 
         await bot.send_message(
@@ -1264,7 +1264,7 @@ async def get_new_state_info(message: types.Message, state: FSMContext):
             )
             await state.finish()
         else:
-            await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+            await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 @dp.callback_query_handler(
@@ -1472,7 +1472,7 @@ async def get_tattoo_type(message: types.Message, state: FSMContext):
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # Отправляем название тату
@@ -1545,7 +1545,7 @@ async def choice_tattoo_order_admin(message: types.Message, state: FSMContext):
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def load_tattoo_order_name(message: types.Message, state: FSMContext):
@@ -1631,7 +1631,7 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
                 reply_markup=kb_client.kb_client_size_tattoo,
             )
         else:
-            await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+            await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
     elif message.content_type == "photo":
         async with state.proxy() as data:
@@ -1692,7 +1692,7 @@ async def load_tattoo_order_size(message: types.Message, state: FSMContext):
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_tattoo_color(message: types.Message, state: FSMContext):
@@ -1731,7 +1731,7 @@ async def get_tattoo_color(message: types.Message, state: FSMContext):
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def load_tattoo_order_schedule_choice(message: types.Message, state: FSMContext):
@@ -1739,7 +1739,7 @@ async def load_tattoo_order_schedule_choice(message: types.Message, state: FSMCo
         with Session(engine) as session:
             schedule = session.scalars(
                 select(ScheduleCalendar)
-                .where(ScheduleCalendar.status == "Свободен")
+                .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
                 .where(ScheduleCalendar.event_type == "тату заказ")
                 .order_by(ScheduleCalendar.start_datetime)
             )
@@ -1933,7 +1933,7 @@ async def process_hour_timepicker_end(
                     end_datetime= datetime.strptime(
                         f"{data['date']} {r.time.strftime('%H:%M')}", "%d/%m/%Y %H:%M"
                     ),
-                    status = 'Занят', 
+                    status = kb_admin.schedule_event_status['close'], 
                     event_type = 'тату заказ'
                 )
                 session.add(new_schedule_event)
@@ -2061,7 +2061,7 @@ async def get_body_photo(message: types.Message, state: FSMContext):
             )
 
         else:
-            await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+            await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
     elif message.content_type == "photo":
         async with state.proxy() as data:
@@ -2352,7 +2352,7 @@ async def tattoo_order_load_user_name(message: types.Message, state: FSMContext)
             )
             session.add(new_tattoo_order)
             schedule = session.get(ScheduleCalendar, data["schedule_id"])
-            schedule.status = "Занят"
+            schedule.status = kb_admin.schedule_event_status['close']
             session.commit()
             
         start_time = datetime.strptime(
@@ -2460,7 +2460,8 @@ async def load_phone(message: types.Message, state: FSMContext):
             new_user = User(
                 name = data["username"],
                 telegram_name= data["telegram"],
-                phone = number
+                phone = number,
+                status=clients_status['active']
             )
             session.add(new_user)
             session.commit()

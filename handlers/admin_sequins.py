@@ -119,7 +119,7 @@ async def get_seq_price(message: types.Message, state: FSMContext):
             reply_markup= kb_admin.kb_sizes
         )
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_seq_quantity(message: types.Message, state: FSMContext):
@@ -142,9 +142,9 @@ async def get_seq_quantity(message: types.Message, state: FSMContext):
                 reply_markup= kb_admin.kb_sequins_commands,
             )
         else:
-            await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+            await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
     except ValueError as error:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def set_new_seq_item(data:tuple, message: types.Message):
@@ -287,7 +287,7 @@ async def get_seq_name_to_delete(message: types.Message, state: FSMContext):
         )
         
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 #--------------------------------------------------------CHANGE SEQ------------------------------
 class FSM_Admin_change_seq_item(StatesGroup):
@@ -342,7 +342,7 @@ async def get_seq_name_to_change(message: types.Message, state: FSMContext):
         )
         
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_seq_column_name_to_change(message: types.Message, state: FSMContext):

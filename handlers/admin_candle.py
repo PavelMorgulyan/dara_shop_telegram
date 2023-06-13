@@ -378,7 +378,7 @@ async def delete_info_candle_in_table_next(message: types.Message, state: FSMCon
 
     elif message.text in LIST_CANCEL_COMMANDS:
         await bot.send_message(
-            message.from_user.id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_user.id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 

@@ -19,7 +19,7 @@ from db.db_getter import get_info_many_from_table
 from datetime import datetime
 from handlers.calendar_client import obj
 from msg.main_msg import *
-from handlers.other import STATES, status_distribution
+from handlers.other import STATES, status_distribution, clients_status
 
 from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
@@ -34,7 +34,7 @@ async def get_cert_command_list(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await message.reply(
-            "Какую команду по сертификатам хочешь выполнить?",
+            "❔ Какую команду по сертификатам выполнить?",
             reply_markup=kb_admin.kb_cert_item_commands,
         )
 
@@ -88,7 +88,7 @@ async def command_load_сert_item(message: types.Message):
     ):
         await FSM_Admin_сert_item.сert_price.set()
         await message.reply(
-            "На какую цену хотите сертификат?", reply_markup=kb_admin.kb_price
+            "❔ На какую цену хотите сертификат?", reply_markup=kb_admin.kb_price
         )
 
 
@@ -115,16 +115,16 @@ async def load_сert_price(message: types.Message, state: FSMContext):
             for i in range(2):
                 await FSM_Admin_сert_item.next()  # -> admin_process_successful_cert_payment
             await message.reply(
-                f"Пользователь оплатил сертфикат?", reply_markup=kb_client.kb_yes_no
+                f"❔ Пользователь оплатил сертфикат?", reply_markup=kb_client.kb_yes_no
             )
         else:
             await FSM_Admin_сert_item.next()
             await message.reply(
-                f"На какую сумму пользователь хочет сертификат? Введи сумму",
+                f"❔ На какую сумму пользователь хочет сертификат? Введи сумму",
                 reply_markup=kb_admin.kb_price,
             )
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def load_сert_other_price(message: types.Message, state: FSMContext):
@@ -133,7 +133,7 @@ async def load_сert_other_price(message: types.Message, state: FSMContext):
             data["price"] = int(message.text)
         await FSM_Admin_сert_item.next() #->admin_process_successful_cert_payment
         await message.reply(
-            f"Пользователь оплатил сертфикат?", reply_markup=kb_client.kb_yes_no
+            f"❔ Пользователь оплатил сертфикат?", reply_markup=kb_client.kb_yes_no
         )
 
 
@@ -145,10 +145,10 @@ async def admin_process_successful_cert_payment(
             code = data["code"]
             data["state"] = STATES["paid"]
 
-            await bot.send_message(message.chat.id, f"Вот код на сертификат: {code}.")
+            await bot.send_message(message.chat.id, f"Код на сертификат: {code}.")
             await FSM_Admin_сert_item.next()
             await message.reply(
-                f"Хочешь приложить чек перевода?", reply_markup=kb_client.kb_yes_no
+                f"❔ Хочешь приложить чек перевода?", reply_markup=kb_client.kb_yes_no
             )
 
     elif (
@@ -335,7 +335,7 @@ async def cert_load_telegram(message: types.Message, state: FSMContext):
         data["telegram"] = message.from_user.id
     await FSM_Admin_cert_username_info.next()
     await bot.send_message(
-        message.from_id, "Хочешь добавить телефон клиента?", reply_markup= kb_client.kb_yes_no
+        message.from_id, "❔ Добавить телефон клиента?", reply_markup= kb_client.kb_yes_no
     )
 
 
@@ -360,7 +360,8 @@ async def cert_load_phone(message: types.Message, state: FSMContext):
                 new_client_info = User(
                     name=data["username"],
                     telegram_name=data["telegram"],
-                    phone= message.text
+                    phone= message.text,
+                    status = clients_status['active']
                 )
                 with Session(engine) as session:
                     session.add(new_client_info)
@@ -426,6 +427,7 @@ async def view_cert_order(orders: ScalarResult["Orders"], message: types.Message
         await bot.send_message(
             message.from_user.id, f"Всего заказов: {len(orders)}"
         )
+
 
 # --------------------------------GET TO VIEW CERT COMMANDS-------------------------------------
 # /посмотреть_сертификаты
@@ -630,7 +632,7 @@ async def get_price_for_check_document(message: types.Message, state: FSMContext
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_check_document(message: types.Message, state: FSMContext):
@@ -825,7 +827,7 @@ async def delete_info_cert_orders(message: types.Message, state: FSMContext):
         await state.finish()
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 

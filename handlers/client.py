@@ -53,7 +53,7 @@ async def command_start(message: types.Message):
             "Привет админ! Какие команды хочешь выполнить?",
             reply_markup=kb_admin.kb_main,
         )
-
+        
         with Session(engine) as session:
             admin_tattoo_item = session.scalars(select(TattooItems)).all()
 
@@ -73,8 +73,8 @@ async def open_date_command(message: types.Message):
             select(ScheduleCalendar)
             .where(ScheduleCalendar.start_datetime > datetime.now())
             .order_by(ScheduleCalendar.start_datetime)
-            .where(ScheduleCalendar.status == "Свободен")
-            .where(ScheduleCalendar.event_type == "тату заказ")
+            .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
+            .where(ScheduleCalendar.event_type.in_(["тату заказ", "свободное"]))
         ).all()
         
         schedule_photo = session.scalars(select(SchedulePhoto)
@@ -92,86 +92,111 @@ async def open_date_command(message: types.Message):
         await bot.send_photo(
             message.from_user.id,
             list(schedule_photo[0])[1],
-            f"💬 Вот мои свободные даты в этом месяце:\n\n{date_list}",
+            f"🕒 Свободные даты в этом месяце:\n\n{date_list}",
             reply_markup=kb_client.kb_client_main,
         )
 
     elif schedule != [] and schedule_photo == []:
         await bot.send_message(
             message.from_user.id,
-            f"💬 Вот мои свободные даты в этом месяце:\n\n{date_list}",
+            f"🕒 Свободные даты в этом месяце:\n\n{date_list}",
             reply_markup=kb_client.kb_client_main,
         )
 
     else:
         await bot.send_message(
             message.from_id,
-            "❌ Прости, но в месяце пока нет свободных дат.\n\n "
+            "❌ В этом месяце пока нет свободных дат.\n\n "
             "💬 Не переживай, позже я с тобой свяжусь!",
         )
 
 
-#-------------------------------correction-----------------------------
-# TODO сделать функцию записаться на коррекцию
+#-------------------------------CORRECTION-----------------------------
 
-#-------------------------------CONSULTATION-----------------------------
-class FSM_Client_consultation(StatesGroup):
-    choice_consultation_event_date = State()
+class FSM_Client_correction(StatesGroup):
+    choice_order_number = State()
+    choice_correction_event_date = State()
 
-# консультация
-async def consultation_client_command(message: types.Message):
+
+# коррекция
+async def correction_client_command(message: types.Message):
     if message.text.lower() in [
-        "консультация 🌿",
-        "/get_consultation",
-        "get_consultation",
+        "коррекция ",
+        "/get_correction",
+        "get_correction",
     ]:
-        schedule = (
+        orders = (
             Session(engine)
             .scalars(
-                select(ScheduleCalendar)
-                .order_by(ScheduleCalendar.start_datetime)
-                .where(ScheduleCalendar.status == "Свободен")
-                .where(ScheduleCalendar.event_type == "консультация")
-                .where(ScheduleCalendar.start_datetime > datetime.now())
+                select(Orders)
+                .where(Orders.user_id == message.from_id)
+                .where(Orders.order_type == kb_admin.price_lst_types['constant_tattoo'])
             )
             .all()
         )
-
-        if schedule == []:
-            # TODO нужно ли давать выбор пользователю, чтобы он сам вбил дату консультации?
-            await bot.send_message(message.from_id, MSG_NO_SCHEDULE_CONSULTATION)
-
-        else:
-            # TODO нужно ли выдавать фото расписания для консультаций?
-            kb_date_schedule = ReplyKeyboardMarkup(resize_keyboard=True)
-            msg_date_str = "Вот свободные даты для консультаций в этом месяце:\n"
-
-            for date in schedule:
-                day = date.start_datetime.strftime("%d/%m/%Y")
-                start_time = date.start_datetime.strftime("%H:%M")
-                end_time = date.end_datetime.strftime("%H:%M")
-                str_item = f"{day} c {start_time} по {end_time}"
-
-                msg_date_str += str_item
-                kb_date_schedule.add(KeyboardButton(str_item))
-
-            kb_date_schedule.add(kb_client.cancel_btn)
-            await FSM_Client_consultation.choice_consultation_event_date.set()
-
-            await bot.send_message(message.from_id, f"{msg_date_str}")
+        if orders == []:
             await bot.send_message(
-                message.from_id,
-                "❔ Какую консультацию хочешь?",
-                reply_markup=kb_date_schedule,
+                message.from_id, MSG_CLIENT_DONT_HAVE_ANY_ORDERS
+            )
+        else:
+            kb = ReplyKeyboardMarkup(resize_keyboard= True)
+            for order in orders:
+                kb.add(f"{order.order_number}")
+            kb.add(kb_client.kb_cancel)
+            await bot.send_message(
+                message.from_id, 
+                "❔ Для какого заказа будет коррекция? Пожалуйста, выберете из списка.", 
+                reply_markup= kb
             )
 
 
-async def choice_consultation_event_date(message: types.Message, state: FSMContext):
+async def get_order_number(message: types.Message, state: FSMContext):
+    schedule = (
+        Session(engine)
+        .scalars(
+            select(ScheduleCalendar)
+            .order_by(ScheduleCalendar.start_datetime)
+            .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
+            .where(ScheduleCalendar.event_type.in_(["коррекция", "свободное"]))
+            .where(ScheduleCalendar.start_datetime > datetime.now()))
+        .all()
+    )
+
+    if schedule == []:
+        # TODO нужно ли давать выбор пользователю, чтобы он сам вбил дату консультации?
+        await bot.send_message(message.from_id, MSG_NO_DATE_IN_SCHEDULE)
+
+    else:
+        # TODO нужно ли выдавать фото расписания для консультаций?
+        kb_date_schedule = ReplyKeyboardMarkup(resize_keyboard=True)
+        msg_date_str = "🕒 Свободные даты для коррекции в этом месяце:\n"
+
+        for date in schedule:
+            day = date.start_datetime.strftime("%d/%m/%Y")
+            start_time = date.start_datetime.strftime("%H:%M")
+            end_time = date.end_datetime.strftime("%H:%M")
+            str_item = f"{day} c {start_time} по {end_time}"
+
+            msg_date_str += str_item
+            kb_date_schedule.add(KeyboardButton(str_item))
+
+        kb_date_schedule.add(kb_client.cancel_btn)
+        await FSM_Client_consultation.choice_consultation_event_date.set()
+
+        await bot.send_message(message.from_id, f"{msg_date_str}")
+        await bot.send_message(
+            message.from_id,
+            "❔ Какой время подойдет? Пожалуйста, выберите из списка.",
+            reply_markup=kb_date_schedule,
+        )
+
+
+async def choice_correction_event_date(message: types.Message, state: FSMContext):
     with Session(engine) as session:
         schedule = session.scalars(
             select(ScheduleCalendar)
-            .where(ScheduleCalendar.event_type == "консультация")
-            .where(ScheduleCalendar.status == "Свободен")
+            .where(ScheduleCalendar.event_type.in_(["консультация", "свободное"]))
+            .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
             .where(ScheduleCalendar.start_datetime > datetime.now())
         ).all()
 
@@ -199,7 +224,7 @@ async def choice_consultation_event_date(message: types.Message, state: FSMConte
                     )
                 )
             ).one()
-            schedule.status = "Занят"
+            schedule.status = kb_admin.schedule_event_status['close']
             start_time = schedule.start_datetime.strftime("%Y-%m-%dT%H:%M:%S")
             end_time = schedule.end_datetime.strftime("%Y-%m-%dT%H:%M:%S")
             session.commit()
@@ -210,7 +235,137 @@ async def choice_consultation_event_date(message: types.Message, state: FSMConte
             await bot.send_message(
                 DARA_ID,
                 f"🔆 Дорогая Тату-мастерица! "
-                f"У тебя новая консультация! "
+                f"У тебя новая встреча для коррекции! "
+                f"🕒 Дата встречи: {message.text}\n"
+                f"Телеграм клиента: @{message.from_user.username}",
+            )
+
+        event = await obj.add_event(
+            CALENDAR_ID,
+            "Новая коррекция",
+            f"Новая коррекция для пользователя {message.from_user.full_name}"
+            f"💬 Телеграм клиента: @{message.from_user.username}",
+            start_time,  # '2023-02-02T09:07:00',
+            end_time,  # '2023-02-03T17:07:00'
+        )
+
+        await state.finish()
+        await bot.send_message(
+            message.from_id,
+            f"🎉 Отлично! Вы забронировали коррекцию на {message.text}.\n\n"
+            "🌿 Жду вас в своей студии!",
+            reply_markup=kb_client.kb_client_main,
+        )
+
+        await bot.send_message(
+            message.from_id,
+            MSG_DO_CLIENT_WANT_TO_DO_MORE,
+            reply_markup=kb_client.kb_client_main,
+        )
+
+    else:
+        await bot.send_message(
+            message.from_id, f"❌ Выберите дату коррекции из предложенных вариантов."
+        )
+
+
+#-------------------------------CONSULTATION-----------------------------
+class FSM_Client_consultation(StatesGroup):
+    choice_consultation_event_date = State()
+
+# консультация
+async def consultation_client_command(message: types.Message):
+    if message.text.lower() in [
+        "консультация 🌿",
+        "/get_consultation",
+        "get_consultation",
+    ]:
+        schedule = (
+            Session(engine)
+            .scalars(
+                select(ScheduleCalendar)
+                .order_by(ScheduleCalendar.start_datetime)
+                .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
+                .where(ScheduleCalendar.event_type.in_(["консультация", "свободное"]))
+                .where(ScheduleCalendar.start_datetime > datetime.now())
+            )
+            .all()
+        )
+
+        if schedule == []:
+            # TODO нужно ли давать выбор пользователю, чтобы он сам вбил дату консультации?
+            await bot.send_message(message.from_id, MSG_NO_DATE_IN_SCHEDULE)
+
+        else:
+            # TODO нужно ли выдавать фото расписания для консультаций?
+            kb_date_schedule = ReplyKeyboardMarkup(resize_keyboard=True)
+            msg_date_str = "🕒 Свободные даты для консультаций в этом месяце:\n"
+
+            for date in schedule:
+                day = date.start_datetime.strftime("%d/%m/%Y")
+                start_time = date.start_datetime.strftime("%H:%M")
+                end_time = date.end_datetime.strftime("%H:%M")
+                str_item = f"{day} c {start_time} по {end_time}"
+
+                msg_date_str += str_item
+                kb_date_schedule.add(KeyboardButton(str_item))
+
+            kb_date_schedule.add(kb_client.cancel_btn)
+            await FSM_Client_consultation.choice_consultation_event_date.set()
+
+            await bot.send_message(message.from_id, f"{msg_date_str}")
+            await bot.send_message(
+                message.from_id,
+                "❔ Какой время подойдет? Выберите из приведённого выше списка",
+                reply_markup=kb_date_schedule,
+            )
+
+
+async def choice_consultation_event_date(message: types.Message, state: FSMContext):
+    with Session(engine) as session:
+        schedule = session.scalars(
+            select(ScheduleCalendar)
+            .where(ScheduleCalendar.event_type.in_(["консультация", "свободное"]))
+            .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
+            .where(ScheduleCalendar.start_datetime > datetime.now())
+        ).all()
+
+    schedule_consultation_list = []
+    for date in schedule:
+        day = date.start_datetime.strftime("%d/%m/%Y")
+        start_time = date.start_datetime.strftime("%H:%M")
+        end_time = date.end_datetime.strftime("%H:%M")
+        schedule_consultation_list.append(f"{day} c {start_time} по {end_time}")
+
+    if any(text in message.text for text in LIST_CANCEL_COMMANDS):
+        await state.finish()
+        await bot.send_message(
+            message.from_id, MSG_BACK_TO_HOME, reply_markup=kb_client.kb_client_main
+        )
+
+    elif message.text in schedule_consultation_list:
+        with Session(engine) as session:
+            schedule = session.scalars(
+                select(ScheduleCalendar).where(
+                    ScheduleCalendar.start_datetime
+                    == datetime.strptime(
+                        f"{message.text.split()[0]} {message.text.split()[2]} ",
+                        "%d/%m/%Y %H:%M",
+                    )
+                )
+            ).one()
+            schedule.status = kb_admin.schedule_event_status['close']
+            start_time = schedule.start_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+            end_time = schedule.end_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+            session.commit()
+
+        if (
+            DARA_ID != 0
+        ):  # TODO дополнить id Шуны и добавить интеграцию с Google Calendar !!!
+            await bot.send_message(
+                DARA_ID,
+                f"🔆 Дорогая Тату-мастерица! "
+                f"У тебя новая встреча для консультации! "
                 f"Дата встречи: {message.text}\n"
                 f"Телеграм клиента: @{message.from_user.username}",
             )
@@ -354,6 +509,7 @@ async def fill_client_table(data: dict, message: types.Message) -> None:
                 telegram_name=f"@{message.from_user.username}",
                 telegram_id=message.from_id,
                 phone=data["phone"],
+                status=clients_status['active']
             )
             session.add(new_user)
             session.commit()
@@ -410,7 +566,7 @@ async def load_phone(message: types.Message, state: FSMContext):
 
         else:
             await bot.send_message(
-                message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+                message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
             )
 
     elif message.content_type == "contact":
@@ -488,7 +644,19 @@ def register_handlers_client(dp: Dispatcher):
         state=None,
     )
     dp.register_message_handler(send_info_menu, commands=["important_info"])
-
+    #-------------------------------CORRECTION-----------------------------
+    dp.register_message_handler(correction_client_command, commands=["get_correction"], state=None)
+    dp.register_message_handler(correction_client_command,
+        Text(equals=kb_client.client_main["client_correction"], ignore_case=True),
+        state=None,
+    )
+    dp.register_message_handler(
+        get_order_number, state= FSM_Client_correction.choice_order_number
+    )
+    dp.register_message_handler(
+        choice_correction_event_date, state= FSM_Client_correction.choice_correction_event_date
+    )
+    #-------------------------------INFO-----------------------------
     dp.register_message_handler(
         send_info_sketch_development,
         Text(

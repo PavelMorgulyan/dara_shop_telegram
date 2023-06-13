@@ -30,6 +30,7 @@ class User(Base):
     telegram_name: Mapped[Optional[str]]  #
     telegram_id: Mapped[Optional[str]]  # message.from_id
     phone: Mapped[Optional[str]]
+    status: Mapped[Optional[str]] # Активный, Админ, Забанен
 
     def __repr__(self) -> dict:
         return {
@@ -38,6 +39,7 @@ class User(Base):
             "telegram_name": self.telegram_name,
             "telegram_id": self.telegram_id,
             "phone": self.phone,
+            "status": self.status
         }
 
 

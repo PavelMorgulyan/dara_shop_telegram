@@ -101,6 +101,7 @@ async def load_giftbox_photo(message: types.Message, state: FSMContext):
     )
 
 
+# TODO добавить возможность вбить другую цену
 # Отправляем стоимость гифтбокса
 async def load_giftbox_price(message: types.Message, state: FSMContext):
     if message.text in kb_admin.price_lst:
@@ -113,7 +114,7 @@ async def load_giftbox_price(message: types.Message, state: FSMContext):
         )
     else:
         await message.reply(
-            "Введи пожалуйста цену гифтбокса корректно - цифрами, слитно"
+            MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -136,7 +137,6 @@ async def get_giftbox_candle_choice(message: types.Message, state: FSMContext):
         await message.reply("Назови имя свечи", reply_markup=kb_client.kb_cancel)
 
     elif message.text == kb_admin.candle_choice["having"]:
-        candle_items = await get_info_many_from_table("candle_items")
         kb_candle_names = ReplyKeyboardMarkup(resize_keyboard=True)
         with Session(engine) as session:
             candle_items = session.scalars(select(CandleItems)).all()
@@ -217,7 +217,7 @@ async def load_giftbox_candle_price(message: types.Message, state: FSMContext):
             await FSM_Admin_giftbox_item.next() #-> giftbox_candle_note
             await message.reply("Введи описание свечи в гифтбоксе", reply_markup= kb_client.kb_cancel)
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def giftbox_candle_note(message: types.Message, state: FSMContext):
@@ -273,7 +273,7 @@ async def giftbox_candle_state(message: types.Message, state: FSMContext):
             reply_markup=kb_admin.kb_giftbox_item_commands,
         )
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # Отправляем тему тату в гифтбоксе
@@ -294,7 +294,7 @@ async def load_tattoo_theme(message: types.Message, state: FSMContext):
             reply_markup=kb_admin.kb_giftbox_item_commands,
         )
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # Отправляем описание тату в гифтбоксе
@@ -315,7 +315,7 @@ async def load_giftbox_tattoo_note(message: types.Message, state: FSMContext):
             reply_markup=kb_admin.kb_giftbox_item_commands,
         )
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # есть ли эти тату сейчас в наличии или надо докупать
@@ -341,7 +341,7 @@ async def load_giftbox_tattoo_state(message: types.Message, state: FSMContext):
         )
         
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # впиши тип блесток
@@ -399,7 +399,7 @@ async def load_giftbox_sequins_state(message: types.Message, state: FSMContext):
         )
         
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # -------------------------------------------------------GIFTBOX ITEM COMMANDS-----------------------------------------
@@ -541,7 +541,7 @@ async def get_name_for_info_giftbox_item(message: types.Message, state: FSMConte
         )
         await state.finish()
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # -------------------------------------------------------GIFTBOX ITEM COMMANDS поменять_цену_гифтбокса---------------------COMPLETE

@@ -285,9 +285,17 @@ new_date_choice = {
     "many_dates": "Хочу выбрать день недели и месяц",
 }
 
-free_or_close_event_in_schedule = ["Свободен", "Занят"]
+schedule_event_status = {
+    "free" : "Свободен", 
+    "close":"Занят"
+}
 
-type_of_schedule_lst = ["Тату заказ", "Коррекция", "Консультация"]
+type_of_schedule_lst = [
+    "Тату заказ", 
+    "Коррекция", 
+    "Консультация", 
+    "Свободное"
+]
 
 choice_new_date_or_no_date_in_tattoo_order = {
     "new_date": "Хочу поставить новую дату для этого тату заказа",
@@ -447,7 +455,7 @@ kb_choice_new_date_or_new_day_name = create_kb(
     choice_new_date_or_new_day_name + LIST_BACK_TO_HOME
 )
 kb_free_or_close_event_in_schedule = create_kb(
-    free_or_close_event_in_schedule + LIST_BACK_TO_HOME
+    list(schedule_event_status.values()) + LIST_BACK_TO_HOME
 )
 kb_type_of_schedule = create_kb(type_of_schedule_lst + LIST_BACK_TO_HOME)
 # kb_price = create_kb(price)

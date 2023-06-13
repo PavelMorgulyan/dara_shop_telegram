@@ -7,7 +7,7 @@ from aiogram.dispatcher.filters import Text
 
 from msg.main_msg import *
 from keyboards import kb_client, kb_admin
-from handlers.other import generate_random_order_number, STATES
+from handlers.other import generate_random_order_number, STATES, clients_status
 from handlers.client import (
     CODE_LENTH,
     fill_client_table,
@@ -16,7 +16,6 @@ from handlers.client import (
     CALENDAR_ID,
 )
 from handlers.calendar_client import obj
-
 
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -83,6 +82,7 @@ async def fill_sketch_order_table(data: dict, message: types.Message):
                 telegram_name=f"@{message.from_user.username}",
                 telegram_id=message.from_id,
                 phone=None,
+                status=clients_status['active']
             )
             session.add(user)
             session.commit()
@@ -94,8 +94,7 @@ async def fill_sketch_order_table(data: dict, message: types.Message):
             )
             .one()
             .price
-        )
-
+        ) 
         new_tattoo_sketch_order = Orders(
             order_type="эскиз",
             user_id=message.from_id,
@@ -225,7 +224,7 @@ async def get_sketch_desc_order(message: types.Message, state: FSMContext):
     elif message.text in tattoo_name_lst:
         await send_to_view_tattoo_admin_sketch(message)
         await bot.send_message(
-            message.from_user.id, "❔ Какое описание оставить для эскиза? Напиши ответ в строке.",
+            message.from_user.id, "❔ Какое описание оставить для эскиза? Напишите ответ в строке.",
             reply_markup= kb_client.kb_back_cancel
         )
 
@@ -260,7 +259,7 @@ async def get_sketch_desc_order(message: types.Message, state: FSMContext):
 
         await bot.send_message(
             message.from_id,
-            "❔ Хочешь отправить фото твоей идеи для переводной татуировки?",
+            "❔ Хотите отправить фото идеи для переводной татуировки?",
             reply_markup=kb_client.kb_yes_no,
         )
 
@@ -272,7 +271,7 @@ async def get_photo_sketch_order(message: types.Message, state: FSMContext):
             await bot.send_message(
                 message.from_id,
                 f"{MSG_CLIENT_GO_BACK}"
-                "❔ Хочешь отправить фото твоей идеи для переводной татуировки?",
+                "❔Хотите отправить фото идеи для переводной татуировки?",
                 reply_markup=kb_client.kb_yes_no,
             )
 
@@ -326,7 +325,7 @@ async def get_photo_sketch_order(message: types.Message, state: FSMContext):
         if sketch_order_photo_counter != data["sketch_order_photo_counter"]:
             await bot.send_message(
                 message.from_id,
-                "❔ Хочешь отправить еще фотографии или завершить заказ эскиза?",
+                "❔ Хотите отправить еще фотографии? Или можно завершить заказ эскиза?",
                 reply_markup=kb_client.kb_client_choice_send_more_photo_to_skatch_order,
             )
 
@@ -432,7 +431,7 @@ async def get_sketch_order_number(message: types.Message, state: FSMContext):
 
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -453,7 +452,7 @@ async def command_client_add_new_photo_to_sketch_order(message: types.Message):
         ).all()
 
     if orders == []:
-        await bot.send_message(message.from_id, "⭕️ У тебя пока нет заказанных эскизов")
+        await bot.send_message(message.from_id, "⭕️ У вас пока нет заказанных эскизов.")
         await bot.send_message(
             message.from_id,
             f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
@@ -473,7 +472,7 @@ async def command_client_add_new_photo_to_sketch_order(message: types.Message):
         await FSM_Client_get_new_photo_to_sketch_order.get_order_id.set()
         await bot.send_message(
             message.from_id,
-            "❔ Для какого заказа хочешь добавить фотографию?",
+            "❔ Для какого заказа хотите добавить фотографию?",
             reply_markup=kb_orders,
         )
 
@@ -517,7 +516,7 @@ async def get_order_id_to_add_new_photo_to_sketch_order(
             )
         else:
             await bot.send_message(
-                message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+                message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
             )
 
 
@@ -540,11 +539,11 @@ async def get_photo_to_sketch_order(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                "📷 Отлично, ты выбрал(а) фотографию эскиза для своего тату!",
+                "📷 Отлично, вы выбрали фотографию эскиза для своего тату!",
             )
             await bot.send_message(
                 message.from_id,
-                "❔ Хочешь добавить еще фото/картинку?",
+                "❔ Хотите добавить еще фото/картинку?",
                 reply_markup=kb_client.kb_yes_no,
             )
 
@@ -575,7 +574,7 @@ async def get_photo_to_sketch_order(message: types.Message, state: FSMContext):
             await state.finish()
             await bot.send_message(
                 message.from_id,
-                f"🎉 Отлично, ты обновил фотографии в заказе {sketch_order_number}!\n\n"
+                f"🎉 Отлично, в заказе {sketch_order_number} появилась новая фотография! !\n\n"
                 f"{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
                 reply_markup=kb_client.kb_choice_order_view,
             )
@@ -615,12 +614,12 @@ async def get_photo_to_sketch_order(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                "❔ Для какого заказа хочешь добавить фотографию?",
+                "❔ Для какого заказа добавить фотографию?",
                 reply_markup=kb_orders,
             )
         else:
             await bot.send_message(
-                message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+                message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
             )
 
 

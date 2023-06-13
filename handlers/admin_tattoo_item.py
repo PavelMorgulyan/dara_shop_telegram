@@ -133,7 +133,7 @@ async def get_new_tattoo_item_state(message: types.Message, state: FSMContext):
             MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_tattoo_items_commands
         )
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def set_new_tattoo_item_state(message: types.Message, state: FSMContext):
@@ -233,7 +233,7 @@ async def load_tattoo_item_photo(message: types.Message, state: FSMContext):
         if message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
             await state.finish()
             await message.reply(
-                MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST,
+                MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST,
                 reply_markup=kb_admin.kb_price,
             )
         elif message.text in LIST_BACK_COMMANDS:
@@ -275,7 +275,7 @@ async def load_tattoo_price(message: types.Message, state: FSMContext):
         await FSM_Admin_tattoo_item.previous()
     else:
         await message.reply(
-            MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST, reply_markup=kb_admin.kb_price
+            MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST, reply_markup=kb_admin.kb_price
         )
 
 
@@ -303,7 +303,7 @@ async def load_tattoo_colored(message: types.Message, state: FSMContext):
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 """ # Отправляем количество деталей тату
@@ -331,7 +331,7 @@ async def load_tattoo_number_of_details(message: types.Message, state: FSMContex
         await message.reply(MSG_BACK_TO_HOME, reply_markup= kb_admin.kb_main)
         
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST,
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST,
             reply_markup= kb_client.kb_number_tattoo_details) """
 
 

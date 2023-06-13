@@ -146,6 +146,12 @@ async def get_dates_from_month_and_day_of_week(
     return date_time_list
 
 
+clients_status = {
+    "active":"активный",
+    "admin":"администратор",
+    "banned":"забанен"
+}
+
 async def generate_random_code(length: int) -> str:
     letters = string.ascii_uppercase + string.digits
     rand_string = "".join(random.choice(letters) for i in range(length))

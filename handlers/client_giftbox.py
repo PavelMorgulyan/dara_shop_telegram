@@ -62,7 +62,7 @@ async def giftbox_command(message: types.Message):
             # reply_markup=kb_client_giftbox_names)
             await bot.send_message(
                 message.from_id,
-                f"Хочешь что-нибудь добавить к своему заказу?",
+                f"Хотите что-нибудь добавить к своему заказу?",
                 reply_markup=kb_client.kb_giftbox_note,
             )
         else:
@@ -74,7 +74,7 @@ async def giftbox_order_giftbox_note_choice(message: types.Message, state: FSMCo
         await FSM_Client_giftbox_having.next()  # -> giftbox_order_add_giftbox_note
         await bot.send_message(
             message.from_id,
-            f"🌿 Хорошо, введи свой комментарий к заказу",
+            f"🌿 Оставьте свой комментарий к заказу",
             reply_markup=kb_client.kb_back_cancel,
         )
 
@@ -86,7 +86,7 @@ async def giftbox_order_giftbox_note_choice(message: types.Message, state: FSMCo
             await FSM_Client_giftbox_having.next()  # -> giftbox_order_pay_method
         await bot.send_message(
             message.from_id,
-            f"❔ Хорошо, каким способом хочешь оплатить?",
+            f"❔ Каким способом оплатить?",
             reply_markup=kb_client.kb_pay_now_later,
         )
 
@@ -100,7 +100,7 @@ async def giftbox_order_giftbox_note_choice(message: types.Message, state: FSMCo
 
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -126,7 +126,8 @@ async def giftbox_order_add_giftbox_note(message: types.Message, state: FSMConte
         await FSM_Client_giftbox_having.previous()  # -> giftbox_order_giftbox_note_choice
         await bot.send_message(
             message.from_id,
-            f"Хочешь что-нибудь добавить к своему заказу?",
+            f"❔ Что-нибудь добавить к своему заказу? "
+            "Ответь на вопрос, а потом напишите, что какой комментарий хотите оставить к заказу.",
             reply_markup=kb_client.kb_giftbox_note,
         )
         #'Да, мне есть чего добавить! 🌿, Нет, мне нечего добавить ➡️'
@@ -144,13 +145,13 @@ async def giftbox_order_add_giftbox_note(message: types.Message, state: FSMConte
             data["giftbox_note"] = message.text
 
         await bot.send_message(
-            message.chat.id, "💬 Отлично, в заказ был добавлен твой комментарий!"
+            message.chat.id, "💬 Отлично, в заказ был добавлен комментарий!"
         )
 
         await FSM_Client_giftbox_having.next()  # -> giftbox_order_pay_method
         await bot.send_message(
             message.from_id,
-            "❔ Хочешь оплатить заказ сейчас? ",
+            "❔ Хотите оплатить заказ сейчас? ",
             reply_markup=kb_client.kb_yes_no,
         )
 
@@ -427,7 +428,7 @@ async def get_clients_giftbox_order(message: types.Message):
     if orders == []:
         await bot.send_message(
             message.from_id,
-            f"⭕️ У тебя пока нет гифтбокс заказов.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+            f"⭕️ У вас пока нет гифтбокс заказов.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
             reply_markup=kb_client.kb_choice_order_view,
         )
 

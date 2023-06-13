@@ -96,7 +96,7 @@ async def get_min_size_to_new_price_list(message: types.Message, state: FSMConte
             reply_markup=kb_admin.kb_sizes,
         )
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_max_size_to_new_price_list(message: types.Message, state: FSMContext):
@@ -151,7 +151,7 @@ async def get_max_size_to_new_price_list(message: types.Message, state: FSMConte
         )
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_price_to_new_price_list(message: types.Message, state: FSMContext):
@@ -212,7 +212,7 @@ async def get_price_to_new_price_list(message: types.Message, state: FSMContext)
         await state.finish()
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -339,7 +339,7 @@ async def get_price_list_name_to_view(message: types.Message, state: FSMContext)
         await state.finish()
 
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 # удалить прайс-лист тату
@@ -421,7 +421,7 @@ async def get_name_for_deleting_price_list(message: types.Message, state: FSMCon
         )
         await state.finish()
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 class FSM_Admin_change_price_list(StatesGroup):
@@ -521,7 +521,7 @@ async def get_price_list_name_to_change(message: types.Message, state: FSMContex
         )
         await state.finish()
     else:
-        await message.reply(MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_price_list_name_for_changing(message: types.Message, state: FSMContext):

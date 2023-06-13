@@ -2,7 +2,7 @@ from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from create_bot import dp, bot
-from keyboards import kb_admin
+from keyboards import kb_admin, kb_client
 from aiogram.dispatcher.filters import Text
 from handlers.client import ADMIN_NAMES
 
@@ -139,7 +139,7 @@ async def delete_username_command(message: types.Message):
             users = session.scalars(select(User)).all()
         if users == []:
             await message.reply(
-                "У тебя пока нет пользователей в базе. Чего еще хочешь сделать?",
+                f"Пока нет пользователей в базе.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
                 reply_markup=kb_admin.kb_main,
             )
         else:
@@ -151,7 +151,7 @@ async def delete_username_command(message: types.Message):
             await FSM_Admin_delete_info_user.user_name.set()
 
             await message.reply(
-                "Какого пользователя хочешь удалить?", reply_markup=kb_users_names
+                "Какого пользователя удалить?", reply_markup=kb_users_names
             )
 
 
@@ -168,7 +168,7 @@ async def delete_user_with_name(message: types.Message, state: FSMContext):
             session.commit()
 
         await message.reply(
-            f"Готово! Вы удалили пользователя {message.text}",
+            f"Готово! Пользователь {message.text} удален",
             reply_markup=kb_admin.kb_clients_commands,
         )
         await state.finish()
@@ -178,8 +178,61 @@ async def delete_user_with_name(message: types.Message, state: FSMContext):
         )
 
 
+# TODO добавить пользователя в черный список
+# ---------------------------------SET CLIENT TO BLACK LIST-------------------------------------
+class FSM_Admin_delete_info_user(StatesGroup):
+    user_name = State()
+    confirmation = State()
+
+
+async def command_set_client_to_black_list(message: types.Message):
+    if (
+        message.text.lower() == "добавить пользователя в черный список"
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        with Session(engine) as session:
+            users = session.scalars(select(User)).all()
+        if users == []:
+            await message.reply(
+                f"Пока нет пользователей в базе.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                reply_markup=kb_admin.kb_main,
+            )
+        else:
+            kb_users_names = ReplyKeyboardMarkup(resize_keyboard=True)
+            for user in users:
+                kb_users_names.add(
+                    KeyboardButton(user.name)
+                )  # выводим наименования пользователей
+            await FSM_Admin_delete_info_user.user_name.set()
+
+            await message.reply(
+                "Какого пользователя добавить в черный список?", reply_markup=kb_users_names
+            )
+
+
+async def set_to_black_list_user_with_name(message: types.Message, state: FSMContext):
+    with Session(engine) as session:
+        users = session.scalars(select(User)).all()
+    user_name_lst = []
+    for user in users:
+        user_name_lst.append(user.name)
+    if message.text in user_name_lst:
+        async with state.proxy() as data:
+            data['username'] = message.text
+
+        await message.reply(
+            "Точно хотите забанить пользователя?",
+            reply_markup= kb_client.kb_yes_no
+        )
+        await state.finish()
+    else:
+        await message.reply(
+            f"Пользователя с именем {message.text} нет. Попробуй другого."
+        )
+
+
 def register_handlers_admin_client_commands(dp: Dispatcher):
-    # -------------------------------------------------------CLIENTS------------------------------------------------------
+    # ----------------------------------------CLIENTS------------------------------------------------------
     dp.register_message_handler(get_clients_command_list, commands=["пользователи"])
     dp.register_message_handler(
         get_clients_command_list,

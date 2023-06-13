@@ -138,7 +138,7 @@ async def get_order_number_to_create_new_schedule_event_in_order(
                 .order_by(ScheduleCalendar.start_datetime)
                 .where(ScheduleCalendar.start_datetime > datetime.now())
                 .where(ScheduleCalendar.end_datetime > datetime.now())
-                .where(ScheduleCalendar.status == "Свободен")
+                .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
             ).all()
             await FSM_Client_client_create_new_schedule_event.next()  # -> get_schedule_number_to_create_new_event_in_order
         open_schedule_events_lst = []
@@ -170,7 +170,7 @@ async def get_order_number_to_create_new_schedule_event_in_order(
 
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -193,7 +193,7 @@ async def get_schedule_number_to_create_new_event_in_order(
                 .where(ScheduleCalendar.start_datetime == start_time)
                 .where(ScheduleCalendar.end_datetime == end_time)
             ).one()
-            open_schedule_events.status = "Занят"
+            open_schedule_events.status = kb_admin.schedule_event_status['close']
             session.commit()
         await bot.send_message(
             message.from_id,
@@ -227,7 +227,7 @@ async def get_schedule_number_to_create_new_event_in_order(
 
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -375,7 +375,7 @@ async def get_client_answer_to_change_schedule(
 
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -389,7 +389,7 @@ async def get_event_schedule_date(message: types.Message, state: FSMContext):
                 select(ScheduleCalendar)
                 .where(ScheduleCalendar.start_datetime > datetime.now())
                 .where(ScheduleCalendar.end_datetime > datetime.now())
-                .where(ScheduleCalendar.status == "Свободен")
+                .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
                 .order_by(ScheduleCalendar.start_datetime)
             ).all()
 
@@ -432,7 +432,7 @@ async def get_event_schedule_date(message: types.Message, state: FSMContext):
 
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -509,7 +509,7 @@ async def get_new_event_schedule_date(message: types.Message, state: FSMContext)
 
     else:
         await bot.send_message(
-            message.from_id, MSG_NO_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -565,6 +565,9 @@ def register_handlers_client_schedule(dp: Dispatcher):
         command_client_schedule_event,
         Text(equals=kb_client.client_main["client_schedule"], ignore_case=True),
         state=None,
+    )
+    dp.register_message_handler(
+        command_client_schedule_event, commands= "my_sessions", state=None
     )
 
     dp.register_message_handler(
