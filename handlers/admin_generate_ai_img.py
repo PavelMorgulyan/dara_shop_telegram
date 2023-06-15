@@ -62,7 +62,7 @@ async def create_ai_img(message: types.Message, state: FSMContext, img_text: str
     path = f"D:/example_imgs/{str(img_name)}.png"  # path = f"./img/tattoo_ideas/{image_name}.png"
     image.save(path)
 
-    msg = MSG_ANSWER_AOUT_RESULT_TATTOO_FROM_AI
+    msg = MSG_ANSWER_ABOUT_RESULT_TATTOO_FROM_AI
     ai_img = await bot.send_photo(message.chat.id, open(path, "rb"))
     # "Да, отличное изображение, хочу такой эскиз ☘️", "Нет, хочу другое изображение 😓"
     id = await generate_random_order_number(CODE_LENTH)

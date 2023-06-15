@@ -347,8 +347,8 @@ async def get_clients_tattoo_sketch_order(message: types.Message):
     if orders == []:
         await bot.send_message(
             message.from_id,
-            f"⭕️ У тебя пока нет заказов для эскизов.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
-            reply_markup=kb_client.kb_choice_order_view,
+            f"⭕️ У вас нет заказов для эскизов.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
     else:
         await FSM_Client_send_to_client_view_sketch_order.get_order_number.set()
@@ -417,7 +417,7 @@ async def get_sketch_order_number(message: types.Message, state: FSMContext):
         await bot.send_message(
             message.from_user.id,
             MSG_DO_CLIENT_WANT_TO_DO_MORE,
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
         await state.finish()
 
@@ -426,7 +426,7 @@ async def get_sketch_order_number(message: types.Message, state: FSMContext):
         await bot.send_message(
             message.from_id,
             f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
 
     else:
@@ -456,7 +456,7 @@ async def command_client_add_new_photo_to_sketch_order(message: types.Message):
         await bot.send_message(
             message.from_id,
             f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
     else:
         kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -512,7 +512,7 @@ async def get_order_id_to_add_new_photo_to_sketch_order(
             await bot.send_message(
                 message.from_id,
                 f"{MSG_CANCEL_ACTION}{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-                reply_markup=kb_client.kb_choice_order_view,
+                reply_markup=kb_client.kb_client_choice_order_view,
             )
         else:
             await bot.send_message(
@@ -554,7 +554,7 @@ async def get_photo_to_sketch_order(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                "📎 Хорошо, отправь еще фотографию через файлы.",
+                "📎 Добавьте еще фотографию через файлы.",
                 reply_markup=kb_client.kb_back_cancel,
             )
 
@@ -574,9 +574,9 @@ async def get_photo_to_sketch_order(message: types.Message, state: FSMContext):
             await state.finish()
             await bot.send_message(
                 message.from_id,
-                f"🎉 Отлично, в заказе {sketch_order_number} появилась новая фотография! !\n\n"
+                f"🎉 Отлично, в заказе {sketch_order_number} появилась новая фотография!\n\n"
                 f"{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-                reply_markup=kb_client.kb_choice_order_view,
+                reply_markup=kb_client.kb_client_choice_order_view,
             )
 
         elif any(
@@ -587,7 +587,7 @@ async def get_photo_to_sketch_order(message: types.Message, state: FSMContext):
             await bot.send_message(
                 message.from_id,
                 f"{MSG_CANCEL_ACTION}{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-                reply_markup=kb_client.kb_choice_order_view,
+                reply_markup=kb_client.kb_client_choice_order_view,
             )
 
         elif any(text in message.text.lower() for text in LIST_BACK_COMMANDS):

@@ -5,7 +5,7 @@ from create_bot import dp, bot
 from keyboards import kb_admin, kb_client
 from aiogram.dispatcher.filters import Text
 from handlers.client import ADMIN_NAMES
-
+from handlers.other import clients_status
 
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
@@ -33,33 +33,45 @@ class FSM_Admin_get_info_user(StatesGroup):
     user_name = State()
 
 
-async def send_to_view_users_orders(user_lst: list, message: types.Message):
+async def send_to_view_users_orders(user_lst: ScalarResult["User"], message: types.Message):
     if user_lst != []:
+        headers = [
+            "Имя",
+            "Телеграм",
+            "Телефон",
+            "Статус пользователя",
+            "Тип заказа",
+            "Номер заказа",
+            "Статус заказа"
+        ]
+        table = PrettyTable(
+            headers, left_padding_width=1, right_padding_width=1
+        )  # Определяем таблицу
+        order_numbers, order_statuses, order_types = ("", "", "")
         for user in user_lst:  # выводим наименования клиентов
             with Session(engine) as session:
                 orders = session.scalars(
                     select(Orders).where(Orders.username == user.name)
                 ).all()
-            headers = [
-                "№",
-                "Тип заказа",
-                "Пользователь",
-                "Номер заказа",
-                "Статус",
-            ]
-            for order in orders:
-                table = PrettyTable(
-                    headers, left_padding_width=1, right_padding_width=1
-                )  # Определяем таблицу
-                table.add_row(
-                    [
-                        order.id,
-                        order.order_type,
-                        order.username,
-                        order.order_number,
-                        order.order_state,
-                    ]
-                )
+            if orders != []:
+                for order in orders:
+                    order_types += f"{order.order_type}\n"
+                    order_numbers += f"{order.order_number}\n"
+                    order_statuses += f"{order.order_state}\n"
+            else:
+                order_numbers, order_statuses, order_types = ("----", "----", "----")
+                
+            table.add_row(
+                [
+                    user.name,
+                    user.telegram_name,
+                    user.phone,
+                    user.status,
+                    order_types,
+                    order_numbers,
+                    order_statuses,
+                ]
+            )
         await bot.send_message(
             message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
         )
@@ -70,7 +82,7 @@ async def send_to_view_users_orders(user_lst: list, message: types.Message):
         )
     else:
         await message.reply(
-            f"Сейчас нет пользователей в базе. {MSG_DO_CLIENT_WANT_TO_DO_MORE}"
+            f"⭕️ Сейчас нет пользователей в базе. {MSG_DO_CLIENT_WANT_TO_DO_MORE}"
         )
 
 
@@ -180,9 +192,8 @@ async def delete_user_with_name(message: types.Message, state: FSMContext):
 
 # TODO добавить пользователя в черный список
 # ---------------------------------SET CLIENT TO BLACK LIST-------------------------------------
-class FSM_Admin_delete_info_user(StatesGroup):
+class FSM_Admin_set_client_to_black_list(StatesGroup):
     user_name = State()
-    confirmation = State()
 
 
 async def command_set_client_to_black_list(message: types.Message):
@@ -203,7 +214,7 @@ async def command_set_client_to_black_list(message: types.Message):
                 kb_users_names.add(
                     KeyboardButton(user.name)
                 )  # выводим наименования пользователей
-            await FSM_Admin_delete_info_user.user_name.set()
+            await FSM_Admin_set_client_to_black_list.user_name.set()
 
             await message.reply(
                 "Какого пользователя добавить в черный список?", reply_markup=kb_users_names
@@ -224,6 +235,26 @@ async def set_to_black_list_user_with_name(message: types.Message, state: FSMCon
             "Точно хотите забанить пользователя?",
             reply_markup= kb_client.kb_yes_no
         )
+        await state.finish()
+    
+    elif message.text == kb_client.yes_str:
+        async with state.proxy() as data:
+            username = data['username']
+        
+        with Session(engine) as session:
+            user = session.scalars(select(User).where(User.name == username)).one()
+            user.status = clients_status["banned"]
+            await message.reply(
+                f"Готово! Пользователь {message.text} забанен.",
+                reply_markup=kb_admin.kb_clients_commands,
+            )
+            await state.finish()
+            
+    elif message.text == kb_client.no_str:
+        await message.reply(
+                f"{MSG_CANCEL_ACTION}{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                reply_markup=kb_admin.kb_clients_commands,
+            )
         await state.finish()
     else:
         await message.reply(
@@ -269,4 +300,16 @@ def register_handlers_admin_client_commands(dp: Dispatcher):
     )
     dp.register_message_handler(
         get_user_info_command_with_name, state=FSM_Admin_get_info_user.user_name
+    )
+
+
+    dp.register_message_handler(command_set_client_to_black_list,
+        Text(equals="отправить пользователя в черный список", ignore_case=True),
+        state=None,
+    )
+    dp.register_message_handler(
+        command_set_client_to_black_list, commands=["отправить_пользователя_в_черный_список"]
+    )
+    dp.register_message_handler(
+        set_to_black_list_user_with_name, state=FSM_Admin_set_client_to_black_list.user_name
     )

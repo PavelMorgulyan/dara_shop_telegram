@@ -31,7 +31,6 @@ from keyboards import kb_client, kb_admin
 from handlers.other import *
 from handlers.client import (
     ORDER_CODE_LENTH,
-    fill_client_table,
     DARA_ID,
     FSM_Client_username_info,
     CALENDAR_ID,
@@ -129,6 +128,7 @@ async def get_client_choice_main_or_temporary_tattoo(
                 # tattoo_type = постоянное тату, переводное тату
                 data["tattoo_type"] = message.text[:-2].lower()
                 data["next_menu_look_tattoo_galery"] = False
+                data["next_menu_look_tattoo_galery_in_view"] = False
                 data[
                     "load_tattoo_photo"
                 ] = False  # для меню выбора фото тату - для кнопки "Назад"
@@ -219,12 +219,24 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
         ).all()
 
     kb_tattoo_items_for_order = ReplyKeyboardMarkup(resize_keyboard=True)
-    list_kb_tattoo_items = []
+    kb_tattoo_items_to_view = ReplyKeyboardMarkup(resize_keyboard=True)
+    
+    tattoo_items_names_lst = []
+    tattoo_items_names_to_view_lst = []
+    
     for tattoo in tattoo_items:
-        kb_tattoo_item_text = f"{tattoo.name}"
-        list_kb_tattoo_items.append(kb_tattoo_item_text)
-        kb_tattoo_items_for_order.add(KeyboardButton(kb_tattoo_item_text))
-
+        kb_item = f"{tattoo.name}"
+        tattoo_items_names_lst.append(kb_item)
+        kb_tattoo_items_for_order.add(KeyboardButton(kb_item))
+        
+        kb_tattoo_item_to_view = f"Посмотреть \"{tattoo.name}\""
+        tattoo_items_names_to_view_lst.append(kb_tattoo_item_to_view)
+        kb_tattoo_items_to_view.add(KeyboardButton(kb_tattoo_item_to_view))
+    
+    kb_tattoo_items_to_view.add(
+        KeyboardButton(kb_client.client_still_want_his_sketch)
+    ).add(kb_client.back_btn).add(kb_client.cancel_btn)
+    
     kb_tattoo_items_for_order.add(
         KeyboardButton(kb_client.client_still_want_his_sketch)
     ).add(kb_client.back_btn).add(kb_client.cancel_btn)
@@ -238,14 +250,30 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
 
         elif any(text in message.text for text in LIST_BACK_COMMANDS):
             async with state.proxy() as data:
+                # Посмотреть галерею тату 📃
                 next_menu_look_tattoo_galery = data["next_menu_look_tattoo_galery"]
                 data["next_menu_look_tattoo_galery"] = False
+                
                 load_tattoo_desc = data["load_tattoo_desc"]
                 data["load_tattoo_desc"] = False
+                
                 load_tattoo_photo = data["load_tattoo_photo"]
                 data["load_tattoo_photo"] = False
+                
+                # Посмотреть "Бабочки на ветке" или другое тату
+                next_menu_look_tattoo_galery_in_view = data["next_menu_look_tattoo_galery_in_view"] 
+                data["next_menu_look_tattoo_galery_in_view"] = False
 
-            if next_menu_look_tattoo_galery or load_tattoo_desc or load_tattoo_photo:
+            if next_menu_look_tattoo_galery_in_view:
+                async with state.proxy() as data:
+                    data["next_menu_look_tattoo_galery"] = True
+                    
+                await bot.send_message(
+                    message.from_id,
+                    MSG_WHICH_TATTOO_SEND_TO_VIEW,
+                    reply_markup=kb_tattoo_items_to_view,
+                )
+            elif next_menu_look_tattoo_galery or load_tattoo_desc or load_tattoo_photo:
                 await bot.send_message(
                     message.from_id,
                     MSG_CLIENT_BACK_AND_WHICH_PHOTO_DO_CLIENT_WANT_TO_LOAD,
@@ -258,8 +286,18 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
                     f"{MSG_CLIENT_GO_BACK} {MSG_CLIENT_WANT_CURRENT_OR_NOT_TATTOO}",
                     reply_markup=kb_client.kb_client_choice_main_or_temporary_tattoo,
                 )
-
-        # 'У меня нет идеи для эскиза 😓'
+        # Закончить просмотр галереи ⭕️
+        elif message.text == kb_client.choice_view_galery_or_get_order_from_galery['end']:
+            async with state.proxy() as data:
+                data["next_menu_look_tattoo_galery"] = False
+                data["next_menu_look_tattoo_galery_in_view"] = False
+            await bot.send_message(
+                message.from_id,
+                MSG_CLIENT_BACK_AND_WHICH_PHOTO_DO_CLIENT_WANT_TO_LOAD,
+                reply_markup=kb_client.kb_no_photo_in_tattoo_order,
+            )
+            
+        # У меня нет идеи для эскиза 😓
         elif message.text == kb_client.no_photo_in_tattoo_order["no_idea_tattoo_photo"]:
             async with state.proxy() as data:
                 data["tattoo_photo_tmp_lst"] = None
@@ -296,35 +334,59 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
             """
             await bot.send_message(
                 message.from_id,
-                f"💬 введите текст для эскиза, пожалуйста.",
+                f"💬 Введите текст для эскиза, пожалуйста.",
                 reply_markup=kb_client.kb_back_cancel,
             )
 
-        # 'Посмотреть галерею тату 📃
-        elif message.text == kb_client.no_photo_in_tattoo_order["look_tattoo_galery"]:
+        # Посмотреть галерею тату 📃, Продолжить просмотр галереи ➡️
+        elif message.text in \
+            [
+                kb_client.no_photo_in_tattoo_order["look_tattoo_galery"], 
+                kb_client.choice_view_galery_or_get_order_from_galery['continue']
+            ]:
             async with state.proxy() as data:
+                data["next_menu_look_tattoo_galery_in_view"] = False
                 data["next_menu_look_tattoo_galery"] = True
-            for tattoo in tattoo_items:
-                # ? TODO нужно ли выводить размер и цену?
-                msg = f"📃 Название: {tattoo.name}\n🎨 Цвет: {tattoo.colored}\n"
-                # \f'🔧 Количество деталей: {tattoo.}\n'
-                if tattoo.note not in ["Без описания", None]:
-                    msg += f"💬 Описание: {tattoo.note}\n"
+            
+            await bot.send_message(
+                message.from_id,
+                MSG_WHICH_TATTOO_SEND_TO_VIEW,
+                reply_markup=kb_tattoo_items_to_view,
+            )
+        elif message.text in tattoo_items_names_to_view_lst:
+            async with state.proxy() as data:
+                data["next_menu_look_tattoo_galery_in_view"] = True
+            tattoo_name = message.text.split('\"')[1]
+            with Session(engine) as session:
+                tattoo = session.scalars(select(TattooItems).where(TattooItems.name == tattoo_name)).one()
+            # ? TODO нужно ли выводить размер и цену? - нет, она зависит от размера
+            msg = f"📃 Название: {tattoo.name}\n🎨 Цвет: {tattoo.colored}\n"
+            # \f'🔧 Количество деталей: {tattoo.}\n'
+            if tattoo.note not in ["Без описания", None]:
+                msg += f"💬 Описание: {tattoo.note}\n"
 
-                with Session(engine) as session:
-                    photos = session.scalars(
-                        select(TattooItemPhoto).where(
-                            TattooItemPhoto.tattoo_item_name == tattoo.name
-                        )
-                    ).all()
+            with Session(engine) as session:
+                photos = session.scalars(
+                    select(TattooItemPhoto).where(
+                        TattooItemPhoto.tattoo_item_name == tattoo.name
+                    )
+                ).all()
 
-                media = []
-                for photo in photos:
-                    media.append(types.InputMediaPhoto(photo.photo, msg))
+            media = []
+            for photo in photos:
+                media.append(types.InputMediaPhoto(photo.photo, msg))
 
-                await bot.send_media_group(message.from_user.id, media=media)
-
-            # выдаем список тату - фотографии, название, цвет, описание
+            await bot.send_media_group(message.from_user.id, media=media)
+            
+            await bot.send_message(
+                message.from_id,
+                MSG_CONTINUE_VIEW_GALERY_OR_GET_ORDER_FROM_GALERY,
+                reply_markup=kb_client.kb_choice_view_galery_or_get_order_from_galery,
+            )
+            
+        # Выбрать тату из галереи ☘️
+        elif message.text == kb_client.choice_view_galery_or_get_order_from_galery['get_order']:
+            # выдаем тату - фотографию, название, цвет, описание
             await bot.send_message(
                 message.from_id,
                 f"{MSG_WHICH_TATTOO_WANT_TO_CHOOSE}",
@@ -332,7 +394,7 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
             )
 
         # переходим сюда, если клиент выбрал эскиз из списка
-        elif message.text in list_kb_tattoo_items:
+        elif message.text in tattoo_items_names_lst:
             for tattoo in tattoo_items:
                 if message.text == f"{tattoo.name}":
                     with Session(engine) as session:
@@ -372,13 +434,13 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
         elif message.text in [
             kb_client.no_photo_in_tattoo_order["load_tattoo_photo"],
             kb_client.client_still_want_his_sketch,
-            kb_client.client_choice_add_another_photo_to_tattoo_order[
-                "client_want_to_add_sketch_to_tattoo_order"
-            ],
+            kb_client.client_choice_add_another_photo_to_tattoo_order["add"]
         ]:
             async with state.proxy() as data:
                 data["tattoo_order_photo_counter"] = 0
                 data["load_tattoo_photo"] = True
+                data["next_menu_look_tattoo_galery_in_view"] = False
+                data["next_menu_look_tattoo_galery"] = False
 
             await bot.send_message(
                 message.from_id,
@@ -403,18 +465,13 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
             )
 
         # Закончить с добавлением изображений ➡️
-        elif (
-            message.text
-            == kb_client.client_choice_add_another_photo_to_tattoo_order[
-                "client_dont_want_to_add_sketch_to_tattoo_order"
-            ]
-        ):
+        elif (message.text == kb_client.client_choice_add_another_photo_to_tattoo_order["end"]):
             for i in range(2):
                 await FSM_Client_tattoo_order.next()  # -> load_tattoo_order_name
 
             await bot.send_message(
                 message.from_id,
-                "❕ Хорошо, с фотографиями для эскиза мы пока закончили.",
+                "❕ Фотографии эскиза успешно добавлены в заказ",
             )
             await bot.send_message(
                 message.from_id,
@@ -464,7 +521,7 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
                     path = f"./img/tattoo_ideas/{image_name}.png"
                     image.save(path)
 
-                    msg = MSG_ANSWER_AOUT_RESULT_TATTOO_FROM_AI
+                    msg = MSG_ANSWER_ABOUT_RESULT_TATTOO_FROM_AI
                     ai_img = await bot.send_photo(message.chat.id, open(path, 'rb'), msg,
                         reply_markup = kb_client.kb_correct_photo_from_ai_or_get_another)
                     async with state.proxy() as data:
@@ -506,12 +563,11 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
                 tattoo_order_photo_counter = data["tattoo_order_photo_counter"]
 
             await bot.send_message(
-                message.from_id,
-                "📷 Отлично, ты выбрал(а) фотографию эскиза для своего тату!",
+                message.from_id, "📷 Добавлен эскиз для тату!",
             )
             await bot.send_message(
                 message.from_id,
-                "❔ Хотите добавить еще фото/картинку?",
+                MSG_Q_ADD_ANOTHER_IMG,
                 reply_markup=kb_client.kb_client_choice_add_another_photo_to_tattoo_order,
             )
             # f'{MSG_CLIENT_CHOICE_TATTOO_NAME}',
@@ -673,7 +729,7 @@ async def change_menu_tattoo_from_galery(message: types.Message, state: FSMConte
 
         await bot.send_message(
             message.from_id,
-            f"📏 Отлично, вы выбрали размер {message.text}\n\n"
+            f"📏 Размер у тату будет {message.text}\n\n"
             f"{CLIENT_WANT_TO_CHANGE_MORE}",
             reply_markup=kb_client.kb_tattoo_from_galery_change_options,
         )
@@ -778,7 +834,7 @@ async def load_tattoo_order_size(message: types.Message, state: FSMContext):
 
         await bot.send_message(
             message.from_id,
-            "❔ Какой размер тату вы хотели бы?",
+            MSG_WHTCH_TATTOO_ANOTHER_SIZE_DO_CLIENT_WANT,
             reply_markup=kb_client.kb_another_size,
         )
 
@@ -793,12 +849,12 @@ async def load_tattoo_order_size(message: types.Message, state: FSMContext):
 
         await FSM_Client_tattoo_order.next()  # -> get_choice_colored_or_not
         await bot.send_message(
-            message.from_id, f"📏 Отлично, вы выбрали размер {message.text}"
+            message.from_id, f"📏 Размер у тату будет {message.text}"
         )
 
         await bot.send_message(
             message.from_id,
-            "❔ А теперь скажи, это тату будет цветным или ч/б?",
+            "❔ Тату будет цветным или ч/б?",
             reply_markup=kb_client.kb_colored_tattoo_choice,
         )
 
@@ -996,9 +1052,7 @@ async def get_choice_tattoo_place(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                f"🌿 А теперь введите что-нибудь о своем тату!"
-                " Чем подробнее описание тату, тем лучше! \n\n"
-                f'➡️ Или нажмите "{kb_client.no_tattoo_note_from_client[0]}" для продолжения',
+                MSG_GET_TATTOO_NOTE_FROM_USER,
                 reply_markup=kb_client.kb_no_tattoo_note_from_client,
             )
         else:  # выводим на экран расписание и переходим дальше
@@ -1019,7 +1073,7 @@ async def get_choice_tattoo_place(message: types.Message, state: FSMContext):
         else:
             await bot.send_message(
                 message.from_id,
-                f"🌿 Хорошо, с местом определились, это будет {message.text.lower()}",
+                f"🌿 С местом определились, это {message.text.lower()}",
             )
 
             await bot.send_message(
@@ -1074,9 +1128,7 @@ async def get_choice_tattoo_place(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                f"🌿 А теперь введите что-нибудь о своем тату!"
-                " Чем подробнее описание тату, тем лучше! \n\n"
-                f'➡️ Или нажмите "{kb_client.no_tattoo_note_from_client[0]}" для продолжения',
+                MSG_GET_TATTOO_NOTE_FROM_USER,
                 reply_markup=kb_client.kb_no_tattoo_note_from_client,
             )
         else:  # выводим на экран расписание и переходим дальше
@@ -1120,7 +1172,7 @@ async def get_choice_tattoo_place(message: types.Message, state: FSMContext):
             await bot.send_message(
                 message.from_id,
                 f"{MSG_CLIENT_GO_BACK}"
-                "❔ А теперь скажи, это тату будет цветным или ч/б?",
+                "❔ Тату будет цветным или ч/б?",
                 reply_markup=kb_client.kb_colored_tattoo_choice,
             )
     else:
@@ -1133,7 +1185,7 @@ async def get_choice_tattoo_place(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                f"🌿 Хорошо, с местом определились, это будет {message.text.lower()}",
+                f"🌿 С местом определились, это {message.text.lower()}",
             )
             await bot.send_message(
                 message.from_id,
@@ -1192,9 +1244,7 @@ async def get_photo_place_for_tattoo(message: types.Message, state: FSMContext):
 
                     await bot.send_message(
                         message.from_id,
-                        f"🌿 А теперь введите что-нибудь о своем тату!"
-                        " Чем подробнее описание тату, тем лучше! \n\n"
-                        f'➡️ Или нажмите "{kb_client.no_tattoo_note_from_client[0]}" для продолжения',
+                        MSG_GET_TATTOO_NOTE_FROM_USER,
                         reply_markup=kb_client.kb_no_tattoo_note_from_client,
                     )
 
@@ -1236,7 +1286,7 @@ async def get_photo_place_for_tattoo(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_id,
-                "📷 Отлично, ты добавил(а) фотографию места для своего тату!",
+                MSG_PHOTO_WAS_ADDED_TO_ORDER,
             )
             await bot.send_message(
                 message.from_id,
@@ -1256,7 +1306,7 @@ async def get_photo_place_for_tattoo(message: types.Message, state: FSMContext):
 
         await bot.send_message(
             message.from_id,
-            "📷 Отлично, ты добавил(а) видеосообщение места для своего тату!",
+            MSG_VIDEONOTE_WAS_ADDED_TO_ORDER,
         )
         await bot.send_message(
             message.from_id,
@@ -1326,9 +1376,7 @@ async def get_size_tattoo_from_galery(message: types.Message, state: FSMContext)
 
             await bot.send_message(
                 message.from_id,
-                f"🌿 А теперь введите что-нибудь о своем тату! "
-                "Чем подробнее описание тату, тем лучше! \n\n"
-                f'➡️ Или нажмите "{kb_client.no_tattoo_note_from_client[0]}" для продолжения',
+                MSG_GET_TATTOO_NOTE_FROM_USER,
                 reply_markup=kb_client.kb_no_tattoo_note_from_client,
             )
 
@@ -1449,9 +1497,7 @@ async def choice_tattoo_order_date_and_time_meeting(
 
         await bot.send_message(
             message.from_id,
-            f"🌿 А теперь введите что-нибудь о своем тату! "
-            "Чем подробнее описание тату, тем лучше! \n\n"
-            f'➡️ Или нажмите "{kb_client.no_tattoo_note_from_client[0]}" для продолжения',
+            MSG_GET_TATTOO_NOTE_FROM_USER,
             reply_markup=kb_client.kb_no_tattoo_note_from_client,
         )
 
@@ -1502,9 +1548,7 @@ async def choice_tattoo_order_date_and_time_meeting(
 
                 await bot.send_message(
                     message.from_id,
-                    f"🌿 А теперь введите что-нибудь о своем тату! "
-                    "Чем подробнее описание тату, тем лучше!\n\n"
-                    f'➡️ Или нажмите "{kb_client.no_tattoo_note_from_client[0]}" для продолжения',
+                    MSG_GET_TATTOO_NOTE_FROM_USER,
                     reply_markup=kb_client.kb_no_tattoo_note_from_client,
                 )
 
@@ -1618,8 +1662,7 @@ async def process_hour_timepicker(
         )
         await bot.send_message(
             user_id,
-            f"🌿 А теперь введите что-нибудь о своем тату! Чем подробнее описание тату, тем лучше! \n\n"
-            f'➡️ Или нажмите "{kb_client.no_tattoo_note_from_client[0]}" для продолжения',
+            MSG_GET_TATTOO_NOTE_FROM_USER,
             reply_markup=kb_client.kb_no_tattoo_note_from_client,
         )
 
@@ -1756,7 +1799,8 @@ async def fill_tattoo_order_table(message: types.Message, state: FSMContext):
                     if photo != "":
                         tattoo_photo_lst.append(
                             TattooItemPhoto(
-                                photo=photo, tattoo_item_name=data["tattoo_name"]
+                                photo=photo, 
+                                tattoo_item_name=data["tattoo_name"]
                             )
                         )
                         order_photo_lst.append(
@@ -1991,9 +2035,7 @@ async def choiсe_tattoo_order_desctiption(message: types.Message, state: FSMCon
             await bot.send_message(
                 message.from_id,
                 f"{MSG_CLIENT_GO_BACK}"
-                f"🌿 А теперь введите что-нибудь о своем тату!\n"
-                "Чем подробнее описание тату, тем лучше!\n\n"
-                f'➡️ Или нажмите "{kb_client.no_tattoo_note_from_client[0]}" для продолжения',
+                f"{MSG_GET_TATTOO_NOTE_FROM_USER}",
                 reply_markup=kb_client.kb_no_tattoo_note_from_client,
             )
 
@@ -2161,7 +2203,7 @@ async def get_clients_tattoo_order(message: types.Message):
         await bot.send_message(
             message.from_id,
             f"{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
     else:
         await FSM_Client_send_to_client_view_tattoo_order.get_order_number.set()
@@ -2202,7 +2244,7 @@ async def get_tattoo_order_number_to_view(message: types.Message, state: FSMCont
         await bot.send_message(
             message.from_user.id,
             MSG_DO_CLIENT_WANT_TO_DO_MORE,
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
         await state.finish()
 
@@ -2211,7 +2253,7 @@ async def get_tattoo_order_number_to_view(message: types.Message, state: FSMCont
         await bot.send_message(
             message.from_id,
             f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME }",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
 
     else:
@@ -2240,7 +2282,7 @@ async def get_new_photo_to_tattoo_order(message: types.Message):
         await bot.send_message(
             message.from_id,
             f"⭕️ У вас пока нет открытых тату заказов.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
     else:
         kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -2290,7 +2332,7 @@ async def get_order_id_to_add_new_photo(message: types.Message, state: FSMContex
         await bot.send_message(
             message.from_id,
             f"{MSG_CANCEL_ACTION}{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
 
 
@@ -2328,7 +2370,7 @@ async def get_photo_type(message: types.Message, state: FSMContext):
         kb_orders.add(kb_client.back_lst[0]).add(kb_client.cancel_lst[0])
         await bot.send_message(
             message.from_id,
-            "❔ Для какого заказа Хотите добавить фотографию?",
+            "❔ Для какого заказа добавить фотографию?",
             reply_markup=kb_orders,
         )
 
@@ -2337,7 +2379,7 @@ async def get_photo_type(message: types.Message, state: FSMContext):
         await bot.send_message(
             message.from_id,
             f"{MSG_CANCEL_ACTION}{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
 
     else:
@@ -2370,18 +2412,18 @@ async def get_new_photo(message: types.Message, state: FSMContext):
                 order.tattoo_place_photo.append(
                     TattooPlacePhoto(
                         order_number=tattoo_order_number,
-                        # order_id=order_id,
                         photo=new_photo,
                         telegram_user_id=message.from_id,
                     )
                 )
             session.commit()
         await state.finish()
+        
         await bot.send_message(
             message.from_id,
-            f"🎉 Отлично, ты обновил фотографии в заказе {tattoo_order_number}!\n\n"
+            f"🎉 Фотографии в заказе {tattoo_order_number} успешно добавлены!\n\n"
             f"{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
 
     elif message.content_type == "video_note":
@@ -2394,17 +2436,17 @@ async def get_new_photo(message: types.Message, state: FSMContext):
                     order_number=tattoo_order_number,
                     # order_id=order_id,
                     video=message.video_note.file_id,
-                    utelegram_user_idser=message.from_id,
+                    telegram_user_id=message.from_id,
                 )
             )
-
             session.commit()
+            
         await state.finish()
         await bot.send_message(
             message.from_id,
-            f"🎉 Отлично, ты обновил фотографии в заказе {tattoo_order_number}!\n\n"
+            f"🎉 В заказ {tattoo_order_number} успешно добавлена видео-заметка !\n\n"
             f"{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
 
     elif message.content_type == "video":
@@ -2424,16 +2466,16 @@ async def get_new_photo(message: types.Message, state: FSMContext):
         await state.finish()
         await bot.send_message(
             message.from_id,
-            f"🎉 Отлично, ты обновил фотографии в заказе {tattoo_order_number}!\n\n"
+            f"🎉 В заказ {tattoo_order_number} успешно добавлено видео!\n\n"
             f"{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
 
     elif message.text in LIST_BACK_COMMANDS:
         await FSM_Client_get_new_photo_to_tattoo_order.previous()  # -> get_photo_type
         await bot.send_message(
             message.from_id,
-            "❔ Ты Хотите добавить фотографию для эскиза или фотографию изображения тела?",
+            MSG_CLIENT_CHOICE_ADD_TATTOO_PHOTO_OR_BODY_PHOTO,
             reply_markup=kb_client.kb_client_choice_add_photo_type,
         )
 
@@ -2442,7 +2484,7 @@ async def get_new_photo(message: types.Message, state: FSMContext):
         await bot.send_message(
             message.from_id,
             f"{MSG_CANCEL_ACTION}{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
 
     else:

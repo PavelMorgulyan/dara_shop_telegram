@@ -43,7 +43,7 @@ async def send_to_view_candle_items(message: types.Message, candles: list):
         message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
     )
     await bot.send_message(
-        message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE
+        message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE, reply_markup= kb_admin.kb_candle_item_commands
     )
 
 

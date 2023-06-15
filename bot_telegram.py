@@ -15,6 +15,7 @@ from handlers import (
     client_giftbox,
     client_sketch_order,
     client_payload,
+    client_change_order,
     admin_cert,
     admin_candle, 
     admin_giftbox_item, 
@@ -48,6 +49,7 @@ client_giftbox.register_handlers_client_giftbox(dp)
 client_sketch_order.register_handlers_client_sketch(dp)
 client_payload.register_handlers_client_payload(dp)
 client_schedule.register_handlers_client_schedule(dp)
+client_change_order.register_handlers_client_change_order(dp)
 
 admins.register_handlers_admin(dp)
 admin_price_list.register_handlers_admin_price_list(dp)

@@ -157,7 +157,7 @@ price_lst_types = {
     "giftbox": "гифтбокс",
 }
 
-tattoo_order_change_info_list = {
+tattoo_order_columns_to_change_lst = {
     "Имя тату": "tattoo_name",
     "Изображение тату": "tattoo_photo",
     "Цвет тату": "colored",
@@ -215,6 +215,10 @@ sequin_types = [
     "ShinyBand Полупрозрачные/дуохромные Созвездие риге 350р",
 ]
 
+type_to_view_data = {
+    "table": "Таблица",
+    "line":"Строками"
+}
 
 def create_kb_with_interval(lst: list, interval: int) -> ReplyKeyboardMarkup:
     kb_full_lst = []
@@ -427,8 +431,8 @@ kb_admin_choice_watch_order_or_change_order = create_kb(
     list(admin_choice_watch_order_or_change_order.values()) + cancel_lst
 )
 
-kb_tattoo_order_change_info_list = create_kb(
-    list(tattoo_order_change_info_list.keys()) + back_lst + cancel_lst
+kb_tattoo_order_columns_to_change_lst = create_kb(
+    list(tattoo_order_columns_to_change_lst.keys()) + back_lst + cancel_lst
 )
 
 kb_set_another_price_from_line = InlineKeyboardMarkup().add(
@@ -447,6 +451,8 @@ kb_creator_lst = create_kb(creator_lst)
 kb_new_tattoo_item_state = create_kb(
     list(new_tattoo_item_state.keys()) + LIST_BACK_TO_HOME
 )
+
+kb_type_to_view_data = create_kb(list(type_to_view_data.values()) + LIST_BACK_TO_HOME)
 
 kb_candle_item_columns = create_kb(list(candle_item_columns.values()) + LIST_BACK_TO_HOME)
 

@@ -7,8 +7,8 @@ from aiogram.types import (
 from keyboards.kb_admin import create_kb
 from msg.main_msg import LIST_BACK_TO_HOME
 
-# 📷 ⏱ 🛠 ⚙️ 📎 ❤️ ☎️ 🗓 🌿 💬 🕒 🔴 🟢 🟡 ⁉️‼️ ❓ ❕ ❌ ⭕️ 🛑 ⛔️ ☘️ 🖇 🎨 ➡️ ❗️
-# 🍀 🌴 🍃 🕸 💳 🎉 🎁 📃 🎫  🏚 🔙 ❔ 📏 😓 📅 ⚡️\ 🚫 ⏪ 🔄 🔆 💰 🔧 📅 🗾 🪴
+# 📷 ⏱ 🛠 ⚙️ 📎 ❤️ ☎️ 🗓 🌿 💬 🕒 🔴 🟢 🟡 ⁉️‼️ ❓ ❕ ❌ ⭕️ 🛑 ⛔️ ☘️ 🖇 🎨 ➡️ ❗️ 📹
+# 🍀 🌴 🍃 🕸 💳 🎉 🎁 📃 🎫  🏚 🔙 ❔ 📏 😓 📅 ⚡️\ 🚫 ⏪ 🔄 🔆 💰 🔧 📅 🗾 🪴 💭
 
 back_lst = ["Назад 🔄"]
 cancel_lst = ["Отмена ❌"]
@@ -54,6 +54,14 @@ size_dict = {
 }
 
 another_size = "Другой размер"
+
+order_change = {
+    'constant_tattoo':   'Изменить заказ на постоянное тату 🕸',
+    'shifting_tattoo':   'Изменить заказ на переводное тату 🕸',
+    'sketch' :  'Изменить эскиз заказ 🎨',
+    'giftbox':  'Добавить комментарий к гифтбокс заказу 🎁',
+    
+}
 
 number_tattoo_details = {
     "1_detail": "1 основная деталь",
@@ -117,20 +125,21 @@ client_schedule_menu = {
 }
 
 choice_order_view = {
-    "client_watch_tattoo_order": "Посмотреть мои тату заказы 🕸",
+    "client_change_order":              "Изменить заказы 🛠",
+    "client_watch_tattoo_order":        "Посмотреть мои тату заказы 🕸",
     "client_add_photo_to_tattoo_order": "Добавить фотографии к тату заказу 📷",
     "client_add_photo_to_sketch_order": "Добавить фотографию к заказу эскиза 🌿",
-    "client_watch_giftbox_order": "Посмотреть мои гифтбоксы 🎁",
-    "client_watch_cert_order": "Посмотреть мои сертификаты 🎫",
-    "client_watch_sketch_order": "Посмотреть мои заказы эскизов 🎨",
-    # "client_add_new_schedule_event":    'Добавить новую дату сеанса'
+    "client_watch_giftbox_order":       "Посмотреть мои гифтбоксы 🎁",
+    "client_watch_cert_order":          "Посмотреть мои сертификаты 🎫",
+    "client_watch_sketch_order":        "Посмотреть мои заказы эскизов 🎨",
+    # "client_add_new_schedule_event":  'Добавить новую дату сеанса'
 }
 
 choice_order_pay = [
-    "Оплатить мой тату заказ 🕸",
-    "Оплатить мой гифтбокс заказ 🎁",
-    "Оплатить мой сертификат 🎫",
-    "Оплатить мой эскиз 🎨",
+    "Оплатить тату заказ 🕸",
+    "Оплатить гифтбокс заказ 🎁",
+    "Оплатить сертификат 🎫",
+    "Оплатить эскиз 🎨",
 ] + LIST_BACK_TO_HOME
 
 
@@ -177,13 +186,60 @@ def list_other_number_details() -> list:
 no_photo_in_tattoo_order = {
     "look_tattoo_galery": "Посмотреть галерею тату 📃",
     "load_tattoo_photo": "Загрузить свою фотографию эскиза 📎",
-    "load_tattoo_desc": "Хочу эскиз по моему описанию 💬",
+    "load_tattoo_desc": "Эскиз по моему описанию 💬",
     "no_idea_tattoo_photo": "У меня нет идеи для эскиза 😓",
+}
+
+tattoo_columns_to_change = {
+    "tattoo_sketch_photo":  "Добавить/удалить фотографию тату 📷",
+    "tattoo_note":          "Дополнить описание тату 📃",
+    "order_note":           "Дополнить описание заказа 💬",
+    "size":                 "Изменить размер тату 📏",
+    "name":                 "Изменить название тату 💭",
+    "color":                "Изменить цвет тату 🎨",
+    "bodyplace":            "Изменить местоположение тату 👤",
+    "bodyplace_photo":      "Добавить/удалить фотографию тела 📷",
+    "bodyplace_video_note": "Добавить/удалить видео-заметки тела 📹",
+    "bodyplace_video":      "Добавить/удалить видео тела 🎞",
+}
+
+kb_tattoo_columns = create_kb(
+    list(tattoo_columns_to_change.values()) 
+    + back_lst
+    + cancel_lst
+)
+
+sketch_columns_to_change = {
+    "tattoo_sketch_photo":  "Добавить/удалить фотографию эскиза 📷",
+    "order_note":          "Дополнить описание эскиза 📃",
+}
+
+kb_sketch_columns = create_kb(
+    list(sketch_columns_to_change.values()) 
+    + back_lst
+    + cancel_lst
+)
+
+giftbox_columns_to_change = {
+    "order_note": "Дополнить описание заказа гифтбокса",
+}
+
+kb_giftbox_columns = create_kb(
+    list(giftbox_columns_to_change.values()) 
+    + back_lst
+    + cancel_lst
+)
+
+kb_order_type_columns_names_to_change = {
+    "constant_tattoo":  kb_tattoo_columns,
+    "shifting_tattoo":  kb_tattoo_columns,
+    "sketch":           kb_sketch_columns,
+    "giftbox":          kb_giftbox_columns,
 }
 
 choice_place_tattoo = {
     "client_know_place": "Выбрать место 👤",
-    "client_has_no_idea_for_place": "Пока не знаю, где будет мое тату 😓",
+    "client_has_no_idea_for_place": "Пока не знаю, где будет тату 😓",
 }
 
 choice_get_photo_for_place_tattoo = {
@@ -197,12 +253,18 @@ want_another_ai_img = {"want_another_ai_img": "Хочу еще раз попро
 
 phone_number = {
     "client_send_contact": "Отправить свой телефон ☎️",
-    "client_dont_send_contact": "Не оставлять свой телефон, только телеграм 💬",
+    "client_dont_send_contact": "Не оставлять телефон, только телеграм ➡️",
 }
 
 client_choice_send_more_photo_to_skatch_order = {
     "more_photo": "Отправить еще фото 📎",
     "end_order": "Закончить заказ эскиза ➡️",
+}
+
+choice_view_galery_or_get_order_from_galery = {
+    "get_order": "Выбрать тату из галереи ☘️",
+    "continue": "Продолжить просмотр галереи ➡️",
+    "end":      "Закончить просмотр галереи ⭕️"
 }
 
 kb_phone_number = (
@@ -240,8 +302,15 @@ choice_main_or_temporary_tattoo = {
 }
 
 client_choice_add_another_photo_to_tattoo_order = {
-    "client_want_to_add_sketch_to_tattoo_order": "Добавить еще одно изображение ☘️",
-    "client_dont_want_to_add_sketch_to_tattoo_order": "Закончить с добавлением изображений ➡️",
+    "add": "Добавить еще одно изображение ☘️",
+    "end": "Закончить с добавлением изображений ➡️",
+}
+
+client_choice_add_new_bodyplace_type_file = {
+    "photo":        "Добавить фото части тела 📷",
+    "video":        "Добавить видео части тела 📹",
+    "video_note":   "Добавить видео-заметку части тела 📹",
+    "end":          "Закончить ➡️"
 }
 
 client_choice_add_photo_type = {
@@ -252,6 +321,11 @@ client_choice_add_photo_type = {
 kb_choice_order_type_to_payloading = create_kb(
     list(choice_order_type_to_payloading.keys()) + cancel_lst
 )
+
+kb_client_choice_add_new_bodyplace_type_file = create_kb(
+    list(client_choice_add_new_bodyplace_type_file.values()) + back_lst + cancel_lst
+)
+
 kb_client_choice_add_photo_type = create_kb(
     list(client_choice_add_photo_type.values()) + back_lst + cancel_lst
 )
@@ -294,9 +368,13 @@ kb_pay_now_later = (
     .add(back_btn)
     .add(cancel_btn)
 )
+kb_choice_view_galery_or_get_order_from_galery = create_kb(
+    list(choice_view_galery_or_get_order_from_galery.values()) + back_lst + cancel_lst
+)
+
 kb_okey = ReplyKeyboardMarkup(resize_keyboard=True)
 kb_giftbox_changes_choice = ReplyKeyboardMarkup(resize_keyboard=True)
-kb_choice_order_view = create_kb(list(choice_order_view.values()) + LIST_BACK_TO_HOME)
+kb_client_choice_order_view = create_kb(list(choice_order_view.values()) + LIST_BACK_TO_HOME)
 kb_choice_order_pay = create_kb(choice_order_pay)
 kb_choice_place_tattoo = create_kb(
     list(choice_place_tattoo.values()) + back_lst + cancel_lst
@@ -327,11 +405,11 @@ kb_client_choice_send_more_photo_to_skatch_order = create_kb(
 )
 
 tattoo_from_galery_change_options = {
-    "client_want_to_change_tattoo_name": "Хочу дать свое название тату 💬",
+    "client_want_to_change_tattoo_name": "Дать свое название тату 💬",
     # 'client_want_to_change_tattoo_size':    'Хочу изменить размер тату 📏',
-    "client_want_to_change_tattoo_color": "Хочу изменить цвета у тату 🎨",
-    "client_want_to_change_tattoo_details": "Хочу изменить детали на тату 🔧",
-    "no_change": "Ничего не хочу менять ➡️",
+    "client_want_to_change_tattoo_color": "Изменить цвета у тату 🎨",
+    "client_want_to_change_tattoo_details": "Изменить детали на тату 🔧",
+    "no_change": "Ничего не менять ➡️",
 }
 kb_tattoo_from_galery_change_options = create_kb(
     list(tattoo_from_galery_change_options.values()) + back_lst + cancel_lst

@@ -429,7 +429,7 @@ async def get_clients_giftbox_order(message: types.Message):
         await bot.send_message(
             message.from_id,
             f"⭕️ У вас пока нет гифтбокс заказов.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
 
     else:
@@ -463,7 +463,7 @@ async def get_clients_giftbox_order(message: types.Message):
         await bot.send_message(
             message.from_user.id,
             MSG_DO_CLIENT_WANT_TO_DO_MORE,
-            reply_markup=kb_client.kb_choice_order_view,
+            reply_markup=kb_client.kb_client_choice_order_view,
         )
 
 

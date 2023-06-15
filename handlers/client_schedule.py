@@ -10,9 +10,6 @@ from msg.msg_client_schedule import *
 from keyboards import kb_client, kb_admin
 from handlers.other import *
 
-from validate import check_pdf_document_payment, check_photo_payment
-from handlers.calendar_client import obj
-
 from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
@@ -50,29 +47,27 @@ async def command_client_schedule_event(message: types.Message):  # state: FSMCo
 # Добавить новый сеанс
 async def command_client_create_new_schedule_event(message: types.Message):
     with Session(engine) as session:
-        order = session.scalars(
+        in_work_orders = session.scalars(
             select(Orders)
-            .join(ScheduleCalendarItems.schedule_mapped_id)
             .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"]]))
             .where(Orders.user_id == message.from_id)
             .where(Orders.order_state.in_([STATES["in_work"]]))
         ).all()
         
-        opened_orders = session.scalars(
+        open_orders = session.scalars(
             select(Orders)
-            .join(ScheduleCalendarItems.schedule_mapped_id)
             .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"]]))
             .where(Orders.user_id == message.from_id)
-            .where(Orders.order_state.not_in([STATES["in_work"]]))
+            .where(Orders.order_state.in_([STATES["open"]]))
         ).all()
         
-    if opened_orders != [] and order == []:
+    if open_orders != [] and in_work_orders == []:
         await bot.send_message(
             message.from_id,
             (
-                f"Уважаемый Клиент! У Вас еще нет заказов, в статусе \"{STATES['in_work']}\"\n"
-                "Добавить новый сеанс можно только к заказам в этом статусе.\n"
-                "По всем вопросам обращайтесь к https://t.me/dara_redwan"
+                f"⛔️ Уважаемый Клиент! У Вас еще нет заказов, в статусе \"{STATES['in_work']}\"\n\n"
+                "❕ Добавить новый сеанс можно только к заказам в этом статусе.\n\n"
+                "❕ По всем вопросам обращайтесь к https://t.me/dara_redwan"
             )
         )
         
@@ -81,22 +76,23 @@ async def command_client_create_new_schedule_event(message: types.Message):
             MSG_DO_CLIENT_WANT_TO_DO_MORE,
             reply_markup= kb_client.kb_client_schedule_menu
         )
+    # если заказ есть, но изначальный сеанс не выставлен
     else:
         schedule_event = session.scalars(
             select(ScheduleCalendar)
             # .where(ScheduleCalendar.status == 'Закрыт')
-            .where(ScheduleCalendar.id == order[0].schedule_id)
+            .where(ScheduleCalendar.id == in_work_orders[0].schedule_id)
         ).all()
         
         closed_schedule_event = session.scalars(
             select(ScheduleCalendar)
             .where(ScheduleCalendar.status == "Закрыт")
-            .where(ScheduleCalendar.id == order[0].schedule_id)
+            .where(ScheduleCalendar.id == in_work_orders[0].schedule_id)
         ).all()
         if schedule_event != [] and len(closed_schedule_event) == len(schedule_event):
             # Если заказ оплачен и имеет статус "в работе", а сеанс уже прошел
             kb = ReplyKeyboardMarkup(resize_keyboard=True)
-            kb.add(KeyboardButton(f"№{order[0].order_number} {order[0].order_state}"))
+            kb.add(KeyboardButton(f"№{in_work_orders[0].order_number} {in_work_orders[0].order_state}"))
             kb.add(kb_client.back_btn).add(kb_client.cancel_btn)
             await FSM_Client_client_create_new_schedule_event.get_order_number.set()
 
@@ -569,7 +565,7 @@ def register_handlers_client_schedule(dp: Dispatcher):
     dp.register_message_handler(
         command_client_schedule_event, commands= "my_sessions", state=None
     )
-
+    # Новый сеанс 🕒
     dp.register_message_handler(
         command_client_create_new_schedule_event,
         Text(equals=kb_client.client_schedule_menu["add_new_event"], ignore_case=True),

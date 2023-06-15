@@ -424,7 +424,7 @@ async def get_clients_orders(message: types.Message):
     await bot.send_message(
         message.from_id,
         f"{MSG_WHITCH_ORDER_WANT_TO_SEE_CLIENT}",
-        reply_markup=kb_client.kb_choice_order_view,
+        reply_markup=kb_client.kb_client_choice_order_view,
     )
 
 
