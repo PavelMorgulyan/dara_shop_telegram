@@ -249,7 +249,7 @@ class TattooPlaceVideoNote(Base):
     __tablename__ = "tattoo_place_video_note"
     
     id: Mapped[int] = mapped_column(primary_key=True)
-    order_id: Mapped[Optional[int]] = mapped_column(ForeignKey("orders.id"))
+    order_id: Mapped[Optional[int]] = mapped_column(ForeignKey("orders.id")) 
     order_number: Mapped[
         Optional[int]
     ]  # Mapped["TattooOrders"] = relationship(back_populates="tattoo_order_number")
