@@ -7,7 +7,7 @@ from aiogram.dispatcher.filters import Text
 
 from msg.main_msg import *
 from keyboards import kb_client, kb_admin
-from handlers.other import generate_random_order_number, STATES, clients_status
+from handlers.other import STATES, clients_status, get_key
 from handlers.client import (
     CODE_LENTH,
     fill_client_table,
@@ -81,12 +81,6 @@ async def get_command_client_change_order_menu(message: types.Message):
             "❔ Какой заказ хотите дополнить или изменить?",
             reply_markup= kb_orders
         )
-
-
-async def get_key(d, value):
-    for k, v in d.items():
-        if v == value:
-            return k
 
 
 async def get_order_type(message: types.Message, state: FSMContext):
