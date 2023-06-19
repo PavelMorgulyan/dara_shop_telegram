@@ -51,6 +51,11 @@ STATES = {
     },
 }
 
+async def get_key(d, value):
+    for k, v in d.items():
+        if v == value:
+            return k
+
 status_distribution = {
     "эскиз": {
         STATES["open"]:         [STATES["processed"]],

@@ -184,7 +184,7 @@ async def command_create_new_date_to_schedule(message: types.Message):
 
 
 async def choice_event_type_in_schedule(message: types.Message, state: FSMContext):
-    if message.text in kb_admin.type_of_schedule_lst:
+    if message.text in list(kb_admin.schedule_event_type .values()):
         async with state.proxy() as data:
             data["event_type"] = message.text.lower()
             data["year_number"] = datetime.now().strftime("%Y")
@@ -341,7 +341,7 @@ async def get_day_by_date_for_schedule(
             await bot.send_message(
                 username_id,
                 "Отлично, давай определимся со временем. "
-                "С какого времени начинается твой рабочее расписание в этот день?",
+                "С какого времени начинается сеанс?",
                 reply_markup=await FullTimePicker().start_picker(),
             )
 
@@ -376,7 +376,7 @@ async def process_hour_timepicker_start_time(
                 await FSM_Admin_create_new_date_to_schedule.next()
                 await bot.send_message(
                     username_id,
-                    "Когда заканчивается твой рабочее расписание в этот день?",
+                    "Когда заканчивается сеанс?",
                     reply_markup=await FullTimePicker().start_picker(),
                 )
 
@@ -1008,7 +1008,7 @@ async def get_new_state_event_in_schedule(message: types.Message, state: FSMCont
                 reply_markup=kb_admin.kb_type_of_schedule,
             )
 
-        elif message.text in kb_admin.type_of_schedule_lst:
+        elif message.text in list(kb_admin.schedule_event_type .values()):
             async with state.proxy() as data:
                 schedule_id = data["schedule_id"]
 
@@ -1104,7 +1104,7 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
             tattoo_order = session.scalars(
                 select(Orders)
                 .join(ScheduleCalendarItems)
-                .where(Orders.order_type == "тату заказ")
+                # .where(Orders.order_type == "тату заказ")
                 .where(Orders.order_number == ScheduleCalendarItems.order_number)
             ).one()
             # .where(Orders.schedule_id == schedule_id)).one()
@@ -1358,7 +1358,7 @@ async def get_answer_choice_new_date_or_no_date_in_tattoo_order(
             tattoo_order.order_state = STATES["closed"]["postponed"]  # Отложен
             session.commit()
         await message.reply(
-            f"Хорошо, тату заказ № {tattoo_order_number} теперь без даты и времени встречи"
+            f"Тату заказ № {tattoo_order_number} теперь без даты и времени встречи"
         )
 
         async with state.proxy() as data:
@@ -1461,7 +1461,7 @@ async def process_get_new_date_for_new_data_schedule(
             await FSM_Admin_change_schedule.next()
             await bot.send_message(
                 user_id,
-                f"Хорошо, а теперь введи новое время для тату заказа",
+                f"Введи новое время для тату заказа",
                 reply_markup=await FullTimePicker().start_picker(),
             )
 
@@ -1546,7 +1546,7 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
                 start_datetime=start_time_in_tattoo_order,
                 end_datetime=end_time_in_tattoo_order,
                 status=kb_admin.schedule_event_status['close'],
-                event_type="тату заказ",
+                event_type= kb_admin.schedule_event_ty,
             )
             session.add(new_schedule_event)
             session.commit()

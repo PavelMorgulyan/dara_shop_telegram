@@ -84,6 +84,7 @@ async def process_callback_set_price_from_line(callback_query: types.CallbackQue
         MSG_ADMIN_SET_ANOTHER_PRICE_FROM_LINE, reply_markup= kb_client.kb_cancel
     )
 
+
 async def get_seq_price(message: types.Message, state: FSMContext):
     if message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
         await state.finish()

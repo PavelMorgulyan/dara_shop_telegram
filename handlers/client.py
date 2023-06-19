@@ -74,7 +74,11 @@ async def open_date_command(message: types.Message):
             .where(ScheduleCalendar.start_datetime > datetime.now())
             .order_by(ScheduleCalendar.start_datetime)
             .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
-            .where(ScheduleCalendar.event_type.in_(["тату заказ", "свободное"]))
+            .where(ScheduleCalendar.event_type.in_([
+                    kb_admin.schedule_event_type['tattoo'],
+                    kb_admin.schedule_event_type['free']
+                ])
+            )
         ).all()
         
         schedule_photo = session.scalars(select(SchedulePhoto)
@@ -157,7 +161,11 @@ async def get_order_number(message: types.Message, state: FSMContext):
             select(ScheduleCalendar)
             .order_by(ScheduleCalendar.start_datetime)
             .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
-            .where(ScheduleCalendar.event_type.in_(["коррекция", "свободное"]))
+            .where(ScheduleCalendar.event_type.in_([
+                kb_admin.schedule_event_type['correction'],
+                kb_admin.schedule_event_type['free']
+                ])
+            )
             .where(ScheduleCalendar.start_datetime > datetime.now()))
         .all()
     )

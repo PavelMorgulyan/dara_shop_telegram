@@ -88,15 +88,22 @@ async def command_load_сert_item(message: types.Message):
     ):
         await FSM_Admin_сert_item.сert_price.set()
         await message.reply(
-            "❔ На какую цену хотите сертификат?", reply_markup=kb_admin.kb_price
+            "❔ На какую цену сертификат? Выбери цену из списка", reply_markup=kb_admin.kb_price
+        )
+        await bot.send_message(
+            message.from_id, 
+            MSG_ADMIN_CAN_SET_ANOTHER_PRICE,
+            reply_markup= kb_admin.kb_set_another_price_from_line
         )
 
 
+# Возможность добавления цены через ввод, а не кб
 async def process_callback_set_price_from_line(callback_query: types.CallbackQuery, state: FSMContext):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, 
         MSG_ADMIN_SET_ANOTHER_PRICE_FROM_LINE, reply_markup= kb_client.kb_cancel
     )
+
 
 async def load_сert_price(message: types.Message, state: FSMContext):
     if message.text in kb_admin.price_lst or message.text.isdigit():
@@ -128,13 +135,15 @@ async def load_сert_price(message: types.Message, state: FSMContext):
 
 
 async def load_сert_other_price(message: types.Message, state: FSMContext):
-    if message.text in kb_admin.price_lst:
+    if message.text.isdigit():
         async with state.proxy() as data:
             data["price"] = int(message.text)
         await FSM_Admin_сert_item.next() #->admin_process_successful_cert_payment
         await message.reply(
             f"❔ Пользователь оплатил сертфикат?", reply_markup=kb_client.kb_yes_no
         )
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def admin_process_successful_cert_payment(

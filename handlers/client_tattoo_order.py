@@ -678,7 +678,7 @@ async def change_menu_tattoo_from_galery(message: types.Message, state: FSMConte
 
         await bot.send_message(
             message.from_id,
-            f"🎨 Изначальный цвет тату: {color}\n\n" f"{MSG_WHICH_COLOR_WILL_BE_TATTOO}",
+            f"🎨 Изначальный цвет тату: {color}\n\n" f"{MSG_WHICH_COLOR_TYPE_WILL_BE_TATTOO}",
             reply_markup=kb_client.kb_colored_tattoo_choice,
         )
 
@@ -944,7 +944,11 @@ async def view_schedule_to_client(message: types.Message, state: FSMContext):
         schedule = session.scalars(
             select(ScheduleCalendar)
             .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
-            .where(ScheduleCalendar.event_type.in_(["тату заказ", "свободное"]))
+            .where(ScheduleCalendar.event_type.in_([
+                    kb_admin.schedule_event_type['tattoo'], 
+                    kb_admin.schedule_event_type['free']
+                ])
+            )
         ).all()
 
     if schedule == []:
@@ -1306,7 +1310,7 @@ async def get_photo_place_for_tattoo(message: types.Message, state: FSMContext):
 
         await bot.send_message(
             message.from_id,
-            MSG_VIDEONOTE_WAS_ADDED_TO_ORDER,
+            MSG_VIDEO_NOTE_WAS_ADDED_TO_ORDER,
         )
         await bot.send_message(
             message.from_id,

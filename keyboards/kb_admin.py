@@ -165,8 +165,8 @@ tattoo_order_columns_to_change_lst = {
     "Описание заказа": "order_note",
     "Имя пользователя": "username",
     "Телеграм пользователя": "telegram",
-    "Дату встречи": "date_mitting",
-    "Время встречи": "time_mitting",
+    "Дату и время сеанса": "date_mitting",
+    # "Время встречи": "time_mitting",
     "Фотография части тела": "tattoo_place_file",
     "Место части тела для тату": "bodyplace",
     "Цена": "price",
@@ -293,15 +293,15 @@ new_date_choice = {
 
 schedule_event_status = {
     "free" : "Свободен", 
-    "close":"Занят"
+    "close": "Занят"
 }
 
-type_of_schedule_lst = [
-    "Тату заказ", 
-    "Коррекция", 
-    "Консультация", 
-    "Свободное"
-]
+schedule_event_type  = {
+    "tattoo":       "Тату заказ", 
+    "correction":   "Коррекция", 
+    "consultation": "Консультация", 
+    "free":         "Свободное"
+}
 
 choice_new_date_or_no_date_in_tattoo_order = {
     "new_date": "Хочу поставить новую дату для этого тату заказа",
@@ -343,8 +343,8 @@ another_price_full_lst = [str(i) for i in range(1000, 50000, 1000)]
 sizes_lst = [i for i in range(1, 100)]
 
 admin_choice_watch_order_or_change_order = {
-    "admin_want_to_watch_order": "Хочу еще посмотреть заказы",
-    "admin_want_to_change_order": "Хочу изменить информацию в заказе",
+    "watch": "Хочу еще посмотреть заказы",
+    "change": "Хочу изменить информацию в заказе",
 }
 
 admin_add_name_or_telegram_for_new_order = {
@@ -475,7 +475,7 @@ kb_choice_new_date_or_new_day_name = create_kb(
 kb_free_or_close_event_in_schedule = create_kb(
     list(schedule_event_status.values()) + LIST_BACK_TO_HOME
 )
-kb_type_of_schedule = create_kb(type_of_schedule_lst + LIST_BACK_TO_HOME)
+kb_type_of_schedule = create_kb(list(schedule_event_type .values()) + LIST_BACK_TO_HOME)
 # kb_price = create_kb(price)
 kb_choice_new_date_or_no_date_in_tattoo_order = create_kb(
     list(choice_new_date_or_no_date_in_tattoo_order.values()) + LIST_BACK_TO_HOME
