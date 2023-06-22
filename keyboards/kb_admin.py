@@ -351,15 +351,21 @@ schedule_event_type  = {
 }
 
 choice_new_date_or_no_date_in_tattoo_order = {
-    "new_date": "Хочу поставить новую дату для этого тату заказа",
-    "no_date": "Хочу оставить дату для этого тату заказа неопределенной",
-    "info": "Информация об изменении статусов календаря",
+    "new_date": "Поставить новую дату для этого тату заказа",
+    "no_date": "Оставить дату для этого тату заказа неопределенной",
+    "change": "Просто изменить статус календаря",
+    "info": "Информация об изменении статусов календаря"
 }
 
-admin_chioce_get_new_order_to_schedule_event = {
+admin_choice_get_new_order_to_schedule_event = {
     "new_order": "Добавить самому новый заказ в этот календарный день",
     "choice_created_order": "Выбрать из тех заказов, у которых нет даты сеанса",
     "no_order": "Оставить данный календарный день занятым без заказов",
+}
+
+admin_choice_close_or_not_opened_schedule_event = {
+    "close":"Закрыть данный сеанс",
+    "dont_close":"Не закрывать сеанс"
 }
 
 schedule_for_tattoo_order_choice = [
@@ -466,7 +472,11 @@ kb_client_want_to_try_another_later_img = create_kb(
     list(client_want_to_try_another_later_img.values()) + back_lst + cancel_lst
 )
 
-kb_add_or_delete_order_photo = create_kb(list(add_or_delete_order_photo.values())  + cancel_lst)
+kb_admin_choice_close_or_not_opened_schedule_event = create_kb(
+    list(admin_choice_close_or_not_opened_schedule_event.values()) + LIST_BACK_TO_HOME
+)
+
+kb_add_or_delete_order_photo = create_kb(list(add_or_delete_order_photo.values()) + cancel_lst)
 
 kb_sketch_column_names_to_change = create_kb(list(sketch_column_names_to_change.values()) + cancel_lst)
 
@@ -535,8 +545,8 @@ kb_choice_new_date_or_no_date_in_tattoo_order = create_kb(
     list(choice_new_date_or_no_date_in_tattoo_order.values()) + LIST_BACK_TO_HOME
 )
 
-kb_admin_chioce_get_new_order_to_schedule_event = create_kb(
-    list(admin_chioce_get_new_order_to_schedule_event.values()) + LIST_BACK_TO_HOME
+kb_admin_choice_get_new_order_to_schedule_event = create_kb(
+    list(admin_choice_get_new_order_to_schedule_event.values()) + LIST_BACK_TO_HOME
 )
 
 kb_seq_columns = create_kb(list(seq_columns.keys()) + LIST_BACK_TO_HOME)
