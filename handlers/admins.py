@@ -5,16 +5,10 @@ from create_bot import dp, bot
 from keyboards import kb_client, kb_admin
 from aiogram.dispatcher.filters import Text
 
-from db.db_setter import set_to_table
-from db.db_updater import update_info, update_info_in_json
 from db.db_filling import dump_to_json, dump_to_json_from_db
 from db.db_delete_info import delete_info, delete_table
 from db.db_getter import (
-    get_info,
     get_tables_name,
-    get_info_many_from_table,
-    DB_NAME,
-    sqlite3,
 )
 
 import os
@@ -65,14 +59,13 @@ async def command_start_admin_as_user(message: types.Message):
         )
         # await message.delete()
 
-
+#--------------------------CREATE JSON FILE FROM DB-------------------------------
 # /создать_json_файл
 class FSM_Admin_create_json_file(StatesGroup):
     table_name = State()
 
 
 async def command_create_json_file(message: types.Message):
-    print(message.text)
     if (
         message.text in ["Создать json файл", "/создать_json_файл"]
         and str(message.from_user.username) in ADMIN_NAMES
@@ -336,7 +329,11 @@ async def command_see_list(message: types.Message):
             + kb_admin.cert_item_commands
             + kb_admin.tattoo_order_commands
             + kb_admin.tattoo_items_commands
-        ):
+        ) + [
+            'Создать json файл',
+            'Удалить таблицу', 
+            "Получить данные из json"
+            ]:
             i += 1
             if command not in LIST_BACK_COMMANDS:
                 command_str_message += f"{i}) {command}\n"
@@ -357,6 +354,18 @@ async def close_command(message: types.Message, state: FSMContext):
         ' но знай - я всегда к твоим услугам!')
 """
 
+#-----------------------------------------ORDER COMMANDS --------------------------------------
+
+async def get_order_command_list(message: types.Message):
+    if (
+        message.text.lower() == "заказы"
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        await message.reply(
+            "❔ Какую команду по заказам выполнить?",
+            reply_markup=kb_admin.kb_order_commands,
+        )
+
 
 # ----------------------------------------------CANCEL COMMAND-------------------------------
 # @dp.message_handler(state="*", commands='отмена')
@@ -369,7 +378,7 @@ async def cancel_handler(message: types.Message, state: FSMContext):
         if current_state is None:
             return
         await state.finish()
-        await message.reply("OK", reply_markup=kb_admin.kb_main)
+        await message.reply(MSG_CANCEL_ACTION, reply_markup=kb_admin.kb_main)
 
 
 # -----------------------------------------------BACK COMMAND-------------------------------------
@@ -384,10 +393,46 @@ async def back_to_home_command(message: types.Message, state: FSMContext):
         await state.finish()
         await message.reply(MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_main)
 
+# -----------------------------------------------HELP COMMAND-------------------------------------
+# help
+
+class FSM_Admin_help(StatesGroup):
+    info_type = State()
+
+
+async def help_command(message: types.Message):
+    if (
+        message.text in ['/help', 'help']
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        await bot.send_message(
+            message.from_id, 
+            "Какая информация тебя интересует?",
+            reply_markup= kb_admin.kb_help_command
+        )
+
+
+async def get_help_type(message: types.Message, state: FSMContext):
+    if message.text in list(kb_admin.help.values()):
+        key = await get_key(kb_admin.help, message.text)
+        await bot.send_message(
+            message.from_id, kb_admin.help_info_msgs[key]
+        )
+        await bot.send_message(
+            message.from_id, 
+            f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}", 
+            reply_markup=kb_admin.kb_main
+        )
+    
 
 def register_handlers_admin(dp: Dispatcher):
     # ----------------------------------------COMMANDS------------------------------------------------
-
+    dp.register_message_handler(
+        get_order_command_list,
+        Text(equals=["Заказы"], ignore_case=True),
+        state=None,
+    )
+    
     dp.register_message_handler(command_start_admin_as_user, commands=["start_user"])
     dp.register_message_handler(
         command_start_admin_as_user,

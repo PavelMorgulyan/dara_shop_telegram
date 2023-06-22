@@ -75,8 +75,8 @@ async def open_date_command(message: types.Message):
             .order_by(ScheduleCalendar.start_datetime)
             .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
             .where(ScheduleCalendar.event_type.in_([
-                    kb_admin.schedule_event_type['tattoo'],
-                    kb_admin.schedule_event_type['free']
+                    kb_admin.schedule_event_type['tattoo'].lower(),
+                    kb_admin.schedule_event_type['free'].lower()
                 ])
             )
         ).all()
@@ -232,7 +232,7 @@ async def choice_correction_event_date(message: types.Message, state: FSMContext
                     )
                 )
             ).one()
-            schedule.status = kb_admin.schedule_event_status['close']
+            schedule.status = kb_admin.schedule_event_status['busy']
             start_time = schedule.start_datetime.strftime("%Y-%m-%dT%H:%M:%S")
             end_time = schedule.end_datetime.strftime("%Y-%m-%dT%H:%M:%S")
             session.commit()
@@ -362,7 +362,7 @@ async def choice_consultation_event_date(message: types.Message, state: FSMConte
                     )
                 )
             ).one()
-            schedule.status = kb_admin.schedule_event_status['close']
+            schedule.status = kb_admin.schedule_event_status['busy']
             start_time = schedule.start_datetime.strftime("%Y-%m-%dT%H:%M:%S")
             end_time = schedule.end_datetime.strftime("%Y-%m-%dT%H:%M:%S")
             session.commit()

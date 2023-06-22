@@ -945,8 +945,8 @@ async def view_schedule_to_client(message: types.Message, state: FSMContext):
             select(ScheduleCalendar)
             .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
             .where(ScheduleCalendar.event_type.in_([
-                    kb_admin.schedule_event_type['tattoo'], 
-                    kb_admin.schedule_event_type['free']
+                    kb_admin.schedule_event_type['tattoo'].lower(), 
+                    kb_admin.schedule_event_type['free'].lower()
                 ])
             )
         ).all()
@@ -1652,7 +1652,7 @@ async def process_hour_timepicker(
                 new_schedule_event = ScheduleCalendar(
                     start_datetime=start_datetime,
                     end_datetime=end_datetime,
-                    status=kb_admin.schedule_event_status['close'],
+                    status=kb_admin.schedule_event_status['busy'],
                     event_type=data["order_type"],
                 )
                 session.add(new_schedule_event)
@@ -1862,7 +1862,7 @@ async def fill_tattoo_order_table(message: types.Message, state: FSMContext):
                         ScheduleCalendar.id == data["schedule_id"]
                     )
                 ).one()
-                schedule_event.status = kb_admin.schedule_event_status['close']
+                schedule_event.status = kb_admin.schedule_event_status['busy']
                 
                 schedule_item = [
                     ScheduleCalendarItems(
@@ -2086,7 +2086,8 @@ async def send_to_client_view_tattoo_order(
                         status = session.get(
                             ScheduleCalendar, schedule.schedule_id
                         ).status
-                        status = "Скоро встреча" if status == kb_admin.schedule_event_status['close'] else "Прошел"
+                        status = "Скоро встреча" if status == kb_admin.schedule_event_status['busy']\
+                            else "Прошел"
                         start_time = session.get(
                             ScheduleCalendar, schedule.schedule_id
                         ).start_datetime.strftime("%d/%m/%Y с %H:%M")
