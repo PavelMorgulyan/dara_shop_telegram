@@ -78,16 +78,20 @@ async def command_client_create_new_schedule_event(message: types.Message):
         )
     # если заказ есть, но изначальный сеанс не выставлен
     else:
+        
+        schedule_event_lst = session.scalars(select(ScheduleCalendarItems.schedule_id)
+            .where(ScheduleCalendarItems.order_number ==  in_work_orders[0].order_number)).all()
+        print(f"schedule_event_lst: {schedule_event_lst}")
         schedule_event = session.scalars(
             select(ScheduleCalendar)
             # .where(ScheduleCalendar.status == 'Закрыт')
-            .where(ScheduleCalendar.id == in_work_orders[0].schedule_id)
+            .where(ScheduleCalendar.id.in_(schedule_event_lst))
         ).all()
         
         closed_schedule_event = session.scalars(
             select(ScheduleCalendar)
             .where(ScheduleCalendar.status == "Закрыт")
-            .where(ScheduleCalendar.id == in_work_orders[0].schedule_id)
+            .where(ScheduleCalendar.id.in_(schedule_event_lst))
         ).all()
         if schedule_event != [] and len(closed_schedule_event) == len(schedule_event):
             # Если заказ оплачен и имеет статус "в работе", а сеанс уже прошел
@@ -189,7 +193,7 @@ async def get_schedule_number_to_create_new_event_in_order(
                 .where(ScheduleCalendar.start_datetime == start_time)
                 .where(ScheduleCalendar.end_datetime == end_time)
             ).one()
-            open_schedule_events.status = kb_admin.schedule_event_status['close']
+            open_schedule_events.status = kb_admin.schedule_event_status['busy']
             session.commit()
         await bot.send_message(
             message.from_id,
@@ -230,16 +234,17 @@ async def get_schedule_number_to_create_new_event_in_order(
 # -------------------------------------------CHANGE_SCHEDULE_EVENT_CLIENT-------------------------------
 class FSM_Client_client_change_schedule_event(StatesGroup):
     client_get_answer_yes_no = State()
-    get_order_number = State()
+    get_order_schedule_lst = State()
     get_new_free_schedule_event_to_order = State()
     # get_new_event_schedule_date = State()
 
+#! TODO функция не работает
 
+# Изменить мой сеанс 🔧
 async def command_client_change_schedule_event(message: types.Message):
     with Session(engine) as session:
         orders = session.scalars(
             select(Orders)
-            .join(ScheduleCalendarItems.schedule_mapped_id)
             .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"]]))
             .where(Orders.user_id == message.from_id)
             .where(
@@ -253,13 +258,13 @@ async def command_client_change_schedule_event(message: types.Message):
         
         opened_orders = session.scalars(
             select(Orders)
-            .join(ScheduleCalendarItems.schedule_mapped_id)
             .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"]]))
             .where(Orders.user_id == message.from_id)
             .where(Orders.order_state.in_([STATES["open"]] + list(STATES['closed'].values())))
             # .where(Orders.order_state.in_([STATES['in_work'],
             # STATES['open'], STATES['complete'], STATES['paid']]))
         ).all()
+        
     if orders == [] and opened_orders == []:
         await bot.send_message(message.from_id, MSG_CLIENT_HAVE_NO_ORDER)
         await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_CREATE_ORDER)
@@ -297,7 +302,6 @@ async def get_client_answer_to_change_schedule(
         with Session(engine) as session:
             orders = session.scalars(
                 select(Orders)
-                .join(ScheduleCalendarItems.schedule_mapped_id)
                 .where(
                     Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"]])
                 )
@@ -316,20 +320,24 @@ async def get_client_answer_to_change_schedule(
         kb = ReplyKeyboardMarkup(resize_keyboard=True)
         i = 0
         for order in orders:
-            with Session(engine) as session:
-                event = session.scalars(
-                    select(ScheduleCalendar).where(
-                        ScheduleCalendar.id == order.schedule_id
-                    )
-                ).one()
+            schedule_lst = session.scalars(select(ScheduleCalendarItems)
+                .where(ScheduleCalendarItems.order_number == order.order_number)).all()
+            
+            for schedule in schedule_lst:
+                with Session(engine) as session:
+                    event = session.scalars(
+                        select(ScheduleCalendar).where(
+                            ScheduleCalendar.id == schedule.order_id
+                        )
+                    ).one()
 
-            event_time = (
-                f"Cеанс {event.start_datetime.strftime('%H:%M')} - "
-                f"{event.end_datetime.strftime('%H:%M %d/%m/%Y')} 🕒"
-            )
+                event_time = (
+                    f"Cеанс {event.start_datetime.strftime('%H:%M')} - "
+                    f"{event.end_datetime.strftime('%H:%M %d/%m/%Y')} 🕒"
+                )
 
-            event_time_lst.append(event_time)
-            kb.add(KeyboardButton(f"{event_time}"))
+                event_time_lst.append(event_time)
+                kb.add(KeyboardButton(f"{event_time}"))
 
             msg += f"🕸 Заказ №{order.order_number}\n🕒 {event_time[:-2]}\n\n"
             orders_view_lst.append(msg)
@@ -339,7 +347,7 @@ async def get_client_answer_to_change_schedule(
                 "order_number": order.order_number,
             }
             i += 1
-
+        print(f"order_number_with_date_dict:{order_number_with_date_dict}")
         async with state.proxy() as data:
             data["orders_view_msg_str"] = msg
             data["event_time_lst"] = event_time_lst
@@ -353,19 +361,11 @@ async def get_client_answer_to_change_schedule(
             message.from_id, "❔ Какой сеанс хотите перенести?", reply_markup=kb
         )
 
-    elif message.text in LIST_BACK_TO_HOME + [kb_client.no_str] + LIST_CANCEL_COMMANDS:
+    elif message.text in LIST_BACK_TO_HOME + [kb_client.no_str] + LIST_CANCEL_COMMANDS + LIST_BACK_COMMANDS:
         await state.finish()
         await bot.send_message(
             message.from_id,
             f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
-            reply_markup=kb_client.kb_client_main,
-        )
-
-    elif message.text in LIST_BACK_COMMANDS:
-        await state.finish()
-        await bot.send_message(
-            message.from_id,
-            MSG_WHAT_CLIENT_WANT_TO_SEE_IN_SCHEDULE,
             reply_markup=kb_client.kb_client_schedule_menu,
         )
 
@@ -385,6 +385,10 @@ async def get_event_schedule_date(message: types.Message, state: FSMContext):
                 select(ScheduleCalendar)
                 .where(ScheduleCalendar.start_datetime > datetime.now())
                 .where(ScheduleCalendar.end_datetime > datetime.now())
+                .where(ScheduleCalendar.event_type.in_([
+                    kb_admin.schedule_event_type['tattoo'].lower(),
+                    kb_admin.schedule_event_type['free'].lower(),
+                ]))
                 .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
                 .order_by(ScheduleCalendar.start_datetime)
             ).all()
@@ -401,9 +405,9 @@ async def get_event_schedule_date(message: types.Message, state: FSMContext):
             )
             free_event_time_lst.append(free_event_time)
             free_event_id_dict[i] = event.id
-            kb.add(free_event_time)
+            kb.add(free_event_time) # записываем в kb список открытых сеансов
 
-        await FSM_Client_client_change_schedule_event.next()  # -> get_event_schedule_date
+        await FSM_Client_client_change_schedule_event.next() # -> get_event_schedule_date
         async with state.proxy() as data:
             data["free_event_time_lst"] = free_event_time_lst
             data["free_event_id_dict"] = free_event_id_dict
@@ -425,6 +429,14 @@ async def get_event_schedule_date(message: types.Message, state: FSMContext):
     elif message.text in LIST_BACK_COMMANDS:
         # TODO доделать возврат
         await FSM_Client_client_change_schedule_event.previous()
+        await bot.send_message(
+            message.from_id, MSG_QUESTION_CLIENT_ABOUT_CHANGING_SCHEDULE_EVENT
+        )
+        await bot.send_message(
+            message.from_id,
+            MSG_DO_CLIENT_WANT_TO_CONTINUE_CHANGING_SCHEDULE_EVENT,
+            reply_markup=kb_client.kb_yes_no,
+        )
 
     else:
         await bot.send_message(
@@ -442,6 +454,7 @@ async def get_new_event_schedule_date(message: types.Message, state: FSMContext)
 
     if message.text in free_event_time_lst:
         with Session(engine) as session:
+            # TODO изменить order_number_with_date_dict[event_time_lst.index(message.text)]["order_number"]
             order = session.scalars(
                 select(Orders).where(
                     Orders.order_number
@@ -539,19 +552,29 @@ async def command_get_view_schedule_event_to_client(message: types.Message):
         await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_CREATE_ORDER)
     else:
         for order in orders:
+            msg = f"🕸 Заказ №{order.order_number}\n"
             with Session(engine) as session:
-                schedule_event = session.scalars(
+                schedule_item_lst = session.scalars(select(ScheduleCalendarItems)
+                    .where(ScheduleCalendarItems.order_number == order.order_number)).all()
+                
+            for schedule in schedule_item_lst:
+                schedule_calendar_event = session.scalars(
                     select(ScheduleCalendar).where(
-                        ScheduleCalendar.id == order.schedule_id
+                        ScheduleCalendar.id == schedule.order_id
                     )
                 ).one()
-                msg = (
-                    f"🕸 Закак №{order.order_number}\n"
-                    f"🕒 Дата и время сеанса: {schedule_event.start_datetime.strftime('%H:%M')} "
-                    f"по {schedule_event.end_datetime.strftime('%H:%M %d/%m/%Y')}"
-                    f"📃 Статус сеанса: {schedule_event.status}"
+                
+                if schedule_calendar_event.status == kb_admin.schedule_event_status['busy']:
+                    status = "Скоро встреча" 
+                else:
+                    status = "Прошел"
+                    
+                msg += (
+                    f"🕒 Дата и время сеанса: {schedule_calendar_event.start_datetime.strftime('%H:%M')} "
+                    f"- {schedule_calendar_event.end_datetime.strftime('%H:%M %d/%m/%Y')}\n"
+                    f"📃 Статус сеанса: {status}\n\n"
                 )
-                await bot.send_message(message.from_id, msg)
+            await bot.send_message(message.from_id, msg)
 
         await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE)
 
@@ -579,7 +602,7 @@ def register_handlers_client_schedule(dp: Dispatcher):
         get_schedule_number_to_create_new_event_in_order,
         state=FSM_Client_client_create_new_schedule_event.get_new_schedule_event,
     )
-
+    #-----------------------CLIENT CHANGE SCHEDULE EVENT--------------------------
     dp.register_message_handler(
         command_client_change_schedule_event,
         Text(equals=kb_client.client_schedule_menu["change_event"], ignore_case=True),
@@ -591,7 +614,7 @@ def register_handlers_client_schedule(dp: Dispatcher):
     )
     dp.register_message_handler(
         get_event_schedule_date,
-        state=FSM_Client_client_change_schedule_event.get_order_number,
+        state=FSM_Client_client_change_schedule_event.get_order_schedule_lst,
     )
     dp.register_message_handler(
         get_new_event_schedule_date,

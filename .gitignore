@@ -9,7 +9,6 @@
 /handlers/__pycache__/
 /db/__pycache__/
 /msg/__pycache__/
-/keyboads/__pycache__/
 /handlers/__pycache__/
 /db/__pycache__/
 /stable-diffusion
@@ -20,3 +19,5 @@ db_dara_store_telegram.db
 /handlers/client_new_giftbox.py
 /db/json
 to_do_list_file.txt
+/lib/
+/keyboards/__pycache__

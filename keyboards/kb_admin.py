@@ -8,6 +8,7 @@ from aiogram.types import (
 )
 
 # from keyboards.kb_client import *
+from msg.msg_admin_help_info import *
 from msg.main_msg import LIST_BACK_TO_HOME
 from handlers.other import statuses_order_lst
 from datetime import datetime
@@ -29,25 +30,69 @@ commands_button = [
     "Команды",
     "Начать как пользователь",
     "Расписание",
-    "Тату заказы",
-    "Эскиз заказы",
+    "Заказы",
+    "Коррекция",
     "Татуировки",
-    "Гифтбокс заказ",
     "Гифтбокс продукт",
-    "Сертификат",
-    "Свеча",
-    "Блестки",
     "Прайс-лист",
+    "Свечи",
+    "Блестки",
     "Пользователи",
-    "Хочу создать изображение",
-    "Удалить таблицу",
-    "Создать json файл",
-    "Получить данные из json",
+    "Создать изображение",
+    # "Удалить таблицу",
+    # "Создать json файл",
+    # "Получить данные из json",
     "/help",
+]
+
+order_commands = {
+    "tattoo":"Тату заказы",
+    "sketch":"Эскиз заказы",
+    "giftbox":"Гифтбокс заказы",
+    "certificate":"Сертификат"
+}
+
+help = {
+    "commands":"Информация по \"Команды\"",
+    "like_client":"Информация по \"Начать как пользователь\"",
+    "schedule":"Информация по \"Расписание\"",
+    "tattoo_orders":"Информация по \"Тату заказы\"",
+    "sketch_orders":"Информация по \"Эскиз заказы\"",
+    "tattoo_items":"Информация по \"Татуировки\"",
+    "giftbox_orders":"Информация по \"Гифтбокс заказ\"",
+    "giftbox_items":"Информация по \"Гифтбокс продукт\"",
+    "cert_orders":"Информация по \"Сертификат\"",
+    "candle_items":"Информация по \"Свеча\"",
+    "seq_items":"Информация по \"Блестки\"",
+    "price-list":"Информация по \"Прайс-лист\"",
+    "clients_commands":"Информация по \"Пользователи\"",
+    "create_imgs":"Информация по \"Создать изображение\"",
+}
+
+help_info_msgs = {
+    "commands": MSG_ADMIN_HELP_INFO_COMMANDS,
+    "like_client":MSG_ADMIN_HELP_INFO_CLIENTS_COMMANDS,
+    "schedule": MSG_ADMIN_HELP_INFO_SCHEDULE_COMMANDS,
+    "tattoo_orders":"Информация по \"Тату заказы\"",
+    "sketch_orders":"Информация по \"Эскиз заказы\"",
+    "tattoo_items":"Информация по \"Татуировки\"",
+    "giftbox_orders":"Информация по \"Гифтбокс заказ\"",
+    "giftbox_items":"Информация по \"Гифтбокс продукт\"",
+    "cert_orders":"Информация по \"Сертификат\"",
+    "candle_items":"Информация по \"Свеча\"",
+    "seq_items":"Информация по \"Блестки\"",
+    "price-list":"Информация по \"Прайс-лист\"",
+    "clients_commands":"Информация по \"Пользователи\"",
+    "create_imgs":"Информация по \"Создать изображение\"",
+}
+
+correction_commands = [
+    "создать запись на коррекцию"
 ]
 
 tattoo_order_commands = [
     "добавить тату заказ",
+    "добавить новый сеанс в тату заказ",
     "посмотреть тату заказы",
     "посмотреть тату заказ",
     "удалить тату заказ",
@@ -160,6 +205,7 @@ price_lst_types = {
 tattoo_order_columns_to_change_lst = {
     "Имя тату": "tattoo_name",
     "Изображение тату": "tattoo_photo",
+    "Статус":"state",
     "Цвет тату": "colored",
     "Описание тату": "tattoo_note",
     "Описание заказа": "order_note",
@@ -293,7 +339,8 @@ new_date_choice = {
 
 schedule_event_status = {
     "free" : "Свободен", 
-    "close": "Занят"
+    "busy":  "Занят",
+    "close": "Закрыт"
 }
 
 schedule_event_type  = {
@@ -328,6 +375,10 @@ candle_item_columns = {
     "note": "Описание",
     "photo": "Фотография",
     "quantity":"Количество"
+}
+
+admin_view_orders = {
+    "watch":"Cначала посмотреть заказ"
 }
 
 phone_answer = ["Я не знаю его телефона"]
@@ -435,6 +486,8 @@ kb_tattoo_order_columns_to_change_lst = create_kb(
     list(tattoo_order_columns_to_change_lst.keys()) + back_lst + cancel_lst
 )
 
+kb_help_command = create_kb(list(help.values()) + back_lst)
+
 kb_set_another_price_from_line = InlineKeyboardMarkup().add(
     InlineKeyboardButton(get_price_from_line_str, callback_data='get_price_from_line')
 )
@@ -455,9 +508,10 @@ kb_new_tattoo_item_state = create_kb(
 kb_type_to_view_data = create_kb(list(type_to_view_data.values()) + LIST_BACK_TO_HOME)
 
 kb_candle_item_columns = create_kb(list(candle_item_columns.values()) + LIST_BACK_TO_HOME)
-
+kb_correction_commands = create_kb(correction_commands + LIST_BACK_TO_HOME)
 kb_price_list_commands = create_kb(price_list_commands + LIST_BACK_TO_HOME)
 kb_main = create_kb(commands_button)
+kb_order_commands = create_kb(list(order_commands.values()) + LIST_BACK_TO_HOME)
 kb_in_stock = create_kb(list(in_stock_button.values()) + cancel_lst)
 kb_change_status_order = create_kb(statuses_order_lst + LIST_BACK_TO_HOME)
 kb_sequin_types = create_kb(sequin_types + LIST_BACK_TO_HOME)

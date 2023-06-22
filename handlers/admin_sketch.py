@@ -48,7 +48,7 @@ async def get_tattoo_sketch_order_and_item_command_list(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await message.reply(
-            "Какую команду заказов эскиз хочешь выполнить?",
+            MSG_WHICH_COMMAND_TO_EXECUTE,
             reply_markup=kb_admin.kb_tattoo_sketch_commands,
         )
 

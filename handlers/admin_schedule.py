@@ -5,19 +5,10 @@ from create_bot import dp, bot
 from keyboards import kb_client, kb_admin
 from aiogram.dispatcher.filters import Text
 from handlers.client import (
-    generate_random_order_number,
-    generate_random_code,
-    CODE_LENTH,
-    ORDER_CODE_LENTH,
     ADMIN_NAMES,
     CALENDAR_ID,
     DARA_ID,
 )
-
-from db.db_setter import set_to_table
-from db.db_updater import update_info
-from db.db_delete_info import delete_info, delete_table
-from db.db_getter import get_info_many_from_table, DB_NAME, sqlite3
 from handlers.other import *
 from handlers.admin_tattoo_order import FSM_Admin_tattoo_order
 
@@ -70,7 +61,8 @@ async def send_notification_schedule():
 async def command_get_schedule_command_list(message: types.Message):
     if message.text == "Расписание" and str(message.from_user.username) in ADMIN_NAMES:
         await message.reply(
-            "Какие комманды хочешь сделать?", reply_markup=kb_admin.kb_schedule_commands
+            MSG_WHICH_COMMAND_TO_EXECUTE, 
+            reply_markup=kb_admin.kb_schedule_commands
         )
 
 
@@ -623,13 +615,13 @@ async def command_view_schedule(message: types.Message):
 # /посмотреть_мое_занятое_расписание
 async def command_view_busy_schedule(message: types.Message):
     if (
-        message.text == "посмотреть мое kb_admin.schedule_event_status['close']ое расписание"
+        message.text == "посмотреть мое занятое расписание"
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         with Session(engine) as session:
             schedule = session.scalars(
                 select(ScheduleCalendar)
-                .where(ScheduleCalendar.status == kb_admin.schedule_event_status['close'])
+                .where(ScheduleCalendar.status == kb_admin.schedule_event_status['busy'])
                 .order_by(ScheduleCalendar.start_datetime)
             ).all()
         await get_view_schedule(message.from_user.id, schedule)
@@ -1136,7 +1128,7 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
             )
 
             if (
-                    old_schedule_state == kb_admin.schedule_event_status['close']
+                    old_schedule_state == kb_admin.schedule_event_status['busy']
                     and new_schedule_state == kb_admin.schedule_event_status['free']
                 ):
                 await FSM_Admin_change_schedule.next()  # -> get_answer_choice_new_date_or_no_date_in_tattoo_order
@@ -1152,7 +1144,7 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
                 )
 
             elif old_schedule_state == kb_admin.schedule_event_status['free'] and \
-                new_schedule_state == kb_admin.schedule_event_status['close']:
+                new_schedule_state == kb_admin.schedule_event_status['busy']:
                 # "Добавить самому новый заказ в этот календарный день",
                 # "Выбрать из тех заказов, у которых нет даты сеанса",
                 # "Оставить данный календарный день занятым без заказов"
@@ -1260,7 +1252,10 @@ async def get_answer_choice_new_date_or_no_date_in_tattoo_order(
 ):
     with Session(engine) as session:
         schedule_events = session.scalars(
-            select(ScheduleCalendar).where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
+            select(ScheduleCalendar).where(ScheduleCalendar.status.in_(
+                    [kb_admin.schedule_event_status['free']]
+                )
+            )
         ).all()
 
     schedule_events_kb_lst = []
@@ -1545,8 +1540,8 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
             new_schedule_event = ScheduleCalendar(
                 start_datetime=start_time_in_tattoo_order,
                 end_datetime=end_time_in_tattoo_order,
-                status=kb_admin.schedule_event_status['close'],
-                event_type= kb_admin.schedule_event_ty,
+                status=kb_admin.schedule_event_status['busy'],
+                event_type= kb_admin.schedule_event_type['tattoo'].lower(),
             )
             session.add(new_schedule_event)
             session.commit()
@@ -1558,7 +1553,7 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
             f"{end_time_in_tattoo_order.strftime('%Y-%m-%d %H:%M')}."
             "А также добавилась новая дата в календарь.",
         )
-        await FSM_Admin_change_schedule.next()
+        await FSM_Admin_change_schedule.next() #-> get_anwser_to_notify_client
         await bot.send_message(
             user_id,
             MSG_DO_ADMIN_WANT_TO_NOTIFY_CLIENT,

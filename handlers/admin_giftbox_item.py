@@ -33,7 +33,7 @@ async def get_giftbox_item_command_list(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await message.reply(
-            "Какую команду гифтбокс продукта хочешь выполнить?",
+            MSG_WHICH_COMMAND_TO_EXECUTE,
             reply_markup=kb_admin.kb_giftbox_item_commands,
         )
 
@@ -87,7 +87,7 @@ async def load_giftbox_name(message: types.Message, state: FSMContext):
         data["giftbox_name"] = message.text
     await FSM_Admin_giftbox_item.next()
     await message.reply(
-        "А теперь загрузи фотографию гифтбокса", reply_markup=kb_client.kb_cancel
+        MSG_CLIENT_LOAD_PHOTO, reply_markup=kb_client.kb_cancel
     )
 
 
@@ -401,8 +401,8 @@ async def load_giftbox_sequins_state(message: types.Message, state: FSMContext):
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
-# -------------------------------------------------------GIFTBOX ITEM COMMANDS-----------------------------------------
-async def send_to_view_gifbox_item(message: types.Message, items: list) -> None:
+# ------------------------------------GIFTBOX ITEM COMMANDS--------------------------------
+async def send_to_view_gifbox_item(message: types.Message, items: ScalarResult['GiftboxItems']) -> None:
     if items == []:
         await message.reply("Пока у вас нет гифтбоксов в таблице")
         await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE)
@@ -477,7 +477,7 @@ async def send_to_view_gifbox_item(message: types.Message, items: list) -> None:
 
 
 
-# -------------------------------------------------------GIFTBOX ITEM COMMANDS посмотреть_все_гифтбоксы---------------------COMPLETE
+# ------------------------------GIFTBOX ITEM COMMANDS посмотреть_все_гифтбоксы---------------------COMPLETE
 # /посмотреть_все_гифтбоксы
 async def command_get_info_giftboxes_item(message: types.Message):
     if (
@@ -491,7 +491,7 @@ async def command_get_info_giftboxes_item(message: types.Message):
         await send_to_view_gifbox_item(message, orders)
 
 
-# -------------------------------------------------------GIFTBOX ITEM COMMANDS посмотреть_гифтбокс---------------------COMPLETE
+# ------------------------------GIFTBOX ITEM COMMANDS посмотреть_гифтбокс---------------------COMPLETE
 # /посмотреть_гифтбокс
 class FSM_Admin_get_info_giftbox_items(StatesGroup):
     giftbox_item_name = State()

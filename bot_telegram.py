@@ -20,7 +20,8 @@ from handlers import (
     admin_candle, 
     admin_giftbox_item, 
     admin_giftbox_order,
-    admin_sequins
+    admin_sequins,
+    admin_correction
 )
 
 """ admin_generate_ai_img """
@@ -59,6 +60,7 @@ admin_tattoo_order.register_handlers_admin_tattoo_order(dp)
 admin_sketch.register_handlers_admin_sketch(dp)
 admin_clients_commands.register_handlers_admin_client_commands(dp)
 
+admin_correction.register_handlers_admin_correction(dp)
 admin_sketch.register_handlers_admin_sketch(dp)
 admin_cert.register_handlers_admin_cert(dp)
 admin_candle.register_handlers_admin_candle(dp)

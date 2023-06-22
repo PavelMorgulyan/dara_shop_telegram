@@ -24,11 +24,11 @@ from msg.main_msg import *
 
 async def get_giftbox_order_command_list(message: types.Message):
     if (
-        message.text.lower() == "гифтбокс заказ"
+        message.text == kb_admin.order_commands['giftbox']
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await message.reply(
-            "Какую команду гифтбокс заказа хочешь выполнить?",
+            MSG_WHICH_COMMAND_TO_EXECUTE,
             reply_markup=kb_admin.kb_giftbox_order_commands,
         )
 
@@ -43,32 +43,40 @@ async def send_to_view_giftbox_order(
             reply_markup=kb_admin.kb_giftbox_order_commands,
         )
     else:
+        headers = [
+            "№",
+            "Дата создания",
+            "Имя пользователя",
+            "Описание",
+            "Состояние"
+        ]
+        table = PrettyTable(
+            headers, left_padding_width=1, right_padding_width=1
+        )  # Определяем таблицу
         for order in orders:
-            with Session(engine) as session:
-                user = session.scalars(
-                    select(User).where(User.telegram_id == order.user_id)
-                ).all()
-
-            if user != []:
-                with Session(engine) as session:
-                    phone = (
-                        session.scalars(
-                            select(User).where(User.telegram_id == order.user_id)
-                        )
-                        .one()
-                        .phone
-                    )
-            else:
-                phone = "Нет номера"
-
-            await bot.send_message(
-                message.from_user.id,
-                f'Гифтбокс заказ № {order.order_number} от {order.creation_date.strftime("%H:M %d/%m/%Y")}\n'
-                f"- Имя пользователя: {order.username}\n"
-                f"- телефон: {phone}\n"
-                f"- описание заказа: {order.order_note}\n"
-                f"- состояние заказа: {order.order_state}\n",
+            table.add_row(
+                [
+                    order.order_number,
+                    order.creation_date.strftime("%H:M %d/%m/%Y"),
+                    order.username,
+                    order.order_note,
+                    order.order_state
+                ]
             )
+        await bot.send_message(
+            message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
+        )
+        """ await bot.send_message(
+            message.from_user.id,
+            f'Гифтбокс заказ № {order.order_number} от {order.creation_date.strftime("%H:M %d/%m/%Y")}\n'
+            f"- Имя пользователя: {order.username}\n"
+            f"- телефон: {phone}\n"
+            f"- описание заказа: {order.order_note}\n"
+            f"- состояние заказа: {order.order_state}\n",
+        ) """
+        """ await bot.send_message(
+            message.from_user.id, f"Всего гифтбокс заказов: {len(orders)}"
+        ) """
 
 
 class FSM_Admin_send_to_view_giftbox_orders(StatesGroup):
@@ -99,14 +107,12 @@ async def get_status_to_view_giftbox_orders(message: types.Message, state: FSMCo
                 .where(Orders.order_state == message.text)
             ).all()
         await send_to_view_giftbox_order(message, orders)
-        await bot.send_message(
-            message.from_user.id, f"Всего гифтбокс заказов: {len(orders)}"
-        )
         await state.finish()
         await bot.send_message(
             message.from_id, 
             MSG_DO_CLIENT_WANT_TO_DO_MORE,
-            reply_markup= kb_admin.kb_giftbox_order_commands)
+            reply_markup= kb_admin.kb_giftbox_order_commands
+        )
 
     elif message.text in LIST_BACK_COMMANDS + LIST_CANCEL_COMMANDS + LIST_BACK_COMMANDS:
         await state.finish()
@@ -136,20 +142,25 @@ async def get_status_to_view_giftbox_order(message: types.Message):
                 .where(Orders.order_type == "гифтбокс")
                 .where(Orders.order_state == message.text)
             ).all()
-
-        kb = ReplyKeyboardMarkup(resize_keyboard=True)
-        for order in orders:
-            kb.add(
-                f"{order.order_number} клиент:{order.username} статус:{order.order_state}"
+        if orders == []:
+            await message.reply(
+                f"{MSG_NO_ORDER_IN_TABLE}\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                reply_markup=kb_admin.kb_giftbox_order_commands,
             )
-        kb.add(LIST_BACK_TO_HOME[0])
+        else:
+            kb = ReplyKeyboardMarkup(resize_keyboard=True)
+            for order in orders:
+                kb.add(
+                    f"{order.order_number} клиент:{order.username} статус:{order.order_state}"
+                )
+            kb.add(kb_admin.back_btn)
 
-        await FSM_Admin_send_to_view_giftbox_order.giftbox_order_number.set()
-        await bot.send_message(
-            message.from_user.id,
-            "Какой номер заказа хочешь посмотреть?",
-            reply_markup=kb,
-        )
+            await FSM_Admin_send_to_view_giftbox_order.giftbox_order_number.set()
+            await bot.send_message(
+                message.from_user.id,
+                "Какой номер заказа хочешь посмотреть?",
+                reply_markup=kb,
+            )
 
 
 async def get_giftbox_order_number_to_view(message: types.Message, state: FSMContext):
@@ -274,11 +285,11 @@ async def set_new_state_giftbox_order(message: types.Message, state: FSMContext)
 def register_handlers_admin_giftbox_order(dp: Dispatcher):
     # ----------------------------------COMMANDS GIFTBOX ORDER--------------------------------------------
     dp.register_message_handler(
-        get_giftbox_order_command_list, commands="гифтбокс_заказ", state=None
+        get_giftbox_order_command_list, commands=kb_admin.order_commands['giftbox'], state=None
     )
     dp.register_message_handler(
         get_giftbox_order_command_list,
-        Text(equals="гифтбокс заказ", ignore_case=True),
+        Text(equals=kb_admin.order_commands['giftbox'], ignore_case=True),
         state=None,
     )
 

@@ -7,11 +7,8 @@ from aiogram.dispatcher.filters import Text
 from handlers.client import ADMIN_NAMES
 
 from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
-from db.db_setter import set_to_table
-from db.db_getter import get_info_many_from_table
 
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from db.db_delete_info import delete_info
 from handlers.calendar_client import obj
 from msg.main_msg import *
 
@@ -22,7 +19,7 @@ from db.sqlalchemy_base.db_classes import *
 from prettytable import PrettyTable
 
 
-async def send_to_view_candle_items(message: types.Message, candles: list):
+async def send_to_view_candle_items(message: types.Message, candles: ScalarResult["CandleItems"]):
     headers = [
         "Имя",
         "Цена",
@@ -51,11 +48,11 @@ async def send_to_view_candle_items(message: types.Message, candles: list):
 # /добавить_свечу, Отправляем название свечи
 async def get_candle_command_list(message: types.Message):
     if (
-        message.text.lower() in ["свеча", "/свеча"]
+        message.text.lower() in ["свечи", "/свечи"]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await message.reply(
-            "Какую команду выполнить?",
+            MSG_WHICH_COMMAND_TO_EXECUTE,
             reply_markup=kb_admin.kb_candle_item_commands,
         )
 
@@ -404,7 +401,7 @@ async def get_command_change_candle_item(message: types.Message):
                 kb_candles_names.add(item.name)
             await FSM_Admin_change_candle_item.get_candle_item_name.set()
             await message.reply(
-                "Какую свечу хочешь изменить?", reply_markup= kb_candles_names
+                "❔ Какую свечу хочешь изменить?", reply_markup= kb_candles_names
             )
 
 
@@ -420,7 +417,7 @@ async def get_candle_item_name_to_change(message: types.Message, state: FSMConte
             data['candle_name'] = message.text
         await FSM_Admin_change_candle_item.next()
         await bot.send_message(
-            message.from_id, "Что изменить?", reply_markup= kb_admin.kb_candle_item_columns
+            message.from_id, "❔ Что изменить?", reply_markup= kb_admin.kb_candle_item_columns
         )
 
 
@@ -464,6 +461,7 @@ async def get_column_candle_item_name(message: types.Message, state: FSMContext)
     else:
         await bot.send_message(message.from_id, MSG_NO_CORRECT_INFO_TO_SEND)
 
+
 async def get_new_value_candle_item(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         candle_name = data['candle_name']
@@ -504,7 +502,7 @@ async def get_new_value_candle_item(message: types.Message, state: FSMContext):
             f"Отлично, у свечи {candle_name} изменился параметр \"{candle_column_name}\"!"
         )
         await bot.send_message(
-            message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE
+            message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE, reply_markup= kb_admin.kb_candle_item_commands
         )
 
 

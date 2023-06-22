@@ -34,7 +34,7 @@ async def get_tattoo_items_and_item_command_list(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await message.reply(
-            "Какую команду хочешь выполнить?",
+            MSG_WHICH_COMMAND_TO_EXECUTE,
             reply_markup=kb_admin.kb_tattoo_items_commands,
         )
 
@@ -378,7 +378,7 @@ async def load_tattoo_note(message: types.Message, state: FSMContext):
 
 
 # -------------------------------TATTOO COMMANDS------------------------------------------------------
-async def send_to_view_tattoo_item(id, tattoo_items):
+async def send_to_view_tattoo_item(id: int, tattoo_items: ScalarResult["TattooItems"]):
     if tattoo_items == []:
         await bot.send_message(id, MSG_NO_TATTOO_IN_TABLE)
     else:
@@ -398,8 +398,18 @@ async def send_to_view_tattoo_item(id, tattoo_items):
                             TattooItemPhoto.tattoo_item_name == tattoo.name
                         )
                     ).all()
+                    
+                media = []
                 for photo in photos:
-                    await bot.send_photo(id, photo.photo, msg)
+                    media.append(types.InputMediaPhoto(photo.photo, msg))
+                    
+                if media != []:
+                    await bot.send_chat_action(
+                        id, types.ChatActions.UPLOAD_DOCUMENT
+                    )
+                    await bot.send_media_group(id, media=media)
+                    if len(media) > 1:
+                        await bot.send_message(id, msg)
             else:
                 await bot.send_message(id, msg)
 
@@ -589,9 +599,11 @@ async def command_get_info_all_client_tattoo(message: types.Message):
         ]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
-        tattoo_items = await get_info_many_from_table(
-            "tattoo_items", "creator", "client"
-        )
+        with Session(engine) as session:
+            tattoo_items = session.scalars(select(TattooItems)
+                .where(TattooItems.creator == 'client')
+            ).all()
+            
         await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
         await bot.send_message(
             message.from_user.id,

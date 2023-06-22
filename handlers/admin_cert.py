@@ -34,7 +34,7 @@ async def get_cert_command_list(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await message.reply(
-            "❔ Какую команду по сертификатам выполнить?",
+            MSG_WHICH_COMMAND_TO_EXECUTE,
             reply_markup=kb_admin.kb_cert_item_commands,
         )
 

@@ -23,7 +23,7 @@ from db.sqlalchemy_base.db_classes import *
 # /пользователи
 async def get_clients_command_list(message: types.Message):
     await message.reply(
-        "Какие комманды для пользователей хочешь ввести?",
+        MSG_WHICH_COMMAND_TO_EXECUTE,
         reply_markup=kb_admin.kb_clients_commands,
     )
 
