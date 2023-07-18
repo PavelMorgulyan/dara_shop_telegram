@@ -178,15 +178,15 @@ async def command_create_new_date_to_schedule(message: types.Message):
 
 
 async def choice_event_type_in_schedule(message: types.Message, state: FSMContext):
-    if message.text in list(kb_admin.schedule_event_type .values()):
+    if message.text in list(kb_admin.schedule_event_type.values()):
         async with state.proxy() as data:
-            data["event_type"] = message.text.lower()
+            data["event_type"] = message.text
             data["year_number"] = datetime.now().strftime("%Y")
             data["user_id"] = message.from_user.id
         await FSM_Admin_create_new_date_to_schedule.next()  # -> choice_how_to_create_new_date_to_schedule
         # 'Хочу ввести конкретную дату', 'Хочу выбрать день недели и месяц'
         await message.reply(
-            f"Ты выбрала добавить в расписание \"{message.text}\"."
+            f"Ты выбрала добавить в календарь тип расписания как \"{message.text}\"."
             " Хочешь ввести конкретную дату, или просто выбрать месяц и день недели?",
             reply_markup=kb_admin.kb_new_date_choice,
         )
@@ -224,7 +224,7 @@ async def choice_how_to_create_new_date_to_schedule(
     ):  # Хочу выбрать день недели и месяц
         await FSM_Admin_create_new_date_to_schedule.next()  # -> get_schedule_year
         await message.reply(
-            "Давай выберем год. Выбери год из списка", reply_markup=kb_admin.kb_years
+            "Давай выберем год. Выбери год из списка", reply_markup=kb_admin.kb_years.add(kb_client.cancel_btn)
         )
     else:
         await bot.send_message(
@@ -239,13 +239,17 @@ async def get_schedule_year(message: types.Message, state: FSMContext):
             data["year_number"] = message.text
 
         kb = ReplyKeyboardMarkup(resize_keyboard=True)
+        name_month_now = await get_month_from_number(int(datetime.now().strftime('%m')), lang='ru')
+        kb.add(KeyboardButton(name_month_now))
+        
         for month in kb_admin.month:
             month_number = await get_month_number_from_name(month)
+            
             if (
                 datetime.strptime(
                     f"{message.text}-{month_number}-01 00:00", "%Y-%m-%d %H:%M"
                 )
-                > datetime.now()
+                >= datetime.now()
             ):
                 kb.add(KeyboardButton(month))
 
@@ -449,7 +453,7 @@ async def process_hour_timepicker_end_time(
                             new_schedule_event = ScheduleCalendar(
                                 start_datetime=start_datetime,
                                 end_datetime=end_datetime,
-                                status="Свободен",
+                                status=kb_admin.schedule_event_status['free'],
                                 event_type=data["event_type"],
                             )
                             session.add(new_schedule_event)
@@ -471,15 +475,16 @@ async def process_hour_timepicker_end_time(
                                 new_schedule_event = ScheduleCalendar(
                                     start_datetime=iter_date["start_datetime"],
                                     end_datetime=iter_date["end_datetime"],
-                                    status="Свободен",
+                                    status=kb_admin.schedule_event_status['free'],
                                     event_type=data["event_type"],
                                 )
                                 session.add(new_schedule_event)
                                 session.commit()
-                            await bot.send_message(username_id, MSG_SUCCESS_CHANGING)
+                            
                             dates_str += (
                                 f"{iter_date['start_datetime'].strftime('%d/%m/%Y')}, "
                             )
+                        await bot.send_message(username_id, MSG_SUCCESS_CHANGING)
                         await bot.send_message(
                             username_id,
                             f"Отлично, теперь в {month_name} во все эти даты ({date}: "
@@ -696,7 +701,7 @@ async def command_get_view_photo_schedule(message: types.Message):
         else:
             for photo in photos_schedule:
                 kb_photos_schedule.add(KeyboardButton(photo.name))
-            kb_photos_schedule.add(KeyboardButton("Назад"))
+            kb_photos_schedule.add(kb_client.cancel_btn)
             await FSM_Admin_get_view_schedule_photo.schedule_photo_name.set()
             await message.reply(
                 f"Какую фотографию хочешь посмотреть?", reply_markup=kb_photos_schedule
@@ -720,19 +725,19 @@ async def get_schedule_photo_to_view(message: types.Message, state: FSMContext):
             message.chat.id, photo.photo, f"Название фотографии календаря: {photo.name}"
         )
         await message.reply(
-            "Что еще хочешь сделать?", reply_markup=kb_admin.kb_schedule_commands
+            f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}", reply_markup=kb_admin.kb_schedule_commands
         )
         await state.finish()
 
-    elif message.text == "Назад":
+    elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await message.reply(
-            "Хорошо, вы вернулись в меню расписания. Что хочешь сделать?",
+            f"{MSG_BACK_TO_HOME}",
             reply_markup=kb_admin.kb_schedule_commands,
         )
         await state.finish()
     else:
         await message.reply(
-            "Пожалуйста, выбери наименование фотографии расписания из списка "
+            "Пожалуйста, выберите наименование фотографии расписания из списка "
             "или отмени действие"
         )
 
@@ -751,19 +756,24 @@ async def delete_photo_schedule(message: types.Message):
         with Session(engine) as session:
             photos_schedule = session.scalars(select(SchedulePhoto)).all()
 
-        kb_photos_schedule = ReplyKeyboardMarkup(resize_keyboard=True)
-        for photo in photos_schedule:
-            kb_photos_schedule.add(KeyboardButton(photo.name))
-            await bot.send_photo(
-                message.chat.id,
-                photo.photo,
-                f"Название фотографии календаря: {photo.name}",
+        if photos_schedule == []:
+            await bot.send_message(message.from_id, MSG_NO_SCHEDULE_PHOTO_IN_TABLE)
+            await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE)
+            
+        else:
+            kb_photos_schedule = ReplyKeyboardMarkup(resize_keyboard=True)
+            for photo in photos_schedule:
+                kb_photos_schedule.add(KeyboardButton(photo.name))
+                await bot.send_photo(
+                    message.chat.id,
+                    photo.photo,
+                    f"Название фотографии календаря: {photo.name}",
+                )
+            kb_photos_schedule.add(kb_client.cancel_btn)
+            await FSM_Admin_delete_schedule_photo.schedule_photo_name.set()
+            await message.reply(
+                "❔ Какое фото хочешь удалить?", reply_markup=kb_photos_schedule
             )
-        kb_photos_schedule.add(KeyboardButton("Назад"))
-        await FSM_Admin_delete_schedule_photo.schedule_photo_name.set()
-        await message.reply(
-            "Какое фото хочешь удалить?", reply_markup=kb_photos_schedule
-        )
 
 
 async def get_schedule_photo_to_delete(message: types.Message, state: FSMContext):
@@ -828,8 +838,8 @@ async def command_change_schedule(message: types.Message):  # state=None
                 .order_by(ScheduleCalendar.start_datetime)
             ).all()
         if schedule == []:
-            await message.reply(
-                f"{MSG_NO_SCHEDULE_IN_TABLE}. {MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+            await bot.send_message(message.from_id, MSG_NO_SCHEDULE_IN_TABLE)
+            await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE,
                 reply_markup=kb_admin.kb_schedule_commands,
             )
             
@@ -1013,7 +1023,7 @@ async def get_new_state_event_in_schedule(message: types.Message, state: FSMCont
 
             with Session(engine) as session:
                 schedule_event = session.get(ScheduleCalendar, schedule_id)
-                schedule_event.event_type = message.text
+                schedule_event.event_type = message.text.lower()
                 session.commit()
             await bot.send_message(message.from_id, MSG_SUCCESS_CHANGING)
             await update_schedule_table(state)
@@ -1307,7 +1317,7 @@ async def get_answer_choice_new_date_or_no_date_in_tattoo_order(
                 )
             )
         ).all()
-
+    
     schedule_events_kb_lst = []
     for event in schedule_events:
         schedule_events_kb_lst.append(
@@ -1367,7 +1377,7 @@ async def get_answer_choice_new_date_or_no_date_in_tattoo_order(
             async with state.proxy() as data:
                 data["new_start_date"] = message.text.split()[0]  # %d/%m/%Y
                 data["new_start_time"] = message.text.split()[2]  # %H:%M
-                data["new_end_time"] = message.text.split()[4]  # %H:%M
+                data["new_end_time"] =   message.text.split()[4]  # %H:%M
 
             await bot.send_message(
                 message.from_id,
@@ -1627,7 +1637,7 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
                 start_datetime=start_time_in_tattoo_order,
                 end_datetime=end_time_in_tattoo_order,
                 status=kb_admin.schedule_event_status['busy'],
-                event_type= kb_admin.schedule_event_type['tattoo'].lower(),
+                event_type= kb_admin.schedule_event_type['tattoo'],
             )
             session.add(new_schedule_event)
             session.commit()
@@ -1694,10 +1704,19 @@ async def command_delete_date_schedule(message: types.Message):
 
         if schedule == []:
             await message.reply(
-                f"{MSG_NO_SCHEDULE_IN_TABLE}. {MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                f"{MSG_NO_SCHEDULE_IN_TABLE}.\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
                 reply_markup=kb_admin.kb_schedule_commands,
             )
         else:
+            await bot.send_message(
+                message.from_id, 
+                (
+                    "❕❕❕ Данная функция \"удалить дату в расписании\" полностью удаляет расписание из базы!\n\n"
+                    "Чтобы просто закрыть расписание, необходимо нажать на \"изменить мое расписание\" "
+                    "в списке команд Расписания, затем изменить статус конкретной даты.\n\n"
+                    "❕ Данная функция не делает проверку на статус в расписании."
+                )
+            )
             kb_date_schedule = ReplyKeyboardMarkup(resize_keyboard=True)
             for date in schedule:
                 date_kb_str = (
@@ -1708,10 +1727,10 @@ async def command_delete_date_schedule(message: types.Message):
 
             kb_date_schedule.add(kb_client.cancel_btn)
 
-            await get_view_schedule(schedule)
+            await get_view_schedule(message.from_id, schedule)
             await FSM_Admin_delete_schedule_date.date_name.set()  # -> delete_schedule_date
             await message.reply(
-                f"❔ Какую позицию хочешь удалить? Выбери из списка\n",
+                f"❔ Какую позицию удалить? Выбери из списка\n",
                 reply_markup=kb_date_schedule,
             )
 
@@ -1725,12 +1744,20 @@ async def delete_schedule_date(message: types.Message, state: FSMContext):
         schedule_id = message.text.split(") ")[0]
         deleted_schedule = message.text.split(") ")[1]
         with Session(engine) as session:
+            # удаляем из таблицы schedule_calendar
             schedule = session.get(ScheduleCalendar, schedule_id)
+            
+            # удаляем из таблицы schedule_calendar_items если есть заказ на этот день
+            schedule_items = session.scalars(select(ScheduleCalendar)
+                .where(ScheduleCalendarItems.schedule_id == schedule_id)).all()
+            if schedule_items != []:
+                session.delete(schedule_items[0])
             session.delete(schedule)
             session.commit()
+            
         await bot.send_message(message.from_id, MSG_SUCCESS_CHANGING)
         await message.reply(
-            f"Расписание {deleted_schedule} удалено! {MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+            f"Расписание {deleted_schedule} удалено!\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
             reply_markup=kb_admin.kb_schedule_commands,
         )
     await state.finish()

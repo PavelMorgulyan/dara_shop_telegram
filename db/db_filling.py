@@ -50,7 +50,7 @@ async def dump_to_json(new_data: dict, json_name: str):
         data = json.load(json_file)
     data[str(len(data) + 1)] = new_data
     with open(f"./db/{json_name}.json", "w", encoding="cp1251") as file:
-        json.dump(data, file, indent=2, ensure_ascii=False)
+        json.dump(data, file, indent=2, ensure_ascii=True)
 
 
 async def dump_to_json_from_db(table_name: str):
@@ -72,7 +72,7 @@ async def dump_to_json_from_db(table_name: str):
         id += 1
     try:
         with open(json_name, "w", encoding="cp1251") as file:
-            json.dump(data, file, indent=2, ensure_ascii=False)
+            json.dump(data, file, indent=2, ensure_ascii=True)
         return "Succsess"
     except Exception as ex:
         return ex

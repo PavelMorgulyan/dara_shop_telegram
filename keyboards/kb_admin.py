@@ -26,24 +26,24 @@ cancel_btn = KeyboardButton(cancel_lst[0])
 later = KeyboardButton("Потом 🕒")
 now = KeyboardButton("Сейчас 🍀")
 
-commands_button = [
-    "Команды",
-    "Начать как пользователь",
-    "Расписание",
-    "Заказы",
-    "Коррекция",
-    "Татуировки",
-    "Гифтбокс продукт",
-    "Прайс-лист",
-    "Свечи",
-    "Блестки",
-    "Пользователи",
-    "Создать изображение",
+commands_button = {
+    "commands":"Команды",
+    "user_like":"Начать как пользователь",
+    "admin_schedule":"Расписание",
+    "orders":"Заказы",
+    "correction":"Коррекция",
+    "tattoo_items":"Татуировки",
+    "giftbox_items":"Гифтбокс продукт",
+    "price-list":"Прайс-лист",
+    "candles":"Свечи",
+    "sequins":"Блестки",
+    "clients":"Пользователи",
+    "create_img":"Создать изображение",
     # "Удалить таблицу",
     # "Создать json файл",
     # "Получить данные из json",
-    "/help",
-]
+    "help":"/help",
+}
 
 order_commands = {
     "tattoo":"Тату заказы",
@@ -343,7 +343,7 @@ schedule_event_status = {
     "close": "Закрыт"
 }
 
-schedule_event_type  = {
+schedule_event_type = {
     "tattoo":       "Тату заказ", 
     "correction":   "Коррекция", 
     "consultation": "Консультация", 
@@ -520,7 +520,7 @@ kb_type_to_view_data = create_kb(list(type_to_view_data.values()) + LIST_BACK_TO
 kb_candle_item_columns = create_kb(list(candle_item_columns.values()) + LIST_BACK_TO_HOME)
 kb_correction_commands = create_kb(correction_commands + LIST_BACK_TO_HOME)
 kb_price_list_commands = create_kb(price_list_commands + LIST_BACK_TO_HOME)
-kb_main = create_kb(commands_button)
+kb_main = create_kb(list(commands_button.values()))
 kb_order_commands = create_kb(list(order_commands.values()) + LIST_BACK_TO_HOME)
 kb_in_stock = create_kb(list(in_stock_button.values()) + cancel_lst)
 kb_change_status_order = create_kb(statuses_order_lst + LIST_BACK_TO_HOME)
@@ -539,7 +539,7 @@ kb_choice_new_date_or_new_day_name = create_kb(
 kb_free_or_close_event_in_schedule = create_kb(
     list(schedule_event_status.values()) + LIST_BACK_TO_HOME
 )
-kb_type_of_schedule = create_kb(list(schedule_event_type .values()) + LIST_BACK_TO_HOME)
+kb_type_of_schedule = create_kb(list(schedule_event_type.values()) + LIST_BACK_TO_HOME)
 # kb_price = create_kb(price)
 kb_choice_new_date_or_no_date_in_tattoo_order = create_kb(
     list(choice_new_date_or_no_date_in_tattoo_order.values()) + LIST_BACK_TO_HOME

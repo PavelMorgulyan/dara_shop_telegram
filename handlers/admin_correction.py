@@ -349,7 +349,7 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
                 start_datetime=start_time_in_tattoo_order,
                 end_datetime=end_time_in_tattoo_order,
                 status=kb_admin.schedule_event_status['busy'],
-                event_type= kb_admin.schedule_event_type['tattoo'].lower(),
+                event_type= kb_admin.schedule_event_type['tattoo'],
             )
             session.add(new_schedule_event)
             session.commit()

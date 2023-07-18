@@ -398,10 +398,10 @@ async def get_command_change_candle_item(message: types.Message):
         else:
             kb_candles_names = ReplyKeyboardMarkup(resize_keyboard=True)
             for item in candles:
-                kb_candles_names.add(item.name)
+                kb_candles_names.add(KeyboardButton(item.name))
             await FSM_Admin_change_candle_item.get_candle_item_name.set()
             await message.reply(
-                "❔ Какую свечу хочешь изменить?", reply_markup= kb_candles_names
+                "❔ Какую свечу изменить?", reply_markup= kb_candles_names
             )
 
 
@@ -409,13 +409,16 @@ async def get_candle_item_name_to_change(message: types.Message, state: FSMConte
     with Session(engine) as session:
         candles = session.scalars(select(CandleItems)).all()
     kb_candles_names_lst= []
+    kb_candles_names = ReplyKeyboardMarkup(resize_keyboard=True)
     for candle in candles:
         kb_candles_names_lst.append(candle.name)
+        kb_candles_names.add(KeyboardButton(candle.name))
         
     if message.text in kb_candles_names_lst:
         async with state.proxy() as data:
             data['candle_name'] = message.text
-        await FSM_Admin_change_candle_item.next()
+            data['kb_candles_names'] = kb_candles_names
+        await FSM_Admin_change_candle_item.next() # -> get_column_candle_item_name
         await bot.send_message(
             message.from_id, "❔ Что изменить?", reply_markup= kb_admin.kb_candle_item_columns
         )
@@ -425,7 +428,8 @@ async def get_column_candle_item_name(message: types.Message, state: FSMContext)
     if message.text in list(kb_admin.candle_item_columns.values()):
         async with state.proxy() as data:
             data['candle_column_name'] = message.text
-        await FSM_Admin_change_candle_item.next()
+            
+        await FSM_Admin_change_candle_item.next() # -> get_new_value_candle_item
         
         if message.text == kb_admin.candle_item_columns['price']:
             await bot.send_message(
@@ -443,7 +447,7 @@ async def get_column_candle_item_name(message: types.Message, state: FSMContext)
         elif message.text == kb_admin.candle_item_columns['name']:
             await bot.send_message(
                 message.from_id, "Какое будет новое название у свечи? Напиши в строке",
-                reply_markup= kb_admin.kb_price
+                reply_markup= kb_client.kb_back_cancel
             )
         elif message.text == kb_admin.candle_item_columns['quantity']:
             await bot.send_message(
@@ -458,6 +462,15 @@ async def get_column_candle_item_name(message: types.Message, state: FSMContext)
             MSG_BACK_TO_HOME,
             reply_markup= kb_admin.kb_candle_item_commands,
         )
+    elif message.text in LIST_BACK_COMMANDS:
+        await FSM_Admin_change_candle_item.previous() # -> get_command_change_candle_item
+        async with state.proxy() as data:
+            kb_candles_names = data['kb_candles_names']
+        
+        await message.reply(
+            "❔ Какую свечу изменить?", reply_markup= kb_candles_names
+        )
+        
     else:
         await bot.send_message(message.from_id, MSG_NO_CORRECT_INFO_TO_SEND)
 
@@ -468,19 +481,18 @@ async def get_new_value_candle_item(message: types.Message, state: FSMContext):
         candle_column_name = data['candle_column_name']
         
     if message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
-            await state.finish()
-            await bot.send_message(
-                message.from_id,
-                MSG_BACK_TO_HOME,
-                reply_markup= kb_admin.kb_candle_item_commands,
-            )
+        await state.finish()
+        await bot.send_message(
+            message.from_id,
+            MSG_BACK_TO_HOME,
+            reply_markup= kb_admin.kb_candle_item_commands,
+        )
     else:
         with Session(engine) as session:
             item = session.scalars(select(CandleItems)
-                .where(CandleItems.price == candle_name)).one()
+                .where(CandleItems.name == candle_name)).one()
             
-            if message.text in kb_admin.price_lst + kb_admin.kb_another_price_full and \
-                candle_column_name == kb_admin.candle_item_columns['price']:
+            if candle_column_name == kb_admin.candle_item_columns['price'] and message.text.isdigit():
                 item.price = int(message.text)
                 
             elif message.content_type == 'photo' and kb_admin.candle_item_columns['photo']:
@@ -496,10 +508,10 @@ async def get_new_value_candle_item(message: types.Message, state: FSMContext):
                 item.name = message.text
                 
             session.commit()
-        
+        await state.finish()
         await bot.send_message(
             message.from_id,
-            f"Отлично, у свечи {candle_name} изменился параметр \"{candle_column_name}\"!"
+            f"🎉 Отлично, у свечи {candle_name} изменился параметр \"{candle_column_name}\"!"
         )
         await bot.send_message(
             message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE, reply_markup= kb_admin.kb_candle_item_commands
@@ -508,11 +520,13 @@ async def get_new_value_candle_item(message: types.Message, state: FSMContext):
 
 def register_handlers_admin_candle(dp: Dispatcher):
     # -------------------------------------CANDLE--------------------------------------
-    dp.register_message_handler(get_candle_command_list, commands=["свеча"], state=None)
+    dp.register_message_handler(get_candle_command_list,
+        commands=["свеча", kb_admin.commands_button['candles']], state=None)
     dp.register_message_handler(
-        get_candle_command_list, Text(equals="свеча", ignore_case=True), state=None
+        get_candle_command_list, Text(equals=kb_admin.commands_button['candles'], ignore_case=True), state=None
     )
 
+    #---------------------------------add new candle----------------------
     dp.register_message_handler(
         command_load_candle_item, commands=["добавить_свечу"], state=None
     )
@@ -539,6 +553,7 @@ def register_handlers_admin_candle(dp: Dispatcher):
         load_candle_state, state=FSM_Admin_candle_item.candle_state
     )
     
+    #--------------------------view candles list -------------------------------
     dp.register_message_handler(
         command_get_info_candles, commands=["посмотреть_список_свечей"]
     )
@@ -548,6 +563,7 @@ def register_handlers_admin_candle(dp: Dispatcher):
         state=None,
     )
 
+    #--------------------------view having candles list -------------------------------
     dp.register_message_handler(
         command_get_info_candles_having, commands=["посмотреть_список_имеющихся_свечей"]
     )
@@ -557,6 +573,7 @@ def register_handlers_admin_candle(dp: Dispatcher):
         state=None,
     )
 
+    #--------------------------view not having candles list -------------------------------
     dp.register_message_handler(
         command_get_info_candles_not_having,
         commands=["посмотреть_список_не_имеющихся_свечей"],
@@ -567,6 +584,7 @@ def register_handlers_admin_candle(dp: Dispatcher):
         state=None,
     )
 
+    #--------------------------view candle -------------------------------
     dp.register_message_handler(command_get_info_candle, commands=["посмотреть_свечу"])
     dp.register_message_handler(
         command_get_info_candle,
@@ -577,6 +595,7 @@ def register_handlers_admin_candle(dp: Dispatcher):
         get_candle_name_for_info, state=FSM_Admin_get_info_candle_item.candle_name
     )
 
+    #--------------------------delete candle -------------------------------
     dp.register_message_handler(delete_info_candle_in_table, commands=["удалить_свечу"])
     dp.register_message_handler(
         delete_info_candle_in_table,

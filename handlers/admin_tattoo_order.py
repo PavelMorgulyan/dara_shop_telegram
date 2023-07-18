@@ -413,20 +413,22 @@ async def command_delete_info_tattoo_orders(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await message.reply(
-            "Данная функция полностью удаляет заказ из таблицы.\n"
-            f"Если необходимо перевести заказы в статусы {', '.join(list(STATES['closed'].values()))},"
+            "❕❕❕ Данная функция полностью удаляет заказ из таблицы.\n\n"
+            f"❕ Если необходимо перевести заказы в статусы {', '.join(list(STATES['closed'].values()))}, "
             'то необходимо использовать кнопку "Изменить статус тату заказа"'
         )
         with Session(engine) as session:
             orders = session.scalars(
                 select(Orders).where(
-                    Orders.order_type.in_(["постоянное тату", "переводное тату"])
+                    Orders.order_type.in_([
+                        kb_admin.price_lst_types['constant_tattoo'], 
+                        kb_admin.price_lst_types['shifting_tattoo']
+                    ])
                 )
             ).all()
         if orders == []:
             await message.reply(
-                "Прости, пока нет заказов в списке, а значит и удалять нечего. "
-                "Хочешь посмотреть что-то еще?",
+                MSG_NO_ORDER_IN_TABLE,
                 reply_markup=kb_admin.kb_tattoo_order_commands,
             )
         else:
@@ -441,7 +443,7 @@ async def command_delete_info_tattoo_orders(message: types.Message):
             kb_tattoo_order_numbers.add(kb_admin.home_btn)
             await FSM_Admin_delete_tattoo_order.tattoo_order_number.set()
             await message.reply(
-                "Какой заказ хотите удалить?", reply_markup=kb_tattoo_order_numbers
+                "❔ Какой заказ хотите удалить?", reply_markup=kb_tattoo_order_numbers
             )
 
 
@@ -449,9 +451,10 @@ async def delete_info_tattoo_orders(message: types.Message, state: FSMContext):
     with Session(engine) as session:
         orders = session.scalars(
             select(Orders).where(
-                Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"],
+                Orders.order_type.in_([
+                    kb_admin.price_lst_types["constant_tattoo"],
                     kb_admin.price_lst_types["shifting_tattoo"]])
-            )
+                )
         ).all()
     choosen_kb_order_lst = []
     for order in orders:
@@ -1593,7 +1596,7 @@ async def process_hour_timepicker_end_session(
                     start_datetime= start_time,
                     end_datetime=end_time, 
                     status= kb_admin.schedule_event_status['busy'], 
-                    event_type= kb_admin.schedule_event_type['tattoo'].lower()
+                    event_type= kb_admin.schedule_event_type['tattoo']
                 )
                 session.add(new_schedule_event)
                 session.commit()
@@ -2040,8 +2043,8 @@ async def load_tattoo_order_schedule_choice(message: types.Message, state: FSMCo
                 select(ScheduleCalendar)
                 .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
                 .where(ScheduleCalendar.event_type.in_([
-                        kb_admin.schedule_event_type ['tattoo'],
-                        kb_admin.schedule_event_type ['free']
+                        kb_admin.schedule_event_type['tattoo'],
+                        kb_admin.schedule_event_type['free']
                     ])
                 )
                 .order_by(ScheduleCalendar.start_datetime)
@@ -2219,7 +2222,7 @@ async def process_hour_timepicker_end(
                         f"{data['date']} {r.time.strftime('%H:%M')}", "%d/%m/%Y %H:%M"
                     ),
                     status = kb_admin.schedule_event_status['busy'], 
-                    event_type = kb_admin.schedule_event_type['tattoo'].lower()
+                    event_type = kb_admin.schedule_event_type['tattoo']
                 )
                 session.add(new_schedule_event)
                 session.commit()
@@ -3061,7 +3064,7 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
                 start_datetime=start_time_in_tattoo_order,
                 end_datetime=end_time_in_tattoo_order,
                 status=kb_admin.schedule_event_status['busy'],
-                event_type= kb_admin.schedule_event_type['tattoo'].lower(),
+                event_type= kb_admin.schedule_event_type['tattoo'],
             )
             session.add(new_schedule_event)
             session.commit()

@@ -412,8 +412,8 @@ async def get_event_schedule_date(message: types.Message, state: FSMContext):
                 .where(ScheduleCalendar.start_datetime > datetime.now())
                 .where(ScheduleCalendar.end_datetime > datetime.now())
                 .where(ScheduleCalendar.event_type.in_([
-                    kb_admin.schedule_event_type['tattoo'].lower(),
-                    kb_admin.schedule_event_type['free'].lower(),
+                    kb_admin.schedule_event_type['tattoo'],
+                    kb_admin.schedule_event_type['free'],
                 ]))
                 .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
                 .order_by(ScheduleCalendar.start_datetime)
@@ -650,9 +650,15 @@ async def command_get_view_schedule_event_to_client(message: types.Message):
                     )
                 ).one()
                 
-                if schedule_calendar_event.status == kb_admin.schedule_event_status['busy']:
+                # "Занят"
+                if schedule_calendar_event.status == kb_admin.schedule_event_status['busy'] and \
+                    order.order_state in [STATES['in_work'], STATES['paid']]:
                     status = "Скоро встреча" 
-                    
+                
+                elif schedule_calendar_event.status == kb_admin.schedule_event_status['busy'] and \
+                    order.order_state in [STATES['open'], STATES['processed']]:
+                    status = "Ждет подтверждения от администратора"
+                
                 elif schedule_calendar_event.status == kb_admin.schedule_event_status['close']:
                     status = "Закрыт"
                     

@@ -320,7 +320,7 @@ async def command_see_list(message: types.Message):
         command_str_message = ""
         i = 0
         for command in (
-            kb_admin.commands_button
+            list(kb_admin.commands_button.values())
             + kb_admin.schedule_commands
             + kb_admin.candle_item_commands
             + kb_admin.clients_commands
