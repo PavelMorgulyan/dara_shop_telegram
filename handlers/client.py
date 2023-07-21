@@ -517,7 +517,7 @@ async def fill_client_table(data: dict, message: types.Message) -> None:
                 telegram_name=f"@{message.from_user.username}",
                 telegram_id=message.from_id,
                 phone=data["phone"],
-                status=clients_status['active']
+                status=clients_status['client']
             )
             session.add(new_user)
             session.commit()

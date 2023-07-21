@@ -19,7 +19,7 @@ from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
 
 
-# -------------------------------------------------------CLIENT-------------------------------------------
+# -----------------------------------CLIENT-------------------------------------------
 # /пользователи
 async def get_clients_command_list(message: types.Message):
     await message.reply(
@@ -28,10 +28,37 @@ async def get_clients_command_list(message: types.Message):
     )
 
 
-# -------------------------------------------------------VIEW ALL USERS-------------------------------------------
+#--------------------------------ADD NEW USER-------------------------------------
+# TODO закончить command_add_users_info_command
+class FSM_Admin_add_user(StatesGroup):
+    user_status = State()
+    user_name = State()
+    user_telegram = State()
+    user_phone = State()
+
+async def command_add_users_info_command(message: types.Message):
+    if (
+        message.text.lower() == "добавить пользователя"
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        await FSM_Admin_add_user.user_status.set()
+        await message.reply(
+            "❔ В каком статусе пользователь?", reply_markup=kb_admin.kb_user_status
+        )
+
+
+async def get_user_status(message: types.Message, state: FSMContext):
+    if message.text in list(kb_admin.user_status.values()):
+        async with state.proxy() as data:
+            data['user_status'] = clients_status['admin'] \
+                if message.text == kb_admin.user_status['admin'] else clients_status['client']
+        
+        
+
+# -------------------------------VIEW ALL USERS-------------------------------------------
 class FSM_Admin_get_info_user(StatesGroup):
     user_name = State()
-
+    
 
 async def send_to_view_users_orders(user_lst: ScalarResult["User"], message: types.Message):
     if user_lst != []:
@@ -81,9 +108,7 @@ async def send_to_view_users_orders(user_lst: ScalarResult["User"], message: typ
             reply_markup=kb_admin.kb_clients_commands,
         )
     else:
-        await message.reply(
-            f"⭕️ Сейчас нет пользователей в базе. {MSG_DO_CLIENT_WANT_TO_DO_MORE}"
-        )
+        await message.reply(MSG_NO_USERS_IN_DB)
 
 
 # /посмотреть_всех_пользователей
@@ -112,12 +137,14 @@ async def get_user_info_command(message: types.Message):
                 kb_users_names.add(
                     KeyboardButton(user.name)
                 )  # выводим наименования клиентов
+            kb_users_names.add(kb_client.cancel_btn)
+            
             await FSM_Admin_get_info_user.user_name.set()
             await message.reply(
-                "Какого пользователя хочешь посмотреть?", reply_markup=kb_users_names
+                "❔ Какого пользователя посмотреть?", reply_markup=kb_users_names
             )
         else:
-            await message.reply("Прости, но у тебя пока нет пользователей в таблице")
+            await message.reply(MSG_NO_USERS_IN_DB)
 
 
 async def get_user_info_command_with_name(message: types.Message, state: FSMContext):
@@ -130,6 +157,7 @@ async def get_user_info_command_with_name(message: types.Message, state: FSMCont
     if message.text in user_name_lst:
         await send_to_view_users_orders(users, message)
         await state.finish()
+        
     else:
         await message.reply(
             f"Пользователя с именем {message.text} нет. Попробуй другого."
@@ -204,20 +232,19 @@ async def command_set_client_to_black_list(message: types.Message):
         with Session(engine) as session:
             users = session.scalars(select(User)).all()
         if users == []:
-            await message.reply(
-                f"Пока нет пользователей в базе.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
-                reply_markup=kb_admin.kb_main,
-            )
+            await message.reply(MSG_NO_USERS_IN_DB)
+            
         else:
             kb_users_names = ReplyKeyboardMarkup(resize_keyboard=True)
             for user in users:
                 kb_users_names.add(
                     KeyboardButton(user.name)
                 )  # выводим наименования пользователей
+            kb_users_names.add(kb_client.cancel_btn)
             await FSM_Admin_set_client_to_black_list.user_name.set()
 
             await message.reply(
-                "Какого пользователя добавить в черный список?", reply_markup=kb_users_names
+                "❔ Какого пользователя добавить в черный список?", reply_markup=kb_users_names
             )
 
 
