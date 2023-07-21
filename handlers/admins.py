@@ -345,15 +345,6 @@ async def command_see_list(message: types.Message):
         )
 
 
-# -------------------------------------------CLOSED COMMAND-------------------------------------------
-
-""" # закончить
-async def close_command(message: types.Message, state: FSMContext):
-    # await state.finish()
-    await bot.send_message(message.from_user.id, 'Удачи и добра тебе, друг,'\
-        ' но знай - я всегда к твоим услугам!')
-"""
-
 #-----------------------------------------ORDER COMMANDS --------------------------------------
 
 async def get_order_command_list(message: types.Message):

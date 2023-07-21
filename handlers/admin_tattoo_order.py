@@ -2668,7 +2668,7 @@ async def tattoo_order_load_user_name(message: types.Message, state: FSMContext)
         if message.text != user_name:
             for i in range(2):
                 await FSM_Admin_username_info.next() #-> load_telegram
-            await message.reply("Введи его телеграм")
+            await message.reply(MSG_WHICH_USERNAME_IN_ORDER)
         else:
             await FSM_Admin_username_info.next() #-> answer_user_name
             await message.reply(
@@ -2678,7 +2678,7 @@ async def tattoo_order_load_user_name(message: types.Message, state: FSMContext)
     else:
         for i in range(2):
             await FSM_Admin_username_info.next() #-> load_telegram
-        await message.reply("Введи ссылку на его телеграм")
+        await message.reply(MSG_WHICH_USERNAME_IN_ORDER)
 
 
 # TODO: ЗАКОНЧИТЬ ЗАПОЛНЕНИЕ НОВОГО ПОЛЬЗОВАТЕЛЯ ДЛЯ ТАТУ ЗАКАЗА, ДЛЯ АДМИНА
@@ -2693,15 +2693,15 @@ async def answer_user_name(message: types.Message, state: FSMContext):
             order_number = data["order_number"]
             await bot.send_message(
                 message.from_user.id,
-                f"Хорошо, твой заказ под номером {order_number}"
+                f"🎉 Заказ под номером {order_number}"
                 f" оформлен на пользователя {username} с телеграмом {telegram}, телефон {phone}!",
                 reply_markup=kb_admin.kb_main,
             )
         await state.finish()
     elif message.text == kb_client.no_str:
-        await FSM_Admin_username_info.next()
+        await FSM_Admin_username_info.next() #-> load_telegram
         await message.reply(
-            "Хорошо, это другой пользователь, введи ссылку на его телеграм"
+            MSG_WHICH_USERNAME_IN_ORDER
         )
     else:
         await FSM_Admin_username_info.next()
@@ -2710,16 +2710,26 @@ async def answer_user_name(message: types.Message, state: FSMContext):
 async def load_telegram(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["telegram"] = message.text
-    await FSM_Admin_username_info.next()
+    await FSM_Admin_username_info.next() # -> load_phone
+    await bot.send_message(
+            message.from_id, MSG_ADD_USER_PHONE_TO_DB, reply_markup= kb_client.kb_yes_no
+        )
+    
     await message.reply(
-        'Введи его телефон, или нажми на кнопку "Я не знаю его телефона"',
+        MSG_WHICH_USERNAME_PHONE_IN_ORDER,
         reply_markup=kb_admin.kb_admin_has_no_phone_username,
     )
 
 
 async def load_phone(message: types.Message, state: FSMContext):
-    if message.text in kb_admin.phone_answer:
+    if message.text in kb_admin.phone_answer + [kb_client.no_str]:
         number = "Нет номера"
+        
+    elif message.text == kb_client.yes_str:
+        await message.reply(
+            MSG_WHICH_USERNAME_PHONE_IN_ORDER,
+            reply_markup=kb_admin.kb_admin_has_no_phone_username,
+        )
     else:
         number = message.text
         result = re.match(
@@ -2731,27 +2741,27 @@ async def load_phone(message: types.Message, state: FSMContext):
         if not result:
             await message.reply("Номер не корректен. Пожалуйста, введи номер заново.")
 
-    async with state.proxy() as data:
-        with Session(engine) as session:
-            new_user = User(
-                name = data["username"],
-                telegram_name= data["telegram"],
-                phone = number,
-                status=clients_status['active']
-            )
-            session.add(new_user)
-            session.commit()
-            
-        username, telegram, phone = data["username"], data["telegram"], number
-        tattoo_order_number = data["order_number"]
+        async with state.proxy() as data:
+            with Session(engine) as session:
+                new_user = User(
+                    name = data["username"],
+                    telegram_name= data["telegram"],
+                    phone= number,
+                    status= clients_status['client']
+                )
+                session.add(new_user)
+                session.commit()
+                
+            username, telegram, phone = data["username"], data["telegram"], number
+            tattoo_order_number = data["order_number"]
 
-        await bot.send_message(
-            message.from_user.id,
-            f"Хорошо, твой заказ под номером {tattoo_order_number}"
-            f" оформлен на пользователя {username} с телеграмом {telegram}, телефон: {phone}!",
-            reply_markup=kb_admin.kb_tattoo_order_commands,
-        )
-        await state.finish()  #  полностью очищает данные
+            await bot.send_message(
+                message.from_user.id,
+                f"Хорошо, твой заказ под номером {tattoo_order_number}"
+                f" оформлен на пользователя {username} с телеграмом {telegram}, телефон: {phone}!",
+                reply_markup=kb_admin.kb_tattoo_order_commands,
+            )
+            await state.finish()  #  полностью очищает данные
 
 
 # -------------------------------ADD NEW EVENT SCHEDULE TO TATTOO ORDER--------------------------------

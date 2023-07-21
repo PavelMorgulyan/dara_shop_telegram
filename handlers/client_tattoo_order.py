@@ -1751,19 +1751,12 @@ async def load_tattoo_order_note(message: types.Message, state: FSMContext):
             else:
                 data["tattoo_note"] = message.text
                 await bot.send_message(
-                    message.from_id,
-                    f"🌿 Описание тату принято!",
+                    message.from_id, f"🌿 Описание тату принято!",
                 )
 
             data["creation_date"] = datetime.now()
             data["username"] = message.from_user.full_name
-            split_numbers = 0
-            if " " in data["tattoo_size"]:
-                slpiting_symbol = " "
-                split_numbers = 2
-            else:
-                slpiting_symbol = "x"
-                split_numbers = 1
+            slpiting_symbol, split_numbers = (" ", 2) if " " in data["tattoo_size"] else ("x", 1)
 
             min_size = int(data["tattoo_size"].split(slpiting_symbol)[0])
             max_size = int(data["tattoo_size"].split(slpiting_symbol)[split_numbers])
@@ -1858,7 +1851,7 @@ async def fill_tattoo_order_table(message: types.Message, state: FSMContext):
                     telegram_name=f"@{message.from_user.username}",
                     telegram_id=message.from_id,
                     phone=None,
-                    status=clients_status['active']
+                    status=clients_status['client']
                 )
                 session.add(new_user)
                 session.commit()

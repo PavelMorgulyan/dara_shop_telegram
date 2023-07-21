@@ -152,9 +152,10 @@ async def get_dates_from_month_and_day_of_week(
 
 
 clients_status = {
-    "active":"активный",
-    "admin":"администратор",
-    "banned":"забанен"
+    "client":"клиент",
+    "admin": "администратор",
+    "banned":"забанен",
+    "locked":"отключен"
 }
 
 async def generate_random_code(length: int) -> str:

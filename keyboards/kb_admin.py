@@ -147,6 +147,8 @@ schedule_commands = [
     "удалить дату в расписании",
 ]
 
+
+
 candle_item_commands = [
     "добавить свечу",
     "посмотреть свечу",
@@ -165,8 +167,10 @@ cert_item_commands = [
 ]
 
 clients_commands = [
+    "добавить пользователя",
     "посмотреть всех пользователей",
     "посмотреть пользователя",
+    "добавить пользователя в черный список",
     "удалить пользователя",
 ]
 
@@ -348,6 +352,11 @@ schedule_event_type = {
     "correction":   "Коррекция", 
     "consultation": "Консультация", 
     "free":         "Свободное"
+}
+
+user_status = {
+    "client":"Клиент",
+    "admin":"Администратор"
 }
 
 choice_new_date_or_no_date_in_tattoo_order = {
@@ -566,3 +575,4 @@ kb_giftbox_order_commands = create_kb(giftbox_order_commands + LIST_BACK_TO_HOME
 kb_schedule_for_tattoo_order_choice = create_kb(
     schedule_for_tattoo_order_choice + LIST_BACK_TO_HOME
 )
+kb_user_status = create_kb(user_status + LIST_BACK_TO_HOME)

@@ -82,7 +82,7 @@ async def fill_sketch_order_table(data: dict, message: types.Message):
                 telegram_name=f"@{message.from_user.username}",
                 telegram_id=message.from_id,
                 phone=None,
-                status=clients_status['active']
+                status=clients_status['client']
             )
             session.add(user)
             session.commit()

@@ -106,30 +106,30 @@ async def process_callback_set_price_from_line(callback_query: types.CallbackQue
 
 
 async def load_сert_price(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data["username"] = message.from_user.username
+        data["creation_date"] = datetime.now()
+        data["code"] = await generate_random_code(CODE_LENTH)
+        data["cert_order_number"] = await generate_random_order_number(
+            ORDER_CODE_LENTH
+        )
     if message.text in kb_admin.price_lst or message.text.isdigit():
         async with state.proxy() as data:
-            data["username"] = message.from_user.username
-            data["creation_date"] = datetime.now()
-            data["code"] = await generate_random_code(CODE_LENTH)
-            data["cert_order_number"] = await generate_random_order_number(
-                ORDER_CODE_LENTH
-            )
+            data["price"] = message.text
 
-        if message.text != "Другая":
-            async with state.proxy() as data:
-                data["price"] = message.text.split()[0]
+        for i in range(2):
+            await FSM_Admin_сert_item.next()  # -> admin_process_successful_cert_payment
+            
+        await message.reply(
+            f"❔ Пользователь оплатил сертфикат?", reply_markup=kb_client.kb_yes_no
+        )
 
-            for i in range(2):
-                await FSM_Admin_сert_item.next()  # -> admin_process_successful_cert_payment
-            await message.reply(
-                f"❔ Пользователь оплатил сертфикат?", reply_markup=kb_client.kb_yes_no
-            )
-        else:
-            await FSM_Admin_сert_item.next()
-            await message.reply(
-                f"❔ На какую сумму пользователь хочет сертификат? Введи сумму",
-                reply_markup=kb_admin.kb_price,
-            )
+    elif message.text in kb_admin.another_price_lst: # Другая цена
+        await FSM_Admin_сert_item.next()
+        await message.reply(
+            f"❔ На какую сумму сертификат? Введи цену цифрами",
+            reply_markup= kb_client.kb_cancel
+        )
     else:
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
@@ -154,11 +154,11 @@ async def admin_process_successful_cert_payment(
             code = data["code"]
             data["state"] = STATES["paid"]
 
-            await bot.send_message(message.chat.id, f"Код на сертификат: {code}.")
-            await FSM_Admin_сert_item.next()
-            await message.reply(
-                f"❔ Хочешь приложить чек перевода?", reply_markup=kb_client.kb_yes_no
-            )
+        await bot.send_message(message.chat.id, f"🎉 Код на сертификат: {code}.")
+        await FSM_Admin_сert_item.next()
+        await message.reply(
+            f"❔ Приложить чек перевода к заказу сертификата?", reply_markup=kb_client.kb_yes_no
+        )
 
     elif (
         message.text == kb_client.no_str
@@ -221,7 +221,7 @@ async def get_check_answer_cert_from_admin(message: types.Message, state=FSMCont
 
         await bot.send_message(
             message.chat.id,
-            f"Админ, заказ под номером {cert_order_number} почти оформлен! "
+            f"🎉 Заказ под номером {cert_order_number} почти оформлен! "
             "Осталось только добавить имя, телеграм и телефон пользователя заказа. "
             "Напиши имя пользователя.",
         )
@@ -270,7 +270,7 @@ async def get_check_document_cert_from_admin(message: types.Message, state=FSMCo
             # await set_to_table(tuple(new_cert_order.values()), 'сert_orders')
         await bot.send_message(
             message.chat.id,
-            f"Админ, заказ под номером {order_number} почти оформлен!"
+            f"🎉 Заказ под номером {order_number} почти оформлен!"
             " Осталось только добавить имя, телеграм и телефон пользователя заказа."
             " Напиши имя пользователя.",
         )
@@ -282,7 +282,6 @@ async def get_check_document_cert_from_admin(message: types.Message, state=FSMCo
 
 
 async def cert_load_user_name(message: types.Message, state: FSMContext):
-    
     with Session(engine) as session:
         user = session.scalars(select(User).where(User.name == message.text)).all()
     
@@ -299,7 +298,7 @@ async def cert_load_user_name(message: types.Message, state: FSMContext):
         for i in range(2): #-> cert_load_telegram
             await FSM_Admin_cert_username_info.next()
 
-        await message.reply("Введи его телеграм")
+        await message.reply(MSG_WHICH_USERNAME_IN_ORDER)
     else:
         await FSM_Admin_cert_username_info.next()
         await message.reply(
@@ -317,22 +316,24 @@ async def cert_answer_user_name(message: types.Message, state: FSMContext):
                 data["phone"],
             )
             order_number = data["order_number"]
-            await update_info(
-                "cert_orders", "order_number", order_number, "username", username
-            )
-
+            
+            with Session(engine) as session:
+                order = session.scalars(select(Orders).where(Orders.order_number == order_number)).one()
+                order.username = username
+                
             await bot.send_message(
                 message.from_user.id,
-                f"Хорошо, твой заказ под номером {order_number} "
+                f"🎉 Заказ под номером {order_number} "
                 f"оформлен на пользователя {username} c телеграмом {telegram}, телефон {phone}",
                 reply_markup=kb_admin.kb_main,
             )
         await state.finish()
         
     elif message.text == kb_client.no_str:
-        await FSM_Admin_cert_username_info.next()
+        await FSM_Admin_cert_username_info.next() #-> cert_load_telegram
         await message.reply(
-            "Ответ принят, это другой пользователь. Введи его телеграм", reply_markup= kb_client.kb_cancel
+            f"🟢 Ответ принят, это другой пользователь.\n\n{MSG_WHICH_USERNAME_IN_ORDER}", 
+            reply_markup= kb_client.kb_cancel
         )
 
     else:
@@ -340,20 +341,45 @@ async def cert_answer_user_name(message: types.Message, state: FSMContext):
 
 
 async def cert_load_telegram(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["telegram"] = message.from_user.id
-    await FSM_Admin_cert_username_info.next()
-    await bot.send_message(
-        message.from_id, "❔ Добавить телефон клиента?", reply_markup= kb_client.kb_yes_no
-    )
+    if "@" in message.text or "https://t.me/" in message.text:
+        async with state.proxy() as data:
+            if "@" in message.text:
+                data["username"] = message.text.split("@")[1]
+                data["telegram"] = message.text
+
+            else:
+                data["username"] = message.text.split("/")[3]
+                data["telegram"] = "@" + message.text.split("/")[3]
+
+        await FSM_Admin_cert_username_info.next() #-> cert_load_phone
+        await bot.send_message(
+            message.from_id, MSG_ADD_USER_PHONE_TO_DB, reply_markup= kb_client.kb_yes_no
+        )
 
 
 async def cert_load_phone(message: types.Message, state: FSMContext):
     if message.text == kb_client.yes_str:
-        await message.reply("Введи его телефон")
+        await message.reply(
+            MSG_WHICH_USERNAME_PHONE_IN_ORDER, 
+            reply_markup=kb_admin.kb_admin_has_no_phone_username
+        )
         
-    elif message.text == kb_client.no_str:
-        await message.reply("Пользователь будет без телефона")
+    elif message.text in [kb_client.no_str] + kb_admin.phone_answer: # Нет, Я не знаю его телефона
+        await message.reply(MSG_USER_WILL_BE_WITHOUT_PHONE)
+        async with state.proxy() as data:
+            order_number = data["cert_order_number"]
+            username = data["username"]
+            telegram = data["telegram"]
+            
+        await bot.send_message(
+            message.from_user.id,
+            f"🎉 Заказ под номером {order_number} оформлен на пользователя {username} под ником @{telegram}!",
+        )
+        
+        await bot.send_message(
+            message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE, reply_markup=kb_admin.kb_main
+        )
+        await state.finish()
         
     else:
         number = message.text
@@ -363,14 +389,15 @@ async def cert_load_phone(message: types.Message, state: FSMContext):
             number,
         )
         if not result:
-            await message.reply("Номер не корректен, пожалуйста, введи номер заново")
+            await message.reply(MSG_NOT_CORRECT_USER_PHONE)
+            
         else:
             async with state.proxy() as data:
                 new_client_info = User(
                     name=data["username"],
                     telegram_name=data["telegram"],
                     phone= message.text,
-                    status = clients_status['active']
+                    status = clients_status['client']
                 )
                 with Session(engine) as session:
                     session.add(new_client_info)
@@ -380,9 +407,11 @@ async def cert_load_phone(message: types.Message, state: FSMContext):
 
             await bot.send_message(
                 message.from_user.id,
-                f"Заказ под номером {order_number}"
-                f" оформлен на пользователя {username} под ником @{telegram}, телефон {phone}!",
-                reply_markup=kb_admin.kb_main,
+                f"🎉 Заказ под номером {order_number}"
+                f" оформлен на пользователя {username} под ником @{telegram}, телефон {phone}!"
+            )
+            await bot.send_message(
+                message.from_user.id, MSG_DO_CLIENT_WANT_TO_DO_MORE, reply_markup=kb_admin.kb_main
             )
 
             await state.finish()

@@ -354,7 +354,7 @@ async def command_create_new_sketch_order(message: types.Message):
         )
         await bot.send_message(
             message.from_id,
-            "Введи описание для нового эскиза",
+            "💬 Введи описание для нового эскиза",
             reply_markup=kb_client.kb_cancel,
         )
 
@@ -405,12 +405,13 @@ async def fill_client_table(data: dict, message: types.Message):
             new_user = User(
                 name=data["username"],
                 telegram_id=None,
-                telegram_name=data["telegram"],
-                phone=data["phone"],
-                status= clients_status['active']
+                telegram_name= data["telegram"],
+                phone= data["phone"],
+                status= clients_status['client']
             )
             session.add(new_user)
             session.commit()
+            
         await message.reply(
             f"Новый клиент успешно добавлен!"
         )
@@ -445,8 +446,7 @@ async def get_new_sketch_description(message: types.Message, state: FSMContext):
                 await FSM_Admin_command_create_new_sketch_order.next()
             await bot.send_message(message.from_id,
                 'Хорошо, закончим с добавлением фотографий для нового эскиза.\n\n'\
-                'Для какого пользователя заказ?\n'\
-                'Введи его имя или телеграм (с символом \"@\") или ссылку с \"https://t.me/\".\n\n',
+                MSG_WHICH_USERNAME_IN_ORDER,
                 reply_markup= kb_admin.kb_admin_add_name_or_telegram_for_new_order
             ) 
         """
@@ -479,12 +479,11 @@ async def get_photo_sketch(message: types.Message, state: FSMContext):
             )
 
         elif message.text == kb_client.no_str:
-            await FSM_Admin_command_create_new_sketch_order.next()  # -> get_username_telegram
+            await FSM_Admin_command_create_new_sketch_order.next() # -> get_username_telegram
             await bot.send_message(
                 message.from_id,
                 "Хорошо, закончим с добавлением фотографий для нового эскиза.\n\n"
-                "Для какого пользователя заказ?\n"
-                'Введи его имя или телеграм (с символом "@") или ссылку с "https://t.me/".',
+                f"{MSG_WHICH_USERNAME_IN_ORDER}",
                 #'P.s. Нажимая на пользователя в ТГ сверху будет его имя. '\
                 #'А имя с символом \"@\" - ссылка на телеграм',
                 reply_markup=kb_client.kb_cancel,
@@ -504,13 +503,12 @@ async def get_photo_sketch(message: types.Message, state: FSMContext):
 
         await bot.send_message(
             message.from_id,
-            "Хочешь добавить еще фото?",
+            "Добавить еще фото?",
             reply_markup=kb_client.kb_yes_no,
         )
 
 
 async def get_username_telegram(message: types.Message, state: FSMContext):
-    print(await state.get_state())
     if "@" in message.text or "https://t.me/" in message.text:
         async with state.proxy() as data:
             if "@" in message.text:
@@ -601,8 +599,7 @@ async def get_sketch_price(message: types.Message, state: FSMContext):
         await FSM_Admin_command_create_new_sketch_order.previous()  # -> get_username_telegram
         await bot.send_message(
             message.from_id,
-            "Для какого пользователя заказ?\n"
-            'Введи его имя или телеграм (с символом "@") или ссылку с "https://t.me/".\n\n',
+            MSG_WHICH_USERNAME_IN_ORDER,
             #'P.s. Нажимая на пользователя в ТГ сверху будет его имя. '\
             #'А имя с символом \"@\" - ссылка на телеграм',
             reply_markup=kb_client.kb_cancel,

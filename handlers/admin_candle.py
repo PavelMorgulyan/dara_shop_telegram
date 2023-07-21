@@ -377,11 +377,11 @@ async def delete_info_candle_in_table_next(message: types.Message, state: FSMCon
 
 
 #------------------------------CHANGE_CANDLE ---------------------------------------
-# TODO изменить свечу
 class FSM_Admin_change_candle_item(StatesGroup):
     get_candle_item_name = State()  # 
     get_state_name = State()
     get_new_value = State()
+    get_another_price = State()
 
 
 async def get_command_change_candle_item(message: types.Message):
@@ -475,6 +475,13 @@ async def get_column_candle_item_name(message: types.Message, state: FSMContext)
         await bot.send_message(message.from_id, MSG_NO_CORRECT_INFO_TO_SEND)
 
 
+async def process_callback_set_price_from_line_candle(callback_query: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback_query.id)
+    await bot.send_message(callback_query.from_user.id, 
+        MSG_ADMIN_SET_ANOTHER_PRICE_FROM_LINE, reply_markup= kb_client.kb_cancel
+    )
+
+
 async def get_new_value_candle_item(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         candle_name = data['candle_name']
@@ -487,10 +494,23 @@ async def get_new_value_candle_item(message: types.Message, state: FSMContext):
             MSG_BACK_TO_HOME,
             reply_markup= kb_admin.kb_candle_item_commands,
         )
+    elif message.text in kb_admin.another_price_lst: # ["Другая цена"]
+        await bot.send_message(
+            message.from_id,
+            MSG_ADMIN_SET_ANOTHER_PRICE,
+            reply_markup=kb_admin.kb_another_price_full,
+        )
+        await bot.send_message(
+            message.from_id, 
+            MSG_ADMIN_CAN_SET_ANOTHER_PRICE,
+            reply_markup= kb_admin.kb_set_another_price_from_line
+        )
+        await FSM_Admin_change_candle_item.next() #-> get_another_price_from_admin
     else:
-        with Session(engine) as session:
+        with Session(engine) as session: 
             item = session.scalars(select(CandleItems)
-                .where(CandleItems.name == candle_name)).one()
+                    .where(CandleItems.name == candle_name)
+                ).one()
             
             if candle_column_name == kb_admin.candle_item_columns['price'] and message.text.isdigit():
                 item.price = int(message.text)
@@ -507,6 +527,13 @@ async def get_new_value_candle_item(message: types.Message, state: FSMContext):
             elif candle_column_name == kb_admin.candle_item_columns['name']:
                 item.name = message.text
                 
+            elif message.text in kb_admin.another_price_lst:
+                await bot.send_message(
+                    message.from_id,
+                    MSG_ADMIN_SET_ANOTHER_PRICE,
+                    reply_markup=kb_admin.kb_another_price_full,
+                )
+            
             session.commit()
         await state.finish()
         await bot.send_message(
@@ -517,6 +544,37 @@ async def get_new_value_candle_item(message: types.Message, state: FSMContext):
             message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE, reply_markup= kb_admin.kb_candle_item_commands
         )
 
+
+async def get_another_price_from_admin(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        candle_name = data['candle_name']
+        
+    if message.text.isdigit():
+        with Session(engine) as session:
+            item = session.scalars(select(CandleItems)
+                    .where(CandleItems.name == candle_name)
+                ).one()
+            item.price = int(message.text)
+            session.commit()
+        await state.finish()
+        await bot.send_message(
+            message.from_id,
+            f"🎉 Отлично, у свечи {candle_name} изменился параметр \"Цена\" на {message.text}!"
+        )
+        await bot.send_message(
+            message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE, reply_markup= kb_admin.kb_candle_item_commands
+        )
+    elif message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
+        await state.finish()
+        await bot.send_message(
+            message.from_id,
+            MSG_BACK_TO_HOME,
+            reply_markup= kb_admin.kb_candle_item_commands,
+        )
+    else:
+        await bot.send_message(
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+        )
 
 def register_handlers_admin_candle(dp: Dispatcher):
     # -------------------------------------CANDLE--------------------------------------
@@ -619,7 +677,14 @@ def register_handlers_admin_candle(dp: Dispatcher):
     dp.register_message_handler(
         get_column_candle_item_name, state=FSM_Admin_change_candle_item.get_state_name
     )
+    
     dp.register_message_handler(
         get_new_value_candle_item, content_types= ['photo', 'text'],
         state=FSM_Admin_change_candle_item.get_new_value
     )
+    
+    dp.register_callback_query_handler(process_callback_set_price_from_line_candle,
+        state=FSM_Admin_change_candle_item.get_another_price)
+
+    dp.register_message_handler(get_another_price_from_admin,
+        state=FSM_Admin_change_candle_item.get_another_price)
