@@ -78,7 +78,7 @@ async def get_command_client_change_order_menu(message: types.Message):
         
         await bot.send_message(
             message.from_id, 
-            "❔ Какой заказ хотите дополнить или изменить?",
+            "❔ Какой заказ дополнить или изменить?",
             reply_markup= kb_orders
         )
 
@@ -112,7 +112,7 @@ async def get_order_type(message: types.Message, state: FSMContext):
         
         await bot.send_message(
             message.from_id, 
-            "❕ Пожалуйста, выберете номер заказа для изменения",
+            "❕ Пожалуйста, выберете номер заказа для изменения.",
             reply_markup= kb_orders
         )
     
@@ -271,11 +271,11 @@ async def get_column_name_to_change_order(message: types.Message, state: FSMCont
                 data['change_order_note'] = True
                 
             await bot.send_message(
-                message.from_id, f"Описание данного заказа:\n\n{order.order_note}"
+                message.from_id, f"💬 Описание данного заказа:\n\n{order.order_note}"
             )
             await bot.send_message(
                 message.from_id, 
-                "Напишите, как бы вы дополнили описание заказа.", 
+                "💬 Напишите все описание заказа.", 
                 reply_markup= kb_client.kb_back_cancel
             )
         
@@ -286,7 +286,7 @@ async def get_column_name_to_change_order(message: types.Message, state: FSMCont
             kb_client.sketch_columns_to_change["tattoo_sketch_photo"]
         ]:
             await bot.send_message(
-                message.from_id, f"Изображения данного заказа:\n {order.order_note}"
+                message.from_id, f"🎨 Изображения данного заказа:\n {order.order_note}"
             )
             media = []
             body_photos = []

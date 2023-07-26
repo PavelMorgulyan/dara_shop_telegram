@@ -62,7 +62,7 @@ async def giftbox_command(message: types.Message):
             # reply_markup=kb_client_giftbox_names)
             await bot.send_message(
                 message.from_id,
-                f"Хотите что-нибудь добавить к своему заказу?",
+                f"❔ Хотите что-нибудь добавить к заказу?",
                 reply_markup=kb_client.kb_giftbox_note,
             )
         else:
@@ -127,7 +127,7 @@ async def giftbox_order_add_giftbox_note(message: types.Message, state: FSMConte
         await bot.send_message(
             message.from_id,
             f"❔ Что-нибудь добавить к своему заказу? "
-            "Ответь на вопрос, а потом напишите, что какой комментарий хотите оставить к заказу.",
+            "Ответьте на вопрос, а затем напишите, какой комментарий хотите оставить к заказу.",
             reply_markup=kb_client.kb_giftbox_note,
         )
         #'Да, мне есть чего добавить! 🌿, Нет, мне нечего добавить ➡️'
@@ -151,7 +151,7 @@ async def giftbox_order_add_giftbox_note(message: types.Message, state: FSMConte
         await FSM_Client_giftbox_having.next()  # -> giftbox_order_pay_method
         await bot.send_message(
             message.from_id,
-            "❔ Хотите оплатить заказ сейчас? ",
+            "❔ Оплатить заказ сейчас? ",
             reply_markup=kb_client.kb_yes_no,
         )
 
@@ -193,7 +193,7 @@ async def giftbox_order_pay_method(message: types.Message, state: FSMContext):
             if user == []:
                 await bot.send_message(
                     message.chat.id,
-                    f"🎉 Ваш заказ гифтбокса под номером {giftbox_order_number} почти оформлен!",
+                    f"🎉 Заказ гифтбокса под номером {giftbox_order_number} почти оформлен!",
                 )
 
                 await bot.send_message(
@@ -206,7 +206,7 @@ async def giftbox_order_pay_method(message: types.Message, state: FSMContext):
             else:
                 await bot.send_message(
                     message.chat.id,
-                    f"🍀 Ваш заказ гифтбокса под номером {giftbox_order_number} оформлен!\n\n"
+                    f"🍀 Заказ гифтбокса под номером {giftbox_order_number} оформлен!\n\n"
                     f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
                     reply_markup=kb_client.kb_client_main,
                 )
@@ -241,7 +241,7 @@ async def giftbox_order_pay_method(message: types.Message, state: FSMContext):
             await FSM_Client_giftbox_having.next()  # -> process_successful_giftbox_payment_by_photo
             await bot.send_message(
                 message.chat.id,
-                "🌿 Хорошо! Давай оплатим сейчас.\n\n"
+                "🌿 Хорошо!\n\n"
                 f"❕ Пожалуйста, приложи снимок или PDF документ чека о "
                 f"переводе средств на сумму {price} по "
                 "номеру телефона +7-925-885-07-87",

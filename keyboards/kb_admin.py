@@ -87,7 +87,8 @@ help_info_msgs = {
 }
 
 correction_commands = [
-    "создать запись на коррекцию"
+    "создать запись на коррекцию",
+    "записи на коррекцию"
 ]
 
 tattoo_order_commands = [
@@ -575,4 +576,4 @@ kb_giftbox_order_commands = create_kb(giftbox_order_commands + LIST_BACK_TO_HOME
 kb_schedule_for_tattoo_order_choice = create_kb(
     schedule_for_tattoo_order_choice + LIST_BACK_TO_HOME
 )
-kb_user_status = create_kb(user_status + LIST_BACK_TO_HOME)
+kb_user_status = create_kb(list(user_status.values()) + LIST_BACK_TO_HOME)

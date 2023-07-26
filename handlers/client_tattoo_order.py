@@ -74,22 +74,34 @@ class FSM_Client_tattoo_order(StatesGroup):
 
 # Начало диалога с пользователем, который хочет добавить новый заказ тату, хочу тату 🕸
 async def start_create_new_tattoo_order(message: types.Message):
-    # -> get_client_choice_main_or_temporary_tattoo
-    await FSM_Client_tattoo_order.client_choice_main_or_temporary_tattoo.set()
-    
     with Session(engine) as session:
         user = session.scalars(select(User).where(User.telegram_id == message.from_id)).all()
         
     if user == []:
         await bot.send_message(message.from_id, MSG_INFO_START_ORDER) 
         await bot.send_message(message.from_id, MSG_INFO_TATTOO_ORDER)
-    
-    await bot.send_message(message.from_id, MSG_START_CLIENT_TATTOO_ORDER) 
-    await bot.send_message(
-        message.from_id,
-        f"{MSG_CLIENT_WANT_CURRENT_OR_NOT_TATTOO}",
-        reply_markup=kb_client.kb_client_choice_main_or_temporary_tattoo,
-    )
+        await bot.send_message(message.from_id, MSG_START_CLIENT_TATTOO_ORDER) 
+        await bot.send_message(
+            message.from_id,
+            f"{MSG_CLIENT_WANT_CURRENT_OR_NOT_TATTOO}",
+            reply_markup=kb_client.kb_client_choice_main_or_temporary_tattoo,
+        )
+        # -> get_client_choice_main_or_temporary_tattoo
+        await FSM_Client_tattoo_order.client_choice_main_or_temporary_tattoo.set()
+        
+    else:
+        # Если пользователь в бане, то не пускаем дальше и просто выдаем сообщение
+        if user[0].status == clients_status['banned']:
+            await bot.send_message(message.from_id, MSG_BANNED_CLIENT)
+        else:
+            # -> get_client_choice_main_or_temporary_tattoo
+            await FSM_Client_tattoo_order.client_choice_main_or_temporary_tattoo.set()
+            await bot.send_message(message.from_id, MSG_START_CLIENT_TATTOO_ORDER) 
+            await bot.send_message(
+                message.from_id,
+                f"{MSG_CLIENT_WANT_CURRENT_OR_NOT_TATTOO}",
+                reply_markup=kb_client.kb_client_choice_main_or_temporary_tattoo,
+            )
 
 
 async def get_client_choice_main_or_temporary_tattoo(

@@ -42,7 +42,7 @@ class FSM_Client_tattoo_sketch_order(StatesGroup):
     load_sketch_photo = State()
 
 
-# Начало диалога с пользователем, который хочет добавить новый заказ тату, хочу тату 🕸
+# Начало диалога с пользователем, который хочет добавить новый заказ эскиза
 async def start_create_new_tattoo_sketch_order(message: types.Message):
     # защита от спама множества заказов. Клиент может заказать только по одному типу товара
     with Session(engine) as session:
@@ -62,7 +62,7 @@ async def start_create_new_tattoo_sketch_order(message: types.Message):
         await FSM_Client_tattoo_sketch_order.tattoo_sketch_note.set()
         await bot.send_message(
             message.from_id,
-            "🕸 Отлично, давай сделаем тебе эскиз! \n\n"
+            "🕸 Отлично, давай сделаем эскиз! \n\n"
             f"{MSG_GET_DESCRIPTION_TATTOO_FROM_CLIENT_CONCEPTS}",
             reply_markup=kb_client.kb_start_dialog_sketch_order,
         )
@@ -135,8 +135,8 @@ async def fill_sketch_order_table(data: dict, message: types.Message):
 
     await bot.send_message(
         message.from_id,
-        "🎉 Отлично, заказ на эскиз оформлен! "
-        f"Номер твоего заказа эскиза {data['tattoo_sketch_order_number']}",
+        "🎉 Заказ на эскиз оформлен! "
+        f"Номер заказа эскиза {data['tattoo_sketch_order_number']}",
     )
 
     await bot.send_message(

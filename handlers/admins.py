@@ -129,7 +129,7 @@ async def delete_table_command(message: types.Message):
 
         kb.add(KeyboardButton("Все таблицы")).add(kb_admin.home_btn)
         await FSM_Admin_delete_table.yes_no_delete_choice.set()
-        await message.reply("Какую таблицу хочешь удалить?", reply_markup=kb)
+        await message.reply("❔ Какую таблицу хочешь удалить?", reply_markup=kb)
 
 
 async def yes_no_delete_choice(message: types.Message, state: FSMContext):
@@ -137,12 +137,12 @@ async def yes_no_delete_choice(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data["table_name"] = message.text
         await message.reply(
-            f"Вы точно хотите удалить таблицу?", reply_markup=kb_client.kb_yes_no
+            f"❔ Вы точно хотите удалить таблицу?", reply_markup=kb_client.kb_yes_no
         )
         await FSM_Admin_delete_table.next()
     else:
         await message.reply(
-            f"Хорошо, удаление таблицы будет позже. Хотите сделать что-то еще?",
+            f"⛔️ Удаление таблицы будет позже. Хотите сделать что-то еще?",
             reply_markup=kb_admin.kb_main,
         )
 
@@ -158,13 +158,13 @@ async def delete_table_with_name(message: types.Message, state: FSMContext):
                 for table_name in inspector.get_table_names(schema=schema):
                     await delete_table(table_name)
             await message.reply(
-                f"Готово! Вы удалили все таблицы", reply_markup=kb_admin.kb_main
+                f"🎉 Готово! Вы удалили все таблицы", reply_markup=kb_admin.kb_main
             )
         else:
             await delete_table(table_name)
 
             await message.reply(
-                f"Готово! Вы удалили таблицу {table_name}",
+                f"🎉 Готово! Вы удалили таблицу {table_name}",
                 reply_markup=kb_admin.kb_main,
             )
 
@@ -195,10 +195,8 @@ async def command_get_data_from_json(message: types.Message):
         inspector = inspect(engine)
         schemas = inspector.get_schema_names()
         kb = ReplyKeyboardMarkup(resize_keyboard=True)
-        print(f"schemas:{schemas}")
         for schema in schemas:
             for table_name in inspector.get_table_names(schema=schema):
-                print(f"table_name:{table_name}")
                 kb.add(KeyboardButton(table_name))
                 """ for column in inspector.get_columns(table_name, schema=schema):
                         kb.add(KeyboardButton(column)) """
@@ -340,7 +338,7 @@ async def command_see_list(message: types.Message):
 
         await bot.send_message(
             message.from_user.id,
-            f"На данный момент есть следующие команды:\n{command_str_message}",
+            f"❕ На данный момент есть следующие команды:\n{command_str_message}",
             reply_markup=kb_admin.kb_main,
         )
 

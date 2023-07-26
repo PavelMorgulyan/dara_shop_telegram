@@ -487,7 +487,6 @@ async def command_get_info_сert_orders(message: types.Message):
         )
 
 
-# TODO изменить статус сертификата, удалить сертификат
 # --------------------------------CHANGE STATE CERT COMMANDS----------------------------------
 class FSM_Admin_set_new_state_cert_order(StatesGroup):
     get_order_number = State()
@@ -557,7 +556,7 @@ async def get_cert_order_number(message: types.Message, state: FSMContext):
                 kb_new_status.add(KeyboardButton(status))
         
         await bot.send_message(
-            message.from_id, f"Какой статус выставляем?", reply_markup= kb_new_status,
+            message.from_id, f"❔ Какой статус выставляем?", reply_markup= kb_new_status,
         )
 
 
@@ -588,7 +587,7 @@ async def get_new_status_to_cert_order(message: types.Message, state: FSMContext
         elif message.text in [STATES["paid"]]:  # оплачен
             await FSM_Admin_set_new_state_cert_order.next() #-> get_answer_for_getting_check_document
             await message.reply(
-                f"Хочешь добавить чек к сертификату?", reply_markup=kb_client.kb_yes_no
+                f"❔ Добавить чек к сертификату?", reply_markup=kb_client.kb_yes_no
             )
     if message.text == kb_client.yes_str:
         async with state.proxy() as data:
@@ -614,7 +613,7 @@ async def get_new_status_to_cert_order(message: types.Message, state: FSMContext
         async with state.proxy() as data:
             new_state = data['new_state']
         await message.reply(
-            f'❕ Готово! Обновлен статус сертификата {order_number} на "{new_state}"',
+            f'🎉 Готово! Обновлен статус сертификата {order_number} на "{new_state}"',
             reply_markup=kb_admin.kb_cert_item_commands,
         )
         await state.finish()  #  полностью очищает данные
@@ -626,7 +625,7 @@ async def get_answer_for_getting_check_document(
     if message.text == kb_client.yes_str:
         await FSM_Admin_set_new_state_cert_order.next()
         await message.reply(
-            f"На какую сумму чек?", reply_markup=kb_admin.kb_price
+            f"❔ На какую сумму чек?", reply_markup=kb_admin.kb_price
         )
 
     elif message.text == kb_client.no_str:
@@ -635,13 +634,13 @@ async def get_answer_for_getting_check_document(
             new_state = data["new_state"]
 
         await message.reply(
-            f"Готово! Обновлен статусзаказа {order_number} на '{new_state}'",
+            f"🎉 Готово! Обновлен статусзаказа {order_number} на '{new_state}'",
             reply_markup=kb_admin.kb_cert_item_commands,
         )
         await state.finish()
     else:
         await message.reply(
-            f"На этот вопрос можно ответит только 'Да' или 'Нет'. Выбери правильный ответ",
+            MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST,
             reply_markup=kb_client.kb_yes_no,
         )
 
@@ -741,7 +740,7 @@ async def get_check_document(message: types.Message, state: FSMContext):
                 )
             )
             await message.reply(
-                f'❕ Готово! Обновлен статус сертификата {order_number} на "{new_state}"',
+                f'🎉 Готово! Обновлен статус сертификата {order_number} на "{new_state}"',
                 reply_markup=kb_admin.kb_cert_item_commands,
             )
             await state.finish() 
@@ -750,7 +749,7 @@ async def get_check_document(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             new_state = data['new_state']
         await message.reply(
-            f'❕ Готово! Обновлен статус сертификата {order_number} на "{new_state}"',
+            f'🎉 Готово! Обновлен статус сертификата {order_number} на "{new_state}"',
             reply_markup=kb_admin.kb_cert_item_commands,
         )
         await state.finish()  #  полностью очищает данные
@@ -829,7 +828,7 @@ async def command_delete_info_cert_order(message: types.Message):
             kb_cert_order_numbers.add(KeyboardButton("Назад"))
             await FSM_Admin_delete_cert_order.order_number.set()
             await message.reply(
-                "Какой заказ хотите удалить?", reply_markup=kb_cert_order_numbers
+                "❔ Какой заказ удалить?", reply_markup=kb_cert_order_numbers
             )
 
 
@@ -850,7 +849,7 @@ async def delete_info_cert_orders(message: types.Message, state: FSMContext):
             session.delete(order)
             session.commit()
 
-        await message.reply(f"Cертификат {message.text.split()[1][1:]} удален")
+        await message.reply(f"🎉 Cертификат {message.text.split()[1][1:]} удален")
         await bot.send_message(
             message.from_user.id,
             f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",

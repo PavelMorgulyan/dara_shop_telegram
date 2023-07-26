@@ -44,8 +44,6 @@ class GoogleCalendar:
                 ],
             },
         }
-        print(f"event: {event}")
-        print(f"self.service: {self.service}")
         return (
             self.service.events().insert(calendarId=calendar_id, body=event).execute()
         )

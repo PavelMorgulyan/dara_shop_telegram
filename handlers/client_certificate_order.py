@@ -16,10 +16,6 @@ from validate import check_pdf_document_payment, check_photo_payment
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text
-
-from db.db_setter import set_to_table
-from db.db_getter import get_info_many_from_table
-
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -107,7 +103,7 @@ async def load_сert_payment_choice(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             price = data["price"]
         await FSM_Client_сert_item.next()  # -> process_pre_checkout_query
-        await bot.send_message(message.chat.id, "🌿 Отлично, давайте сейчас!")
+        await bot.send_message(message.chat.id, "🌿 Отлично, давайте оплатим сейчас!")
         await bot.send_message(
             message.chat.id,
             f"📎 Отправьте PDF документ или фотографию чека перевода на сумму {price} "
@@ -325,7 +321,7 @@ async def process_successful_cert_payment(message: types.Message, state=FSMConte
             if DARA_ID != 0:
                 await bot.send_message(
                     DARA_ID,
-                    f"❕Дорогая Тату-мастерица! "
+                    f"❕ Дорогая Тату-мастерица! "
                     f"У пользователя {message.from_user.full_name} появился "
                     f"сертификат на сумму {price}\n"
                     f"Номер сертификата: {cert_order_number}!\n"

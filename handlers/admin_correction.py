@@ -19,6 +19,7 @@ from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
 from aiogram_timepicker.panel import FullTimePicker, full_timep_callback
 from aiogram_timepicker import result, carousel, clock
 from msg.main_msg import *
+from handlers.admin_schedule import get_view_schedule
 
 
 #TODO создать функции: записать пользователя на коррекцию
@@ -37,7 +38,7 @@ async def get_correction_commands(message: types.Message):
 
 #------------------------------CREATE CORRECTION DATE------------------------------------------
 class FSM_Admin_create_correction(StatesGroup):
-    order_number = State() # введи описание тату эскиза
+    order_number = State()
     schedule_type = State()
     new_date = State()
     new_start_time = State()
@@ -53,7 +54,7 @@ async def command_create_correction_event_date(message: types.Message):
     ):
         await bot.send_message(
             message.from_id, 
-            "Данная команда позволяет добавить новый сеанс коррекции к существующему заказу",
+            "💭 Данная команда позволяет добавить новый сеанс коррекции к существующему заказу",
         )
         
         with Session(engine) as session:
@@ -78,7 +79,7 @@ async def command_create_correction_event_date(message: types.Message):
             kb_tattoo_order_numbers.add(kb_admin.home_btn)
             await FSM_Admin_create_correction.order_number.set()
             await message.reply(
-                "К какому заказу добавить сеанс?",
+                "❔ К какому заказу добавить сеанс?",
                 reply_markup=kb_tattoo_order_numbers,
             )
 
@@ -148,11 +149,9 @@ async def get_tattoo_order_number_to_new_schedule_event(message: types.Message, 
         order_lst.append(msg_item)
         kb_tattoo_order_numbers_with_status.add(KeyboardButton(msg_item))
         
-    async with state.proxy() as data:
-        data['kb_tattoo_order_numbers_with_status'] = kb_tattoo_order_numbers_with_status
-    
     if message.text in order_lst:
         async with state.proxy() as data:
+            data['kb_tattoo_order_numbers_with_status'] = kb_tattoo_order_numbers_with_status
             data['order_number'] = message.text.split()[0]
             with Session(engine) as session:
                 orders = session.scalars(
@@ -160,9 +159,10 @@ async def get_tattoo_order_number_to_new_schedule_event(message: types.Message, 
                     ).one()
             data['client_name'] = orders.username
             data['client_id'] = order.user_id
-            
+        
+        await FSM_Admin_create_correction.next() # -> get_schedule_type
         await message.reply(
-            "Добавить новый сеанс из календаря или создать новый сеанс?",
+            "❔ Добавить новый сеанс из календаря или создать новый сеанс?",
             reply_markup= kb_admin.kb_admin_choice_create_new_or_created_schedule_item
         )
         
@@ -171,6 +171,8 @@ async def get_tattoo_order_number_to_new_schedule_event(message: types.Message, 
         await message.reply(
             MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_tattoo_order_commands
         )
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 async def get_schedule_type(message: types.Message, state: FSMContext):
@@ -191,22 +193,25 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
             
         schedule_events_kb_lst.append(event_item)
         kb.add(KeyboardButton(event_item))
-        
+    kb.add(kb_admin.home_btn)
+    
     if message.text == kb_admin.admin_choice_create_new_or_created_schedule_item['create_new_schedule']:
         # -> process_get_new_date_for_new_data_schedule    
         await FSM_Admin_create_correction.next() 
         await message.reply(
-            f"Введите новую дату для тату заказа",
+            f"🕒 Введите новую дату для тату заказа",
             reply_markup=await DialogCalendar().start_calendar(),
         )
+        
     elif message.text in schedule_events_kb_lst:
         async with state.proxy() as data:
             order_number = data['order_number']
+            
         start_time = datetime.strptime(f"{message.text.split(' по ')[0]}", '%d/%m/%Y с %H:%M')
         with Session(engine) as session:
             order = session.scalars(select(Orders).where(Orders.order_number == order_number)).one()
             schedule = session.scalars(select(ScheduleCalendar)
-                .where(ScheduleCalendar.start_datetime == start_time)
+                    .where(ScheduleCalendar.start_datetime == start_time)
                 ).one()
             
             order.schedule_id.append(
@@ -215,14 +220,34 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
                     schedule_id = schedule.id
                 )
             )
+            # TODO проверить запонение нового статуса и нового event_type в остальных случаях 
+            # изменения статуса и ивента календаря
+            
+            schedule.status = kb_admin.schedule_event_status['busy']
+            schedule.event_type = kb_admin.schedule_event_type['correction']
+            
             session.commit()
+            
+        await bot.send_message(
+            message.from_id, 
+            MSG_ADMIN_ADD_NEW_CORRECTION_EVENT_TO_CLIENT_TATTOO_ORDER
+        )
         
-        
-    elif message.text == kb_admin.admin_choice_create_new_or_created_schedule_item['choice_created_schedule']:
+        #-> get_anwser_to_notify_client
+        for i in range(3):
+            await FSM_Admin_create_correction.next()
         
         await bot.send_message(
-            message.from_id, "Какой день выбираешь?", reply_markup=kb
+            message.from_id,
+            MSG_DO_ADMIN_WANT_TO_NOTIFY_CLIENT,
+            reply_markup=kb_client.kb_yes_no,
         )
+        
+    elif message.text == kb_admin.admin_choice_create_new_or_created_schedule_item['choice_created_schedule']:
+        await bot.send_message(
+            message.from_id, "❔ Какой день выбираешь?", reply_markup=kb
+        )
+        
     elif message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
         await state.finish()
         await message.reply(
@@ -234,7 +259,7 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
         #-> get_tattoo_order_number_to_new_schedule_event
         await FSM_Admin_create_correction.previous() 
         await message.reply(
-            "К какому заказу добавить сеанс?",
+            "❔ К какому заказу добавить сеанс?",
             reply_markup=kb_tattoo_order_numbers_with_status,
         )
 
@@ -249,7 +274,7 @@ async def process_get_new_date_for_new_data_schedule(
     selected, date = await DialogCalendar().process_selection(callback_query, callback_data)  # type: ignore
     if selected:
         await callback_query.message.answer(
-            f'Вы выбрали новую дату {date.strftime("%d/%m/%Y")}'
+            f'🕒 Вы выбрали новую дату {date.strftime("%d/%m/%Y")}'
         )
 
         async with state.proxy() as data:
@@ -263,7 +288,7 @@ async def process_get_new_date_for_new_data_schedule(
             await FSM_Admin_create_correction.next()
             await bot.send_message(
                 user_id,
-                f"Введи новое время для тату заказа",
+                f"💬 Введи новое время для тату заказа",
                 reply_markup=await FullTimePicker().start_picker(),
             )
 
@@ -300,7 +325,7 @@ async def process_hour_timepicker_new_start_time_in_tattoo_order(
 
     if r.selected:
         await callback_query.message.edit_text(
-            f'Вы выбрали время {r.time.strftime("%H:%M")} ',
+            f'🕒 Вы выбрали время {r.time.strftime("%H:%M")} ',
         )
         async with state.proxy() as data:
             user_id = data["user_id"]
@@ -309,7 +334,7 @@ async def process_hour_timepicker_new_start_time_in_tattoo_order(
         await FSM_Admin_create_correction.next()
         await bot.send_message(
             user_id,
-            f"А теперь введи время окончания сеанса",
+            f"🕒 Введите время окончания сеанса",
             reply_markup=await FullTimePicker().start_picker(),
         )
 
@@ -326,7 +351,7 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
 
     if r.selected:
         await callback_query.message.edit_text(
-            f'Вы выбрали время {r.time.strftime("%H:%M")}'
+            f'🕒 Вы выбрали время {r.time.strftime("%H:%M")}'
         )
 
         async with state.proxy() as data:
@@ -356,10 +381,10 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
 
         await bot.send_message(
             user_id,
-            f"У тату заказа №{order_number} добавилась дата сеанса с "
+            f"🎉 У тату заказа №{order_number} добавилась дата сеанса с "
             f"{start_time_in_tattoo_order.strftime('%Y-%m-%d %H:%M')} по"
-            f"{end_time_in_tattoo_order.strftime('%Y-%m-%d %H:%M')}."
-            "А также добавилась новая дата в календаре.",
+            f"{end_time_in_tattoo_order.strftime('%Y-%m-%d %H:%M')}.\n\n"
+            "🕒 А также добавилась новая дата в календаре.",
         )
         #-> get_anwser_to_notify_client
         await FSM_Admin_create_correction.next()
@@ -397,6 +422,24 @@ async def get_anwser_to_notify_client(message: types.Message, state: FSMContext)
         )
 
 
+#-------------------------------VIEW CORRECTION DATES---------------------
+async def command_view_correction_event_dates(message: types.Message):
+    if (
+        message.text.lower()
+        in ["/записи_на_коррекцию", "записи на коррекцию"]
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        with Session(engine) as session:
+            events = session.scalars(select(ScheduleCalendar)
+                    .where(ScheduleCalendar.event_type == kb_admin.schedule_event_type['correction'])
+                ).all()
+            
+        await get_view_schedule(message.from_id, events)
+
+
+# TODO добавить функцию "изменить запись на коррекцию", "удалить запись на коррекцию"
+
+
 def register_handlers_admin_correction(dp: Dispatcher):
     # ---------------------------ADD NEW SCHEDULE EVENT OT TATTOO ORDER -------------
     dp.register_message_handler(
@@ -405,7 +448,7 @@ def register_handlers_admin_correction(dp: Dispatcher):
         state=None,
     )
     dp.register_message_handler(
-        command_create_correction_event_date,
+        get_tattoo_order_number_to_new_schedule_event,
         state=FSM_Admin_create_correction.order_number
     )
     dp.register_message_handler(
@@ -418,3 +461,15 @@ def register_handlers_admin_correction(dp: Dispatcher):
     )
     #---------------------SEND_TO_VIEW_CORRECTION_EVENT_DATES--------------
     #TODO сделать функцию "записи на коррекцию"
+    
+    dp.register_message_handler(
+        command_view_correction_event_dates,
+        Text(equals="записи на коррекцию", ignore_case=True),
+        state=None,
+    )
+    
+    dp.register_message_handler(
+        get_correction_commands,
+        Text(equals="Коррекция", ignore_case=True),
+        state=None,
+    )

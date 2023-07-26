@@ -218,7 +218,6 @@ async def delete_user_with_name(message: types.Message, state: FSMContext):
         )
 
 
-# TODO добавить пользователя в черный список
 # ---------------------------------SET CLIENT TO BLACK LIST-------------------------------------
 class FSM_Admin_set_client_to_black_list(StatesGroup):
     user_name = State()
@@ -259,7 +258,7 @@ async def set_to_black_list_user_with_name(message: types.Message, state: FSMCon
             data['username'] = message.text
 
         await message.reply(
-            "Точно хотите забанить пользователя?",
+            "❔ Точно хотите забанить пользователя?",
             reply_markup= kb_client.kb_yes_no
         )
         await state.finish()
@@ -272,7 +271,7 @@ async def set_to_black_list_user_with_name(message: types.Message, state: FSMCon
             user = session.scalars(select(User).where(User.name == username)).one()
             user.status = clients_status["banned"]
             await message.reply(
-                f"Готово! Пользователь {message.text} забанен.",
+                f"🎉 Готово! Пользователь {message.text} забанен.",
                 reply_markup=kb_admin.kb_clients_commands,
             )
             await state.finish()
@@ -285,7 +284,7 @@ async def set_to_black_list_user_with_name(message: types.Message, state: FSMCon
         await state.finish()
     else:
         await message.reply(
-            f"Пользователя с именем {message.text} нет. Попробуй другого."
+            f"⭕️ Пользователя с именем {message.text} нет. Попробуй другого."
         )
 
 

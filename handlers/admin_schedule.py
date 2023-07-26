@@ -47,7 +47,7 @@ async def send_notification_schedule():
         if DARA_ID != 0:
             await bot.send_message(
                 DARA_ID,
-                "Дорогая тату мастерица! Вот твое расписание на сегодня:\n"
+                "📃 Дорогая тату мастерица! Вот твое расписание на сегодня:\n"
                 f"{order.order_type}\n"
                 f"Номер заказа: {order.order_number}"
                 f"Статус заказа: {order.order_state}",
@@ -87,7 +87,7 @@ async def command_new_photo_to_schedule(message: types.Message):
         kb_month_year.add(KeyboardButton("Назад"))
         await FSM_Admin_create_new_photo_to_schedule.number_month_year_for_photo.set()
         await message.reply(
-            "На какой месяц хочешь добавить фото к расписанию?",
+            "❔ На какой месяц хочешь добавить фото к расписанию?",
             reply_markup=kb_month_year,
         )
 
@@ -103,18 +103,17 @@ async def get_name_for_photo_to_schedule(message: types.Message, state: FSMConte
         async with state.proxy() as data:
             data["name_schedule_photo"] = message.text
         await FSM_Admin_create_new_photo_to_schedule.next()
-        await message.reply("Хорошо, а теперь добавь фото календаря")
+        await message.reply("📷 Добавьте фото календаря")
 
     elif message.text.lower() in LIST_CANCEL_COMMANDS:
         await state.finish()
         await message.reply(
-            "Хорошо, отменим действие. Что хочешь еще сделать?",
+            f"{MSG_CANCEL_ACTION}. {MSG_DO_CLIENT_WANT_TO_DO_MORE}",
             reply_markup=kb_admin.kb_schedule_commands,
         )
     else:
         await message.reply(
-            "Пожалуйста, введи корректный месяц и год для команды.\
-            Выбери из списка"
+            MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
