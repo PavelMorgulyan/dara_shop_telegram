@@ -52,8 +52,7 @@ async def get_user_status(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data['user_status'] = clients_status['admin'] \
                 if message.text == kb_admin.user_status['admin'] else clients_status['client']
-        
-        
+
 
 # -------------------------------VIEW ALL USERS-------------------------------------------
 class FSM_Admin_get_info_user(StatesGroup):
@@ -179,7 +178,7 @@ async def delete_username_command(message: types.Message):
             users = session.scalars(select(User)).all()
         if users == []:
             await message.reply(
-                f"Пока нет пользователей в базе.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                f"⭕️ Пока нет пользователей в базе.\n\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
                 reply_markup=kb_admin.kb_main,
             )
         else:
@@ -191,7 +190,7 @@ async def delete_username_command(message: types.Message):
             await FSM_Admin_delete_info_user.user_name.set()
 
             await message.reply(
-                "Какого пользователя удалить?", reply_markup=kb_users_names
+                "❔ Какого пользователя удалить?", reply_markup=kb_users_names
             )
 
 
@@ -214,7 +213,7 @@ async def delete_user_with_name(message: types.Message, state: FSMContext):
         await state.finish()
     else:
         await message.reply(
-            f"Пользователя с именем {message.text} нет. Попробуй другого."
+            f"⭕️ Пользователя с именем {message.text} нет. Попробуй другого."
         )
 
 

@@ -171,7 +171,7 @@ async def load_candle_state(message: types.Message, state: FSMContext):
     try:
         if message.text == kb_client.yes_str:
             await message.reply(
-                "Сколько таких свечей у тебя есть? Напиши количество",
+                "❔ Сколько таких свечей у тебя есть? Напиши количество",
                 reply_markup=kb_admin.kb_sizes,
             )
         elif message.text == kb_client.no_str or int(message.text) in kb_admin.sizes_lst:
@@ -249,7 +249,7 @@ async def command_get_info_candle(message: types.Message):
                 kb_candles_names.add(item.name)
             await FSM_Admin_get_info_candle_item.candle_name.set()
             await message.reply(
-                "Какую свечу хочешь посмотреть?", reply_markup= kb_candles_names
+                "❔ Какую свечу посмотреть?", reply_markup= kb_candles_names
             )
 
 
@@ -281,7 +281,7 @@ async def get_candle_name_for_info(message: types.Message, state: FSMContext):
         )
         await state.finish()  #  полностью очищает данные
     else:
-        await message.reply("Неверное указание имени свечи, попробуй другую")
+        await message.reply("❌ Неверное указание имени свечи, попробуй другую")
 
 
 # -----------------------CANDLE /посмотреть_список_имеющихся_свечей--------------------------COMPLETE
@@ -298,7 +298,7 @@ async def command_get_info_candles_having(message: types.Message):
 
         if candles == []:
             await bot.send_message(
-                message.from_user.id, "У тебя пока нет купленных свечей в базе"
+                message.from_user.id, "💭 В базе нет купленных свечей"
             )
         else:
             await send_to_view_candle_items(message, candles)
@@ -323,7 +323,7 @@ async def command_get_info_candles_not_having(message: types.Message):
         if candles == []:
             await bot.send_message(
                 message.from_user.id,
-                "У тебя все свечи есть! Посмотри в таблице купленных свечей",
+                "💭 У тебя все свечи есть! Посмотри в таблице купленных свечей",
             )
         else:
             await send_to_view_candle_items(message, candles)
@@ -350,7 +350,7 @@ async def delete_info_candle_in_table(message: types.Message):
             await FSM_Admin_delete_info_candle_item.candle_name.set()
             await bot.send_message(
                 message.from_user.id,
-                "Какую свечу удалить?",
+                "❔ Какую свечу удалить?",
                 reply_markup=kb_candle_names,
             )
 
@@ -446,12 +446,12 @@ async def get_column_candle_item_name(message: types.Message, state: FSMContext)
             )
         elif message.text == kb_admin.candle_item_columns['name']:
             await bot.send_message(
-                message.from_id, "Какое будет новое название у свечи? Напиши в строке",
+                message.from_id, "❔ Какое будет новое название у свечи? Напиши в строке",
                 reply_markup= kb_client.kb_back_cancel
             )
         elif message.text == kb_admin.candle_item_columns['quantity']:
             await bot.send_message(
-                message.from_id, "Какое новое количество будет у этой свечи? Выбери из списка",
+                message.from_id, "❔ Какое новое количество будет у этой свечи? Выбери из списка",
                 reply_markup= kb_admin.kb_sizes
             )
             
