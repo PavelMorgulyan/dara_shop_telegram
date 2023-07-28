@@ -202,7 +202,7 @@ async def get_text_from_admin_to_generate_img_ai(
 
             kb_list_text_img.add(kb_client.back_btn).add(kb_client.cancel_btn)
             await message.reply(
-                "Какой текст хочешь снова использовать для изображения?",
+                "❔ Какой текст хочешь снова использовать для изображения?",
                 reply_markup=kb_list_text_img,
             )
 
@@ -243,7 +243,7 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
             id = data["id"]
         await update_info("tattoo_ai", "id", id, "state", "удачный")
         await message.reply(
-            f"Отлично, получилось удачное изображение! \n\n" "Хочешь попробовать еще?.",
+            f"Отлично, получилось удачное изображение! \n\n❔ Хочешь попробовать еще?.",
             reply_markup=kb_client.kb_want_another_ai_img,
         )
 

@@ -67,7 +67,7 @@ async def get_seq_name_new_item(message: types.Message, state: FSMContext):
                 
             await bot.send_message(
                 message.from_id, 
-                "По какой цене блестки?",
+                "❔ По какой цене блестки?",
                 reply_markup= kb_admin.kb_price)
             
             await FSM_Admin_create_seq_item.next() #-> get_seq_price
@@ -116,7 +116,7 @@ async def get_seq_price(message: types.Message, state: FSMContext):
         await FSM_Admin_create_seq_item.next() #->get_seq_quantity
         await bot.send_message(
             message.from_id, 
-            "Выбери количество блесток, которое у тебя есть в наличии", 
+            "Выберите количество блесток, которое есть в наличии", 
             reply_markup= kb_admin.kb_sizes
         )
     else:
@@ -132,7 +132,7 @@ async def get_seq_quantity(message: types.Message, state: FSMContext):
             await FSM_Admin_create_seq_item.next() #->set_new_seq_item
             await bot.send_message(
                 message.from_id, 
-                "Хочешь добавить фото для блесток?",
+                "❔ Добавить фото для блесток?",
                 reply_markup= kb_client.kb_yes_no
             )
         elif message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
@@ -251,7 +251,7 @@ async def command_delete_seq_item(message: types.Message):
         
         await bot.send_message(
             message.from_id,
-            "Какие блестки удалить?",
+            "❔ Какие блестки удалить?",
             reply_markup= kb
         )
 
@@ -314,7 +314,7 @@ async def command_change_seq_item(message: types.Message):
         
         await bot.send_message(
             message.from_id,
-            "Какие блестки изменить?",
+            "❔ Какие блестки изменить?",
             reply_markup= kb
         )
 

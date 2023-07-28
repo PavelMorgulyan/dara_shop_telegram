@@ -231,7 +231,7 @@ async def command_change_state_giftbox_order(message: types.Message):
             kb_giftbox_numbers.add(kb_admin.home_btn)
             await bot.send_message(
                 message.from_user.id,
-                f"У какого заказа хочешь поменять статус?",
+                f"❔ У какого заказа хочешь поменять статус?",
                 reply_markup=kb_giftbox_numbers,
             )
 
@@ -253,13 +253,13 @@ async def get_new_state_giftbox_order(message: types.Message, state: FSMContext)
         await FSM_Admin_change_state_giftbox_orders.next()
         await bot.send_message(message.from_id, MSG_SEND_ORDER_STATE_INFO)
         await message.reply(
-            "На какой статус хочешь поменять?",
+            "❔ На какой статус хочешь поменять?",
             reply_markup=kb_admin.kb_change_status_order,
         )
     else:
         await state.finish()
         await message.reply(
-            "Хорошо, ты вернулся назад. Что хочешь сделать?",
+            f"{MSG_BACK}",
             reply_markup=kb_admin.kb_giftbox_order_commands,
         )
 

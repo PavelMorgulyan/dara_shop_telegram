@@ -7,9 +7,7 @@ from keyboards import kb_client, kb_admin
 from aiogram.dispatcher.filters import Text
 from handlers.client import (
     generate_random_order_number,
-    generate_random_code,
     CODE_LENTH,
-    ORDER_CODE_LENTH,
     ADMIN_NAMES,
     CALENDAR_ID,
     DARA_ID,
@@ -285,7 +283,7 @@ async def command_delete_info_sketch_order(message: types.Message):
             kb_sketch_order_numbers.add(kb_client.cancel_btn)
             await FSM_Admin_delete_sketch_order.order_number.set()
             await message.reply(
-                "Какой заказ удалить?", reply_markup=kb_sketch_order_numbers
+                "❔ Какой заказ удалить?", reply_markup=kb_sketch_order_numbers
             )
 
 
@@ -482,7 +480,7 @@ async def get_photo_sketch(message: types.Message, state: FSMContext):
             await FSM_Admin_command_create_new_sketch_order.next() # -> get_username_telegram
             await bot.send_message(
                 message.from_id,
-                "Хорошо, закончим с добавлением фотографий для нового эскиза.\n\n"
+                "Закончим с добавлением фотографий для нового эскиза.\n\n"
                 f"{MSG_WHICH_USERNAME_IN_ORDER}",
                 #'P.s. Нажимая на пользователя в ТГ сверху будет его имя. '\
                 #'А имя с символом \"@\" - ссылка на телеграм',
@@ -526,7 +524,7 @@ async def get_username_telegram(message: types.Message, state: FSMContext):
             if client == []:
                 await bot.send_message(
                     message.from_id,
-                    "Хочешь добавить телефон пользователя?",
+                    "❔ Добавить телефон пользователя?",
                     reply_markup=kb_client.kb_yes_no,
                 )
             else:
@@ -575,7 +573,7 @@ async def get_sketch_price(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data["price"] = message.text
         await bot.send_message(
-            message.from_id, "Данный заказ оплачен?", reply_markup=kb_client.kb_yes_no
+            message.from_id, "❔ Данный заказ оплачен?", reply_markup=kb_client.kb_yes_no
         )
         await FSM_Admin_command_create_new_sketch_order.next()  # -> get_sketch_state
 
@@ -616,7 +614,7 @@ async def get_sketch_state(message: types.Message, state: FSMContext):
 
         await bot.send_message(
             message.from_id,
-            "Хочешь добавить чек заказа?",
+            "❔ Добавить чек в заказ?",
             reply_markup=kb_client.kb_yes_no,
         )
         await FSM_Admin_command_create_new_sketch_order.next()  # -> get_sketch_check
@@ -850,13 +848,13 @@ async def get_new_status_to_sketch_order(message: types.Message, state: FSMConte
             
         if message.text in list(STATES["closed"].values()):
             
-            await message.reply("Оповестить пользователя о смене статуса заказа?", 
+            await message.reply("❔ Оповестить пользователя о смене статуса заказа?", 
                 reply_markup=kb_client.kb_yes_no)
             
         elif message.text in [STATES["paid"]]:  # 'Обработан'
             await FSM_Admin_set_new_state_sketch_order.next()
             await message.reply(
-                f"Хочешь добавить чек к заказу?", reply_markup=kb_client.kb_yes_no
+                f"❔ Хочешь добавить чек к заказу?", reply_markup=kb_client.kb_yes_no
             )
     elif message.text == kb_client.yes_str:
         async with state.proxy() as data:

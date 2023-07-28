@@ -271,7 +271,7 @@ async def get_schedule_month(message: types.Message, state: FSMContext):
 
         await FSM_Admin_create_new_date_to_schedule.next()  # -> get_schedule_day
         await message.reply(
-            "Хорошо. Какой день недели?", reply_markup=kb_admin.kb_days_for_schedule
+            "❔ Какой день недели?", reply_markup=kb_admin.kb_days_for_schedule
         )
     else:
         await bot.send_message(
@@ -290,8 +290,8 @@ async def get_schedule_day(message: types.Message, state: FSMContext):
 
         await bot.send_message(
             message.from_user.id,
-            "Отлично, давай определимся со временем. "
-            "С какого времени начинается твой рабочее расписание в этот день?",
+            "Отлично, давай определимся со временем.\n"
+            "❔ С какого времени начинается твой рабочее расписание в этот день?",
             reply_markup=await FullTimePicker().start_picker(),
         )
 
@@ -337,8 +337,8 @@ async def get_day_by_date_for_schedule(
             await FSM_Admin_create_new_date_to_schedule.next()
             await bot.send_message(
                 username_id,
-                "Отлично, давай определимся со временем. "
-                "С какого времени начинается сеанс?",
+                "Отлично, давай определимся со временем.\n"
+                "❔ С какого времени начинается сеанс?",
                 reply_markup=await FullTimePicker().start_picker(),
             )
 
@@ -373,7 +373,7 @@ async def process_hour_timepicker_start_time(
                 await FSM_Admin_create_new_date_to_schedule.next()
                 await bot.send_message(
                     username_id,
-                    "Когда заканчивается сеанс?",
+                    "❔ Когда заканчивается сеанс?",
                     reply_markup=await FullTimePicker().start_picker(),
                 )
 
@@ -703,7 +703,7 @@ async def command_get_view_photo_schedule(message: types.Message):
             kb_photos_schedule.add(kb_client.cancel_btn)
             await FSM_Admin_get_view_schedule_photo.schedule_photo_name.set()
             await message.reply(
-                f"Какую фотографию хочешь посмотреть?", reply_markup=kb_photos_schedule
+                f"❔ Какую фотографию посмотреть?", reply_markup=kb_photos_schedule
             )
 
 
@@ -736,8 +736,7 @@ async def get_schedule_photo_to_view(message: types.Message, state: FSMContext):
         await state.finish()
     else:
         await message.reply(
-            "Пожалуйста, выберите наименование фотографии расписания из списка "
-            "или отмени действие"
+            MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -771,7 +770,7 @@ async def delete_photo_schedule(message: types.Message):
             kb_photos_schedule.add(kb_client.cancel_btn)
             await FSM_Admin_delete_schedule_photo.schedule_photo_name.set()
             await message.reply(
-                "❔ Какое фото хочешь удалить?", reply_markup=kb_photos_schedule
+                "❔ Какое фото удалить?", reply_markup=kb_photos_schedule
             )
 
 
@@ -791,22 +790,21 @@ async def get_schedule_photo_to_delete(message: types.Message, state: FSMContext
             session.commit()
         await bot.send_message(message.from_id, MSG_SUCCESS_CHANGING)
         await message.reply(
-            f'Отлично, фото "0{message.text}" удалено из расписания.\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
+            f'Фото "0{message.text}" удалено из расписания.\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}',
             reply_markup=kb_admin.kb_schedule_commands,
         )
         await state.finish()
 
     elif message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
         await message.reply(
-            "Хорошо, вы вернулись в меню расписания. Что хочешь сделать?",
+            f"{MSG_BACK_TO_HOME}",
             reply_markup=kb_admin.kb_schedule_commands,
         )
         await state.finish()
 
     else:
         await message.reply(
-            "Пожалуйста, выбери наименование фотографии расписания из списка "
-            "или отмени действие"
+            MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
         )
 
 
@@ -982,19 +980,19 @@ async def get_new_state_event_in_schedule(message: types.Message, state: FSMCont
             for i in range(3):
                 await FSM_Admin_change_schedule.next()  # -> get_changing_day_by_date_for_schedule
             await message.reply(
-                "Выбери конкретную дату",
+                "Выберите конкретную дату",
                 reply_markup=await DialogCalendar().start_calendar(),
             )
 
         elif message.text == "Время начала работы":
             await message.reply(
-                "Выбери новое время начала работы",
+                "Выберите новое время начала работы",
                 reply_markup=await FullTimePicker().start_picker(),
             )
 
         elif message.text == "Время окончания работы":
             await message.reply(
-                "Выбери новое время окончания работы",
+                "Выберите новое время окончания работы",
                 reply_markup=await FullTimePicker().start_picker(),
             )
 
@@ -1006,13 +1004,13 @@ async def get_new_state_event_in_schedule(message: types.Message, state: FSMCont
                 await FSM_Admin_change_schedule.next()  # -> set_new_state_event_in_schedule
 
             await message.reply(
-                "Выбери новый статус сеанса",
+                "Выберите новый статус сеанса",
                 reply_markup=kb_admin.kb_free_or_close_event_in_schedule,
             )
 
         elif message.text == "Тип":
             await message.reply(
-                "Выбери новый тип даты календаря. Какой поставим?",
+                "Выберите новый тип даты календаря",
                 reply_markup=kb_admin.kb_type_of_schedule,
             )
 
@@ -1166,16 +1164,16 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
                 # 'Информация об изменении статусов календаря'
                 await bot.send_message(
                     message.from_id,
-                    "Хочешь изменить изменить дату встречи, или хочешь поставить "
-                    "неизвестную дату встречи на этот заказ?"
-                    "Или просто изменить статус сеанса?",
+                    "❔ Изменить изменить дату встречи, или поставить "
+                    "неизвестную дату встречи на этот заказ?\n\n"
+                    "❔ Или просто изменить статус сеанса?",
                     reply_markup=kb_admin.kb_choice_new_date_or_no_date_in_tattoo_order,
                 )
             elif old_schedule_state == kb_admin.schedule_event_status['free'] and \
                 new_schedule_state == kb_admin.schedule_event_status['busy']:
                     await bot.send_message(
                         message.from_id,
-                        "Точно хотите закрыть данный сеанс?",
+                        "❔ Точно хотите закрыть данный сеанс?",
                         reply_markup= kb_admin.kb_admin_choice_close_or_not_opened_schedule_event
                     )
 
@@ -1185,7 +1183,7 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
                 # "Выбрать из тех заказов, у которых нет даты сеанса",
                 # "Оставить данный календарный день занятым без заказов"
                 await message.reply(
-                    "Какое действие хочешь выбрать?",
+                    "❔ Какое действие хочешь выбрать?",
                     reply_markup=kb_admin.admin_choice_get_new_order_to_schedule_event,
                 )
                 
@@ -1328,7 +1326,7 @@ async def get_answer_choice_new_date_or_no_date_in_tattoo_order(
     if message.text == kb_admin.choice_new_date_or_no_date_in_tattoo_order["new_date"]:
         await bot.send_message(
             message.from_id,
-            "Выбрать из календаря или создать новый день в расписании?",
+            "❔ Выбрать из календаря или создать новый день в расписании?",
             reply_markup=kb_admin.admin_choice_create_new_or_created_schedule_item,
         )
 
@@ -1703,7 +1701,7 @@ async def command_delete_date_schedule(message: types.Message):
 
         if schedule == []:
             await message.reply(
-                f"{MSG_NO_SCHEDULE_IN_TABLE}.\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                f"{MSG_NO_SCHEDULE_IN_TABLE}",
                 reply_markup=kb_admin.kb_schedule_commands,
             )
         else:

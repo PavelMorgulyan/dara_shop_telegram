@@ -2329,7 +2329,7 @@ async def get_new_photo_to_tattoo_order(message: types.Message):
         await FSM_Client_get_new_photo_to_tattoo_order.get_order_id.set()
         await bot.send_message(
             message.from_id,
-            "❔ Для какого заказа Хотите добавить фотографию?",
+            "❔ Для какого заказа добавить фотографию?",
             reply_markup=kb_orders,
         )
 
@@ -2358,7 +2358,7 @@ async def get_order_id_to_add_new_photo(message: types.Message, state: FSMContex
         await FSM_Client_get_new_photo_to_tattoo_order.next()  # -> get_photo_type
         await bot.send_message(
             message.from_id,
-            "❔ Ты Хотите добавить фотографию для эскиза или фотографию изображения тела?",
+            "❔ Хотите добавить фотографию для эскиза или фотографию изображения тела?",
             reply_markup=kb_client.kb_client_choice_add_photo_type,
         )
 
@@ -2379,13 +2379,13 @@ async def get_photo_type(message: types.Message, state: FSMContext):
             data["photo_type"] = message.text.split()[-1]
         await FSM_Client_get_new_photo_to_tattoo_order.next()  #! -> get_new_photo
         msg = (
-            "📎 Хорошо, добавь новое фото в заказ через файлы, пожалуйта.\n\n"
+            "📎 Хорошо, добавьте новое фото в заказ через файлы, пожалуйта.\n\n"
             "❕ Можно добавлять сразу несколько файлов.\n\n"
         )
 
         if message.text.split()[-1] == "👤":
             msg += (
-                "❕ Также ты можешь добавить видео или видео-заметки (если с телефона)"
+                "❕ Также вы можете добавить видео или видео-заметки (если с телефона)"
             )
 
         await bot.send_message(

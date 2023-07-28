@@ -47,7 +47,7 @@ async def command_create_new_price_list_to_tattoo_order(message: types.Message):
     ):
         await FSM_Admin_create_price_list.get_price_list_name.set()
         await message.reply(
-            "На что хочешь создать прайс-лист?",
+            "❔ На что хочешь создать прайс-лист?",
             reply_markup=kb_admin.kb_price_lst_types,
         )
 
@@ -74,7 +74,7 @@ async def get_price_list_name(message: types.Message, state: FSMContext):
             for i in range(3):
                 await FSM_Admin_create_price_list.next()  # -> get_price_to_new_price_list
             await message.reply(
-                f"Какую цену хочешь установить на {message.text}?",
+                f"❔ Какую цену хочешь установить на {message.text}?",
                 reply_markup=kb_admin.kb_price,
             )
 
@@ -131,7 +131,7 @@ async def get_max_size_to_new_price_list(message: types.Message, state: FSMConte
                 )
             else:
                 await message.reply(
-                    "У тебя уже есть прайс-лист с такими размерами. "
+                    "Уже есть прайс-лист с такими размерами. "
                     "Введи, пожалуйста, другой размер.",
                     reply_markup=kb_admin.kb_sizes,
                 )
@@ -279,7 +279,7 @@ async def get_to_view_price_list(message: types.Message):
     ):
         await FSM_Admin_get_to_view_price_lst.get_price_list_type.set()
         await message.reply(
-            "На что хочешь посмотреть прайс-лист?",
+            "❔ На что хочешь посмотреть прайс-лист?",
             reply_markup=kb_admin.kb_price_lst_types,
         )
 
@@ -439,7 +439,7 @@ async def change_price_list(message: types.Message):
     ):
         await FSM_Admin_change_price_list.get_price_lst_type.set()
         await message.reply(
-            "Какой тип прайс-листа хочешь изменить?",
+            "❔ Какой тип прайс-листа изменить?",
             reply_markup=kb_admin.kb_price_lst_types,
         )
 

@@ -238,8 +238,8 @@ async def load_tattoo_item_photo(message: types.Message, state: FSMContext):
             )
         elif message.text in LIST_BACK_COMMANDS:
             await message.reply(
-                "Вы вернулись назад к выбору имени для тату."
-                " Какое имя для тату хочешь поставить?",
+                f"{MSG_BACK}\n"
+                "❔ Какое имя для тату хочешь поставить?",
                 reply_markup=kb_admin.kb_back_home,
             )
             await FSM_Admin_tattoo_item.previous()
@@ -438,7 +438,7 @@ async def command_get_info_tattoo(message: types.Message):
 
             kb_tattoo_names.add(kb_admin.home_btn)
             await message.reply(
-                "Какое тату хочешь посмотреть?", reply_markup=kb_tattoo_names
+                "❔ Какое тату посмотреть?", reply_markup=kb_tattoo_names
             )
 
 
@@ -526,7 +526,7 @@ async def command_get_info_admin_tattoo(message: types.Message):
             kb_tattoo_names.add(LIST_BACK_TO_HOME[0])
             await FSM_Admin_get_info_tattoo_item.tattoo_name.set()
             await message.reply(
-                "Какое тату хочешь посмотреть?", reply_markup=kb_tattoo_names
+                "❔ Какое тату посмотреть?", reply_markup=kb_tattoo_names
             )
 
 
@@ -556,7 +556,7 @@ async def command_get_info_client_tattoo(message: types.Message):
             kb_tattoo_names.add(kb_client.cancel_lst[0])
             await FSM_Admin_get_info_tattoo_item.tattoo_name.set()
             await message.reply(
-                "Какое тату хочешь посмотреть?", reply_markup=kb_tattoo_names
+                "❔ Какое тату посмотреть?", reply_markup=kb_tattoo_names
             )
 
 

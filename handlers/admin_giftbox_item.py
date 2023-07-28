@@ -125,7 +125,7 @@ async def load_giftbox_note(message: types.Message, state: FSMContext):
     await FSM_Admin_giftbox_item.next()
     await message.reply(
         "Хорошо, теперь необходимо добавить свечу в гифтбокс. "
-        f"Добавить в этот гифтбокс новую свечу или выбрать из готовых?",
+        f"❔ Добавить в этот гифтбокс новую свечу или выбрать из готовых?",
         reply_markup=kb_admin.kb_candle_choice,
     )
 
@@ -168,7 +168,7 @@ async def get_giftbox_candle_name(message: types.Message, state: FSMContext):
         for i in range(4):
             await FSM_Admin_giftbox_item.next() #-> giftbox_candle_state
         await message.reply(
-            "Есть ли эти свечи сейчас в наличии или надо докупать?",
+            "❔ Есть ли эти свечи сейчас в наличии или надо докупать?",
             reply_markup=kb_admin.kb_in_stock,
         )
 
@@ -181,7 +181,7 @@ async def get_giftbox_candle_name(message: types.Message, state: FSMContext):
             await FSM_Admin_giftbox_item.next() #-> load_giftbox_candle_photo
             await message.reply("Загрузи фото свечи")
         else:
-            await bot.send_message(message.from_id, f'У тебя уже есть свеча с названием {message.text}.'
+            await bot.send_message(message.from_id, f'У тебя уже есть свеча с названием {message.text}. '
                 'Введи другое название')
 
 
@@ -231,7 +231,7 @@ async def giftbox_candle_note(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data["candle_note"] = message.text
         await message.reply(
-            "Есть ли эти свечи сейчас в наличии или надо докупать?",
+            "❔ Есть ли эти свечи сейчас в наличии или надо докупать?",
             reply_markup=kb_admin.kb_in_stock,
         )
 
@@ -262,8 +262,8 @@ async def giftbox_candle_state(message: types.Message, state: FSMContext):
         await FSM_Admin_giftbox_item.next() #-> load_tattoo_theme
         await message.reply(
             f"Хорошо, а теперь добавь тему тату в этом гифтбоксе."
-            f" На данный момент у тебя есть эти темы: {', '.join(TATTOO_THEMES)}."
-            f" Какую выбираешь?",
+            f" На данный момент у тебя есть эти темы: {', '.join(TATTOO_THEMES)}.\n"
+            f"❔ Какую выбираешь?",
             reply_markup=kb_tattoo_theme,
         )
     elif message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
@@ -285,7 +285,7 @@ async def load_tattoo_theme(message: types.Message, state: FSMContext):
         await message.reply(f"Выбрана тема: {message.text}. Введи описание тату")
         
     elif message.text == "Другая":
-        await message.reply("Введи какая тема будет у тату?", kb_client.kb_cancel)
+        await message.reply("❔ Какая тема будет у тату?", kb_client.kb_cancel)
         
     elif message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()
@@ -304,7 +304,7 @@ async def load_giftbox_tattoo_note(message: types.Message, state: FSMContext):
             data["tattoo_note"] = message.text
         await FSM_Admin_giftbox_item.next()
         await message.reply(
-            "Есть ли эти тату сейчас в наличии или надо докупать?",
+            "❔ Есть ли эти тату сейчас в наличии или надо докупать?",
             reply_markup=kb_admin.kb_in_stock,
         )  # in_stock_button = ['Есть в наличии', 'Нет в наличии, нужно докупать']
         
@@ -356,7 +356,7 @@ async def load_giftbox_sequins_type(message: types.Message, state: FSMContext):
         
         await FSM_Admin_giftbox_item.next()
         await message.reply(
-            "Есть ли эти блестки сейчас в наличии или надо докупать?",
+            "❔ Есть ли эти блестки сейчас в наличии или надо докупать?",
             reply_markup=kb_admin.kb_in_stock,
         )  # ['Есть в наличии', 'Нет в наличии']
 
@@ -516,7 +516,7 @@ async def command_get_info_giftbox_item(message: types.Message):
                 kb_giftbox_names.add(KeyboardButton(order.name))
                 await bot.send_message(
                     message.from_user.id,
-                    f"Какой гифтбокс хочешь посмотреть?",
+                    f"❔ Какой гифтбокс хочешь посмотреть?",
                     reply_markup=kb_giftbox_names,
                 )
 
@@ -570,7 +570,7 @@ async def command_change_price_giftbox_item(message: types.Message):
             await send_to_view_gifbox_item(message, orders_into_table)
             await bot.send_message(
                 message.from_user.id,
-                f"У какого гифтбокса хочешь поменять цену?",
+                f"❔ У какого гифтбокса хочешь поменять цену?",
                 reply_markup=kb_giftbox_numbers,
             )
 
@@ -581,7 +581,7 @@ async def get_new_price_giftbox_item(message: types.Message, state: FSMContext):
         data["giftbox_item_name"] = message.text
     await FSM_Admin_change_price_giftbox_items.next()
     await message.reply(
-        "На какую цену хочешь поменять?", reply_markup=kb_admin.kb_price
+        "❔ На какую цену хочешь поменять?", reply_markup=kb_admin.kb_price
     )
 
 

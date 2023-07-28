@@ -202,7 +202,7 @@ async def command_get_data_from_json(message: types.Message):
                         kb.add(KeyboardButton(column)) """
         kb.add(kb_client.cancel_btn)
         await FSM_Admin_get_data_from_json.table_name.set()
-        await message.reply("В какую таблицу хочешь поместить данные?", reply_markup=kb)
+        await message.reply("❔ В какую таблицу хочешь поместить данные?", reply_markup=kb)
 
 
 async def get_table_name_filling(message: types.Message, state: FSMContext):
@@ -230,7 +230,7 @@ async def get_table_name_filling(message: types.Message, state: FSMContext):
                 data["json_name_lst"] = json_name_lst
             await FSM_Admin_get_data_from_json.next()
             kb.add(LIST_BACK_TO_HOME[0])
-            await message.reply("Какой json хочешь использовать?", reply_markup=kb)
+            await message.reply("❔ Какой json хочешь использовать?", reply_markup=kb)
 
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()

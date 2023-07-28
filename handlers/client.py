@@ -551,7 +551,7 @@ async def load_phone(message: types.Message, state: FSMContext):
         elif any(text in message.text for text in LIST_CANCEL_COMMANDS):
             await bot.send_message(
                 message.from_id,
-                "Вы точно хотите оставить заказ без телефона?",
+                "❔ Вы точно хотите оставить заказ без телефона?",
                 reply_markup=kb_client.kb_yes_no,
             )
 
