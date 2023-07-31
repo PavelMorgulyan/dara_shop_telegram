@@ -20,6 +20,7 @@ from aiogram_timepicker.panel import FullTimePicker, full_timep_callback
 from aiogram_timepicker import result, carousel, clock
 from msg.main_msg import *
 from handlers.admin_schedule import get_view_schedule
+import json
 
 
 #TODO создать функции: записать пользователя на коррекцию
@@ -97,8 +98,8 @@ async def update_schedule_table(state: FSMContext):
         "id": new_date.id,
         "month": event_date_old[0],
         "date": event_date_old[1],
-        "start time": event_date_old[3],
-        "end time": event_date_old[5],
+        "start_time": event_date_old[3],
+        "end_time": event_date_old[5],
         "state": event_date_old[7],
         "type": event_date_old[9] + " " + event_date_old[10],
     }
@@ -109,25 +110,51 @@ async def update_schedule_table(state: FSMContext):
             int(new_date.start_datetime.strftime("%m")), "ru"
         ),
         "date": new_date.start_datetime.strftime("%d/%m/%Y"),
-        "start time": new_date.start_datetime.strftime("%H:%M"),
-        "end time": new_date.end_datetime.strftime("%H:%M"),
+        "start_time": new_date.start_datetime.strftime("%H:%M"),
+        "end_time": new_date.end_datetime.strftime("%H:%M"),
         "state": new_date.status,
         "type": new_date.event_type,
     }
-    headers = ["Месяц", "Дата", "Время начала", "Время конца", "Статус", "Тип"]
-    table = PrettyTable(
-        headers, left_padding_width=1, right_padding_width=1
-    )  # Определяем таблицу
-    table.add_row(list(old_data_to_send.values()))
-    await bot.send_message(
-        username_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
-    )
-
-    table_next = PrettyTable(headers, left_padding_width=1, right_padding_width=1)
-    table_next.add_row(list(new_data_to_send.values()))
-    await bot.send_message(
-        username_id, f"<pre>{table_next}</pre>", parse_mode=types.ParseMode.HTML
-    )
+    with open("config.json", "r") as config_file:
+        data = json.load(config_file)
+            
+    headers = ["Месяц", "Дата", "Начало", "Конец", "Статус", "Тип"]
+    
+    if data['mode'] == 'pc':
+        table = PrettyTable(
+            headers, left_padding_width=1, right_padding_width=1
+        )  # Определяем таблицу
+        table.add_row(list(old_data_to_send.values()))
+        await bot.send_message(
+            username_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
+        )
+        await bot.send_message(username_id, "Изменилось на дату:")
+        table_next = PrettyTable(headers, left_padding_width=1, right_padding_width=1)
+        table_next.add_row(list(new_data_to_send.values()))
+        await bot.send_message(
+            username_id, f"<pre>{table_next}</pre>", parse_mode=types.ParseMode.HTML
+        )
+        
+    else:
+        msg = (
+            "Предыдущая запись:\n"
+            f"- Дата: {old_data_to_send['date']}\n"
+            f"- Начало: {old_data_to_send['start_time']}\n"
+            f"- Конец: {old_data_to_send['end_time']}\n"
+            f"- Статус: {old_data_to_send['state']}\n"
+            f"- Тип: {old_data_to_send['type']}\n"
+        )
+        await bot.send_message(username_id, msg)
+        await bot.send_message(username_id, "Изменилось на дату:")
+        msg = (
+            "Новая запись:\n"
+            f"- Дата: {new_data_to_send['date']}\n"
+            f"- Начало: {new_data_to_send['start_time']}\n"
+            f"- Конец: {new_data_to_send['end_time']}\n"
+            f"- Статус: {new_data_to_send['state']}\n"
+            f"- Тип: {new_data_to_send['type']}\n"
+        )
+        await bot.send_message(username_id, msg)
 
 
 # ---------------------------get_tattoo_order_number_to_new_schedule_event--------------------------------

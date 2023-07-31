@@ -24,7 +24,7 @@ from msg.main_msg import *
 from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
-
+import json
 
 # ------------------------------------------------------- GIFTBOX ITEM COMMAND LIST------------------------------------------------------
 async def get_giftbox_item_command_list(message: types.Message):
@@ -402,7 +402,10 @@ async def load_giftbox_sequins_state(message: types.Message, state: FSMContext):
 
 
 # ------------------------------------GIFTBOX ITEM COMMANDS--------------------------------
-async def send_to_view_gifbox_item(message: types.Message, items: ScalarResult['GiftboxItems']) -> None:
+async def send_to_view_gifbox_item(
+    message: types.Message, 
+    items: ScalarResult['GiftboxItems']
+    ) -> None:
     if items == []:
         await message.reply("Пока у вас нет гифтбоксов в таблице")
         await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE)
@@ -421,15 +424,20 @@ async def send_to_view_gifbox_item(message: types.Message, items: ScalarResult['
             "Блестки",
             "Статус блесток"
         ]
-        for item in items:
-            table = PrettyTable(
-                headers, left_padding_width=1, right_padding_width=1
-            )  # Определяем таблицу
+        with open("config.json", "r") as config_file:
+            data = json.load(config_file)
             
-
+        table = PrettyTable(
+            headers, left_padding_width=1, right_padding_width=1
+        )
+        msg = "Гифтбоксы:\n"
+        
+        for item in items:
             with Session(engine) as session:
                 candle = session.get(CandleItems, item.candle_id)
                 sequins = session.get(SequinsItems, item.sequins_id)
+                
+            if data['mode'] == 'pc':
                 table.add_row(
                     [
                         item.id,
@@ -438,18 +446,49 @@ async def send_to_view_gifbox_item(message: types.Message, items: ScalarResult['
                         item.giftbox_note,
                         candle.name,
                         candle.price,
-                        f"Нет в наличии" if candle.quantity == 0 else f"В наличии {candle.quantity} штук",
+                        f"Нет в наличии" if candle.quantity == 0 \
+                            else f"В наличии {candle.quantity} штук",
                         item.tattoo_theme,
                         item.tattoo_note,
-                        f"Нет в наличии" if item.tattoo_quantity == 0 else f"В наличии {item.tattoo_quantity} штук",
+                        f"Нет в наличии" if item.tattoo_quantity == 0 \
+                            else f"В наличии {item.tattoo_quantity} штук",
                         sequins.name,
-                        f"Нет в наличии" if sequins.quantity == 0 else f"В наличии {sequins.quantity} штук",
+                        f"Нет в наличии" if sequins.quantity == 0 \
+                            else f"В наличии {sequins.quantity} штук",
                         
                     ]
                 )
+                
+            else:
+                candle_status = f"Нет в наличии" if candle.quantity == 0 \
+                    else f"В наличии {candle.quantity} штук"
+                tattoo_status = f"Нет в наличии" if sequins.quantity == 0 \
+                    else f"В наличии {sequins.quantity} штук"
+                sequins_status = f"Нет в наличии" if sequins.quantity == 0 \
+                    else f"В наличии {sequins.quantity} штук"
+                msg += (
+                    f"Гифтбокс №{item.id}:\n"
+                    f"- Название: {item.name}\n"
+                    f"- Цена: {item.price}\n"
+                    f"- Описание: {item.giftbox_note}\n"
+                    f"- Название свечи: {candle.name}\n"
+                    f"- Цена свечи: {candle.price}\n"
+                    f"- Статус свечи: {candle_status}\n"
+                    f"- Тату тема: {item.tattoo_theme}\n"
+                    f"- Описание тату: {item.tattoo_note}\n"
+                    f"- Статус тату: {tattoo_status}\n"
+                    f"- Блестки: {sequins.name}\n"
+                    f"- Статус блесток: {sequins_status}\n"
+                )
+                
+        if data['mode'] == 'pc':
             await bot.send_message(
                 message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
             )
+            
+        else:
+            await bot.send_message(message.from_id, msg)
+            
         await bot.send_message(
             message.from_id,
             MSG_DO_CLIENT_WANT_TO_DO_MORE,

@@ -17,7 +17,7 @@ from msg.main_msg import *
 from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
-
+import json
 
 # -----------------------------------CLIENT-------------------------------------------
 # /пользователи
@@ -59,8 +59,31 @@ class FSM_Admin_get_info_user(StatesGroup):
     user_name = State()
     
 
+async def get_client_orders(user: ScalarResult["User"]) -> dict:
+    with Session(engine) as session:
+        orders = session.scalars(
+            select(Orders).where(Orders.username == user.name)
+        ).all()
+    order_numbers, order_statuses, order_types = ("", "", "")
+    if orders != []:
+        for order in orders:
+            order_types += f"{order.order_type}\n"
+            order_numbers += f"{order.order_number}\n"
+            order_statuses += f"{order.order_state}\n"
+    else:
+        order_numbers, order_statuses, order_types = ("---", "---", "---")
+    
+    return {
+        "order_numbers":order_numbers, 
+        "order_statuses":order_statuses, 
+        "order_types":order_types
+    }
+
+
 async def send_to_view_users_orders(user_lst: ScalarResult["User"], message: types.Message):
     if user_lst != []:
+        with open("config.json", "r") as config_file:
+            data = json.load(config_file)
         headers = [
             "Имя",
             "Телеграм",
@@ -70,37 +93,41 @@ async def send_to_view_users_orders(user_lst: ScalarResult["User"], message: typ
             "Номер заказа",
             "Статус заказа"
         ]
-        table = PrettyTable(
-            headers, left_padding_width=1, right_padding_width=1
-        )  # Определяем таблицу
-        order_numbers, order_statuses, order_types = ("", "", "")
-        for user in user_lst:  # выводим наименования клиентов
-            with Session(engine) as session:
-                orders = session.scalars(
-                    select(Orders).where(Orders.username == user.name)
-                ).all()
-            if orders != []:
-                for order in orders:
-                    order_types += f"{order.order_type}\n"
-                    order_numbers += f"{order.order_number}\n"
-                    order_statuses += f"{order.order_state}\n"
-            else:
-                order_numbers, order_statuses, order_types = ("----", "----", "----")
-                
-            table.add_row(
-                [
-                    user.name,
-                    user.telegram_name,
-                    user.phone,
-                    user.status,
-                    order_types,
-                    order_numbers,
-                    order_statuses,
-                ]
+        if data['mode'] == 'pc':
+            table = PrettyTable(
+                headers, left_padding_width=1, right_padding_width=1
+            )  # Определяем таблицу
+            
+            for user in user_lst:  # выводим наименования клиентов
+                orders = await get_client_orders(user)
+                table.add_row(
+                    [
+                        user.name,
+                        user.telegram_name,
+                        user.phone,
+                        user.status,
+                        orders["order_types"],
+                        orders["order_numbers"],
+                        orders["order_statuses"],
+                    ]
+                )
+            await bot.send_message(
+                message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
             )
-        await bot.send_message(
-            message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
-        )
+        else:
+            msg = "Пользователи:\n"
+            for user in user_lst:  # выводим наименования клиентов
+                orders = await get_client_orders(user)
+                msg += (
+                    f"- Имя: {user.name}\n"
+                    f"- Телеграм: {user.telegram_name}\n"
+                    f"- Телефон: {user.phone}",
+                    f"- Статус пользователя: {user.status}\n"
+                    f"- Тип заказа: {orders['order_types']}\n"
+                    f"- Номер заказа: {orders['order_numbers']}\n"
+                    f"- Статус заказа: {orders['order_statuses']}\n\n"
+                )
+            
         await bot.send_message(
             message.from_id,
             MSG_DO_CLIENT_WANT_TO_DO_MORE,

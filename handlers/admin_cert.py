@@ -24,7 +24,7 @@ from handlers.other import STATES, status_distribution, clients_status
 from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
-import re
+import re, json
 
 # ------------------------------------ CERT COMMAND LIST-------------------------------------------
 # 'Сертификат',
@@ -419,10 +419,13 @@ async def cert_load_phone(message: types.Message, state: FSMContext):
 
 async def view_cert_order(orders: ScalarResult["Orders"], message: types.Message):
     if orders == []:
-            await message.reply("⭕️ Пока у вас нет заказов на сертификатов в таблице")
+        await message.reply("⭕️ Пока у вас нет заказов на сертификатов в таблице")
     else:
+        with open("config.json", "r") as config_file:
+            data = json.load(config_file)
+            
         headers = [
-            "№",
+            "N",
             "Тип заказа",
             "Пользователь",
             "Номер заказа",
@@ -431,36 +434,50 @@ async def view_cert_order(orders: ScalarResult["Orders"], message: types.Message
             "Код",
             "Дата открытия"
         ]
-        for order in orders:
-            table = PrettyTable(
-                headers, left_padding_width=1, right_padding_width=1
-            )  # Определяем таблицу
-            table.add_row(
-                [
-                    order.id,
-                    order.order_type,
-                    order.username,
-                    order.order_number,
-                    order.order_state,
-                    order.price,
-                    order.code,
-                    order.creation_date
-                ]
-            )
-            await bot.send_message(
-                message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
-            )
-            # f" Чек на оплату: {}\n",
-            with Session(engine) as session:
-                checks = session.scalars(select(CheckDocument)
-                    .where(CheckDocument.order_number == order.order_number)).all()
-            
-            for check in checks:
-                try:
-                    await bot.send_document(message.from_id, check.doc)
-                except:
-                    await bot.send_photo(message.from_id, check.doc)
-                    
+        
+        if data['mode'] == 'pc':
+            for order in orders:
+                table = PrettyTable(
+                    headers, left_padding_width=1, right_padding_width=1
+                )  # Определяем таблицу
+                table.add_row(
+                    [
+                        order.id,
+                        order.order_type,
+                        order.username,
+                        order.order_number,
+                        order.order_state,
+                        order.price,
+                        order.code,
+                        order.creation_date
+                    ]
+                )
+                await bot.send_message(
+                    message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
+                )
+                # f" Чек на оплату: {}\n",
+                with Session(engine) as session:
+                    checks = session.scalars(select(CheckDocument)
+                        .where(CheckDocument.order_number == order.order_number)).all()
+                
+                for check in checks:
+                    try:
+                        await bot.send_document(message.from_id, check.doc)
+                    except:
+                        await bot.send_photo(message.from_id, check.doc)
+        else:
+            msg = "Сертификаты:\n"
+            for id, order in enumerate(orders):
+                msg += (
+                    f"№{id}\n"
+                    f"- Тип заказа: {order.order_type}\n"
+                    f"- Пользователь: {order.username}\n"
+                    f"- Номер заказа: {order.order_number}\n"
+                    f"- Статус: {order.order_state}\n"
+                    f"- Цена: {order.price}\n"
+                    f"- Код: {order.code}\n"
+                    f"- Дата открытия заказа: {order.creation_date}\n\n"
+                )
             
         await bot.send_message(
             message.from_user.id, f"Всего заказов: {len(orders)}"

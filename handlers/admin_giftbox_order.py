@@ -20,7 +20,7 @@ from db.sqlalchemy_base.db_classes import *
 
 from prettytable import PrettyTable
 from msg.main_msg import *
-
+import json
 
 async def get_giftbox_order_command_list(message: types.Message):
     if (
@@ -44,7 +44,7 @@ async def send_to_view_giftbox_order(
         )
     else:
         headers = [
-            "№",
+            "Номер заказа",
             "Дата создания",
             "Имя пользователя",
             "Описание",
@@ -53,19 +53,37 @@ async def send_to_view_giftbox_order(
         table = PrettyTable(
             headers, left_padding_width=1, right_padding_width=1
         )  # Определяем таблицу
+        msg = "Гифтбокс заказы:\n"
+        with open("config.json", "r") as config_file:
+            data = json.load(config_file)
+            
         for order in orders:
-            table.add_row(
-                [
-                    order.order_number,
-                    order.creation_date.strftime("%H:M %d/%m/%Y"),
-                    order.username,
-                    order.order_note,
-                    order.order_state
-                ]
+            if data['mode'] == 'pc':
+                table.add_row(
+                    [
+                        order.order_number,
+                        order.creation_date.strftime("%H:M %d/%m/%Y"),
+                        order.username,
+                        order.order_note,
+                        order.order_state
+                    ]
+                )
+            else:
+                msg += (
+                    f"- Номер заказа: {order.order_number}\n"
+                    f"- Дата создания: {order.creation_date.strftime('%H:M %d/%m/%Y')}\n"
+                    f"- Имя пользователя: {order.username}\n"
+                    f"- Описание: {order.order_note}\n"
+                    f"- Состояние: {order.order_state}\n\n"
+                )
+                
+        if data['mode'] == 'pc':
+            await bot.send_message(
+                message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
             )
-        await bot.send_message(
-            message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
-        )
+        else:
+            await bot.send_message(message.from_id, msg)
+            
         """ await bot.send_message(
             message.from_user.id,
             f'Гифтбокс заказ № {order.order_number} от {order.creation_date.strftime("%H:M %d/%m/%Y")}\n'

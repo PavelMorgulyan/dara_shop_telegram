@@ -234,33 +234,57 @@ async def send_to_view_price_list(
         table = PrettyTable(
             list(headers_dct.keys()), left_padding_width=1, right_padding_width=1
         )
-        for header in headers_dct.keys():
-            table.align[header] = headers_dct[header]
-        i = 0
-        for item in data:
-            i += 1
-            table.add_row([str(i), item.type, item.min_size, item.max_size, item.price])
+        with open("config.json", "r") as config_file:
+            data = json.load(config_file)
+            
+        if data['mode'] == 'pc':
+            for header in headers_dct.keys():
+                table.align[header] = headers_dct[header]
+                
+            for i, item in enumerate(data):
+                table.add_row([str(i+1), item.type, item.min_size, item.max_size, item.price])
 
-        await bot.send_message(
-            message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
-        )
+            await bot.send_message(
+                message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
+            )
+        else:
+            msg = "Плайс-лист:\n"
+            for i, item in enumerate(data):
+                msg += (
+                    f"- Номер: {str(i+1)}\n"
+                    f"- Тип: {item.type}\n"
+                    f"- Min см2: {item.min_size}\n"
+                    f"- Max см2: {item.max_size}\n"
+                    f"- Цена р.: {item.price}\n\n"
+                )
+            await bot.send_message(message.from_id, msg)
 
     else:
-        headers_dct = {"Номер": "с", "Тип": "с", "Цена р.": "r"}
-        # Определяем таблицу
-        table = PrettyTable(
-            list(headers_dct.keys()), left_padding_width=1, right_padding_width=1
-        )
-        for header in headers_dct.keys():
-            table.align[header] = headers_dct[header]
-        i = 0
-        for item in data:
-            i += 1
-            table.add_row([str(i), item.type, item.price])
+        if data['mode'] == 'pc':
+            headers_dct = {"Номер": "с", "Тип": "с", "Цена р.": "r"}
+            # Определяем таблицу
+            table = PrettyTable(
+                list(headers_dct.keys()), left_padding_width=1, right_padding_width=1
+            )
+            for header in headers_dct.keys():
+                table.align[header] = headers_dct[header]
+            i = 0
+            for item in data:
+                i += 1
+                table.add_row([str(i), item.type, item.price])
 
-        await bot.send_message(
-            message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
-        )
+            await bot.send_message(
+                message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
+            )
+        else:
+            msg = "Плайс-лист:\n"
+            for i, item in enumerate(data):
+                msg += (
+                    f"- Номер: {str(i+1)}\n"
+                    f"- Тип: {item.type}\n"
+                    f"- Цена р.: {item.price}\n\n"
+                )
+            await bot.send_message(message.from_id, msg)
     # or use markdown<font color="#fa8e47">
     # await message.reply(f```{table}```, parse_mode="HTML")# types.ParseMode.MARKDOWN_V2)
 

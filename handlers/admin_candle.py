@@ -17,28 +17,45 @@ from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
 
 from prettytable import PrettyTable
-
+import json
 
 async def send_to_view_candle_items(message: types.Message, candles: ScalarResult["CandleItems"]):
-    headers = [
-        "Имя",
-        "Цена",
-        "Количество"
-    ]
-    table = PrettyTable(
-        headers, left_padding_width=1, right_padding_width=1
-    )  # Определяем таблицу
-    for item in candles:
-        table.add_row(
-            [
-                item.name,
-                item.price,
-                item.quantity
-            ]
+    with open("config.json", "r") as config_file:
+        data = json.load(config_file)
+        
+    if data['mode'] == 'pc':
+        headers = [
+            "Имя",
+            "Цена",
+            "Количество"
+        ]
+        table = PrettyTable(
+            headers, left_padding_width=1, right_padding_width=1
+        )  # Определяем таблицу
+        for item in candles:
+            table.add_row(
+                [
+                    item.name,
+                    item.price,
+                    item.quantity
+                ]
+            )
+            
+        await bot.send_message(
+            message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
         )
-    await bot.send_message(
-        message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
-    )
+        
+    elif data['mode'] == 'phone':
+        msg = "Свечи:\n"
+        for item in candles:
+            msg += (
+                f"- Имя: {item.name}\n"
+                f"- Цена: {item.price}\n"
+                f"- Количество: {item.quantity}\n"
+                )
+            
+        await bot.send_message(message.from_id, msg)
+    
     await bot.send_message(
         message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE, reply_markup= kb_admin.kb_candle_item_commands
     )
