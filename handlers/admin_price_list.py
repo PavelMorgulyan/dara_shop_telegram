@@ -71,7 +71,7 @@ async def get_price_list_name(message: types.Message, state: FSMContext):
             kb_admin.price_lst_types["giftbox"],
             kb_admin.price_lst_types["sketch"],
         ]:
-            for i in range(3):
+            for _ in range(3):
                 await FSM_Admin_create_price_list.next()  # -> get_price_to_new_price_list
             await message.reply(
                 f"❔ Какую цену хочешь установить на {message.text}?",
@@ -248,7 +248,7 @@ async def send_to_view_price_list(
                 message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
             )
         else:
-            msg = "Плайс-лист:\n"
+            msg = "📃 Плайс-лист:\n"
             for i, item in enumerate(data):
                 msg += (
                     f"- Номер: {str(i+1)}\n"
@@ -277,7 +277,7 @@ async def send_to_view_price_list(
                 message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
             )
         else:
-            msg = "Плайс-лист:\n"
+            msg = "📃 Плайс-лист:\n"
             for i, item in enumerate(data):
                 msg += (
                     f"- Номер: {str(i+1)}\n"

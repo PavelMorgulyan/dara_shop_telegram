@@ -82,7 +82,7 @@ async def giftbox_order_giftbox_note_choice(message: types.Message, state: FSMCo
         async with state.proxy() as data:
             data["giftbox_note"] = None  # 'Без описания'
 
-        for i in range(2):
+        for _ in range(2):
             await FSM_Client_giftbox_having.next()  # -> giftbox_order_pay_method
         await bot.send_message(
             message.from_id,

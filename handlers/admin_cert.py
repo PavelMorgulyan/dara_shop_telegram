@@ -117,7 +117,7 @@ async def load_сert_price(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data["price"] = message.text
 
-        for i in range(2):
+        for _ in range(2):
             await FSM_Admin_сert_item.next()  # -> admin_process_successful_cert_payment
             
         await message.reply(
@@ -295,7 +295,7 @@ async def cert_load_user_name(message: types.Message, state: FSMContext):
         data["phone"] = phone
 
     if user == []:
-        for i in range(2): #-> cert_load_telegram
+        for _ in range(2): #-> cert_load_telegram
             await FSM_Admin_cert_username_info.next()
 
         await message.reply(MSG_WHICH_USERNAME_IN_ORDER)

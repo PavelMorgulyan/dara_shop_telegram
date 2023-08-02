@@ -39,6 +39,7 @@ commands_button = {
     "sequins":"Блестки",
     "clients":"Пользователи",
     "create_img":"Создать изображение",
+    "change_mode":"Сменить режим",
     # "Удалить таблицу",
     # "Создать json файл",
     # "Получить данные из json",
@@ -206,6 +207,11 @@ price_lst_types = {
     "sketch": "эскиз",
     "giftbox": "гифтбокс",
 }
+
+mode_types = [
+    "ПК",
+    "Мобильный"
+]
 
 tattoo_order_columns_to_change_lst = {
     "Имя тату": "tattoo_name",
@@ -486,6 +492,8 @@ kb_client_want_to_try_another_later_img = create_kb(
 kb_admin_choice_close_or_not_opened_schedule_event = create_kb(
     list(admin_choice_close_or_not_opened_schedule_event.values()) + LIST_BACK_TO_HOME
 )
+
+kb_mode_choice = create_kb(mode_types + LIST_BACK_TO_HOME)
 
 kb_add_or_delete_order_photo = create_kb(list(add_or_delete_order_photo.values()) + cancel_lst)
 

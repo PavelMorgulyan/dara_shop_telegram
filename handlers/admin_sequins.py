@@ -1,3 +1,4 @@
+import json
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -144,6 +145,7 @@ async def get_seq_quantity(message: types.Message, state: FSMContext):
             )
         else:
             await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+            
     except ValueError as error:
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
@@ -158,9 +160,10 @@ async def set_new_seq_item(data:tuple, message: types.Message):
         )
         session.add(new_seq_item)
         session.commit()
+        
     await bot.send_message(
         message.from_id,
-        f"Вы добавили новые блестки под названием {data['seq_name']}!\n"
+        f"💭 Добавлены новые блестки под названием {data['seq_name']}!\n"
         f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
         reply_markup= kb_admin.kb_sequins_commands,
     )
@@ -203,31 +206,58 @@ async def command_view_seq_item(message: types.Message):
     ):
         with Session(engine) as session:
             seqs = session.scalars(select(SequinsItems)).all()
+            
         if seqs == []:
-            await bot.send_message(message.from_id, '⭕️ Нет блесток в базе данных')
+            await bot.send_message(message.from_id, '⭕️ Нет блесток в базе')
         else:
+            msg = "📃 Блестки:\n"
             headers = ['№', 'Название', 'Кол.', 'Цена']
-            photo_lst = []
-            for item in seqs:
-                table = PrettyTable(
-                    headers, left_padding_width=1, right_padding_width=1
-                )  # Определяем таблицу
-                photo_lst.append(item.photo)
-                table.add_row(
-                    [
-                        item.id,
-                        item.name,
-                        item.quantity,
-                        item.price
-                    ]
-                )
-                await bot.send_message(
-                    message.from_id, f"<pre>{table}</pre>", 
-                    parse_mode=types.ParseMode.HTML,
-                    reply_markup=kb_admin.kb_sequins_commands,
+            photo_lst, media = [], []
+            
+            with open("config.json", "r") as config_file:
+                data = json.load(config_file)
+                
+            table = PrettyTable(headers, left_padding_width=1, right_padding_width=1)
+            
+            for number, item in enumerate(seqs):
+                msg_pc = (
+                    f"{headers[0]}{number + 1}\n"
+                    f"- {headers[1]}: {item.name}\n"
+                    f"- {headers[2]}: {item.quantity}\n"
+                    f"- {headers[3]}: {item.price}\n\n"
                 )
                 
-            # TODO сделать media вывод фотографий 
+                msg += msg_pc
+                
+                if data['mode'] == "pc":
+                    photo_lst.append(item.photo)
+                    table.add_row(
+                        [
+                            item.id,
+                            item.name,
+                            item.quantity,
+                            item.price
+                        ]
+                    )
+                    await bot.send_message(
+                        message.from_id, f"<pre>{table}</pre>", 
+                        parse_mode=types.ParseMode.HTML,
+                        reply_markup=kb_admin.kb_sequins_commands
+                    )
+                    
+                media.append(types.InputMediaPhoto(item.photo, msg_pc))
+                
+                await bot.send_chat_action(
+                    message.from_id, types.ChatActions.UPLOAD_DOCUMENT
+                )
+                await bot.send_media_group(message.from_id, media=media)
+                
+            await bot.send_message(
+                message.from_id, 
+                msg,
+                reply_markup=kb_admin.kb_sequins_commands
+            )
+            
 
 #--------------------------------------------------------DELETE SEQ------------------------------
 class FSM_Admin_delete_seq_item(StatesGroup):

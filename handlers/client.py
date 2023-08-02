@@ -124,8 +124,8 @@ class FSM_Client_correction(StatesGroup):
 
 # коррекция
 async def correction_client_command(message: types.Message):
-    if message.text.lower() in [
-        "коррекция ",
+    if message.text in [
+        "Коррекция 🛠",
         "/get_correction",
         "get_correction",
     ]:
@@ -147,6 +147,7 @@ async def correction_client_command(message: types.Message):
             for order in orders:
                 kb.add(f"{order.order_number}")
             kb.add(kb_client.kb_cancel)
+            
             await bot.send_message(
                 message.from_id, 
                 "❔ Для какого заказа будет коррекция? Пожалуйста, выберете из списка.", 
@@ -160,6 +161,7 @@ async def get_order_number(message: types.Message, state: FSMContext):
         .scalars(
             select(ScheduleCalendar)
             .order_by(ScheduleCalendar.start_datetime)
+            .order_by(ScheduleCalendar.end_datetime)
             .where(ScheduleCalendar.status == kb_admin.schedule_event_status['free'])
             .where(ScheduleCalendar.event_type.in_([
                     kb_admin.schedule_event_type['correction'],
@@ -500,7 +502,7 @@ async def close_command(message: types.Message, state: FSMContext):
     # await state.finish()
     await bot.send_message(
         message.from_user.id,
-        "Удачи и добра тебе, друг, но знай - я всегда к твоим услугам!",
+        "🙋 Удачи и добра тебе, друг, но знай - я всегда к твоим услугам!",
         reply_markup=kb_client.kb_client_main,
     )
 

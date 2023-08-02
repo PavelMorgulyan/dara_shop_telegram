@@ -10,7 +10,7 @@ async def set_to_table(state: tuple, table: str):
         cursor = sqlite_connection.cursor()
         print("База данных подключена к SQLite")
         values_str = ""
-        for i in range(len(state)):
+        for _ in range(len(state)):
             values_str += "?,"
 
         # Вставляем новый заказ в таблицу

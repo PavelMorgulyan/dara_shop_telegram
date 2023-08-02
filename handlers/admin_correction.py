@@ -261,7 +261,7 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
         )
         
         #-> get_anwser_to_notify_client
-        for i in range(3):
+        for _ in range(3):
             await FSM_Admin_create_correction.next()
         
         await bot.send_message(

@@ -1,3 +1,4 @@
+import json
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -63,37 +64,50 @@ async def send_to_view_sketch_orders(
         )
     else:
         headers = [
-                "№",
-                "Тип заказа",
-                "Номер заказа",
-                "Время заказа",
-                # "Описание",
-                "Пользователь",
-                "Статус",
-            ]
+            "№",
+            "Тип заказа",
+            "Номер заказа",
+            "Время заказа",
+            # "Описание",
+            "Пользователь",
+            "Статус",
+        ]
         table = PrettyTable(
             headers, left_padding_width=1, right_padding_width=1
         )
-        # TODO сделать нормальную pretty table
+        msg = "📃 Эскиз заказы:\n"
+        with open("config.json", "r") as config_file:
+            data = json.load(config_file)
+            
         # TODO сделать нормальный вывод изображений эскиза
-        for order in orders:
+        for number, order in enumerate(orders):
             with Session(engine) as session:
                 user = session.scalars(
                     select(User).where(User.telegram_id == order.user_id)
                 ).one()
             # Определяем таблицу
-            note = order.order_note if len(order.order_note) < 20 else order.order_note[:20]
-            table.add_row(
-                [
-                    order.id,
-                    order.order_type,
-                    order.order_number,
-                    order.creation_date.strftime('%H:%M %d/%m/%Y'),
-                    # note,
-                    user.telegram_name,
-                    order.order_state
-                ]
-            )
+            if data['mode'] == 'pc':
+                table.add_row(
+                    [
+                        number + 1,
+                        order.order_type,
+                        order.order_number,
+                        order.creation_date.strftime('%H:%M %d/%m/%Y'),
+                        # note,
+                        user.telegram_name,
+                        order.order_state
+                    ]
+                )
+            else:
+                msg += (
+                    f"{headers[0]}{number + 1}\n"
+                    f"- {headers[1]}: {order.order_type}\n"
+                    f"- {headers[2]}: {order.order_number}\n"
+                    f"- {headers[3]}: {order.creation_date.strftime('%H:%M %d/%m/%Y')}\n"
+                    f"- {headers[4]}: {user.telegram_name}\n"
+                    f"- {headers[5]}: {order.order_state}\n"
+                    f"- Описание: {order.order_note}\n\n"
+                )
         await bot.send_message(
             message.from_id, f"<pre>{table}</pre>", parse_mode=types.ParseMode.HTML
         )
@@ -440,7 +454,7 @@ async def get_new_sketch_description(message: types.Message, state: FSMContext):
             reply_markup=kb_client.kb_cancel)
         
         elif message.text == kb_client.no_str:
-            for i in range(2):
+            for _ in range(2):
                 await FSM_Admin_command_create_new_sketch_order.next()
             await bot.send_message(message.from_id,
                 'Хорошо, закончим с добавлением фотографий для нового эскиза.\n\n'\

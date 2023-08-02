@@ -54,7 +54,7 @@ async def command_start_admin_as_user(message: types.Message):
     if str(message.from_user.username) in ADMIN_NAMES:
         await bot.send_message(
             message.from_user.id,
-            "Привет админ (как пользователь)!",
+            "🙋 Привет админ (как пользователь)!",
             reply_markup=kb_client.kb_client_main,
         )
         # await message.delete()
@@ -108,9 +108,77 @@ async def get_name_json_file(message: types.Message, state: FSMContext):
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
-# ------------------------------------------DELETE TABLE---------------------------------------------
+# ------------------------------------------CHANGE MODE--------------------------------
+class FSM_Admin_change_view_mode(StatesGroup):
+    get_mode_choice = State()
+
+
+# /сменить режим
+async def command_change_mode(message: types.Message):
+    if (
+        message.text in ["Сменить режим", "/сменить_режим"]
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        with open("config.json", "r") as config_file:
+            data = json.load(config_file)
+            
+        new_mode = 'pc' if data['mode'] == 'phone' else 'phone'
+        
+        data['mode'] = new_mode
+        
+        msg_mode = "ПК" if new_mode == 'pc' else "Мобильный"
+        
+        with open("config.json", "w") as config_file:
+            json.dump(data, config_file, indent=2, ensure_ascii=True)
+        
+        await bot.send_message(
+            message.from_id, 
+            f'🛠 Режим изменен: {msg_mode}'
+        )
+        
+        """ await FSM_Admin_change_view_mode.get_mode_choice.set() #-> get_mode_name
+        await bot.send_message(
+            message.from_user.id,
+            f"🛠 Текущий режим работы: {mode}\n\n"
+            "❔ Какой режим выставить?", 
+            reply_markup= kb_admin.kb_mode_choice
+        ) """
+
+
+async def get_mode_name(message: types.Message, state: FSMContext):
+    if message.text in kb_admin.mode_types:
+        with open("config.json", "r") as config_file:
+            data = json.load(config_file)
+        
+        data['mode'] = 'pc' if message.text == 'ПК' else 'phone'
+        
+        with open("config.json", "w") as config_file:
+            json.dump(data, config_file, indent=2, ensure_ascii=True)
+        
+        await bot.send_message(
+            message.from_id, 
+            f'🛠 Режим изменен: {message.text}',
+            reply_markup= kb_admin.kb_main
+        )
+        
+        await state.finish()
+        
+    elif any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME):
+        await state.finish()
+        await bot.send_message(
+            message.from_id,
+            f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
+            reply_markup=kb_admin.kb_main,
+        )
+
+    else:
+        await bot.send_message(
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+        )
+
+# ------------------------------------------DELETE TABLE--------------------------------
 class FSM_Admin_delete_table(StatesGroup):
-    yes_no_delete_choice = State()
+    delete_choice = State()
     table_name = State()
 
 
@@ -128,11 +196,11 @@ async def delete_table_command(message: types.Message):
                 kb.add(KeyboardButton(table_name))
 
         kb.add(KeyboardButton("Все таблицы")).add(kb_admin.home_btn)
-        await FSM_Admin_delete_table.yes_no_delete_choice.set()
-        await message.reply("❔ Какую таблицу хочешь удалить?", reply_markup=kb)
+        await FSM_Admin_delete_table.delete_choice.set()
+        await message.reply("❔ Какую таблицу удалить?", reply_markup=kb)
 
 
-async def yes_no_delete_choice(message: types.Message, state: FSMContext):
+async def delete_choice(message: types.Message, state: FSMContext):
     if message.text not in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         async with state.proxy() as data:
             data["table_name"] = message.text
@@ -142,7 +210,7 @@ async def yes_no_delete_choice(message: types.Message, state: FSMContext):
         await FSM_Admin_delete_table.next()
     else:
         await message.reply(
-            f"⛔️ Удаление таблицы будет позже. Хотите сделать что-то еще?",
+            f"⛔️ Удаление таблицы будет позже. {MSG_DO_CLIENT_WANT_TO_DO_MORE}",
             reply_markup=kb_admin.kb_main,
         )
 
@@ -172,7 +240,7 @@ async def delete_table_with_name(message: types.Message, state: FSMContext):
 
     elif message.text == kb_client.no_str:
         await message.reply(
-            f"Хорошо, удаление таблицы будет позже. Хотите сделать что-то еще?",
+            f"⛔️ Удаление таблицы будет позже. {MSG_DO_CLIENT_WANT_TO_DO_MORE}",
             reply_markup=kb_admin.kb_main,
         )
 
@@ -230,7 +298,7 @@ async def get_table_name_filling(message: types.Message, state: FSMContext):
                 data["json_name_lst"] = json_name_lst
             await FSM_Admin_get_data_from_json.next()
             kb.add(LIST_BACK_TO_HOME[0])
-            await message.reply("❔ Какой json хочешь использовать?", reply_markup=kb)
+            await message.reply("❔ Какой json использовать?", reply_markup=kb)
 
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()
@@ -257,7 +325,7 @@ async def get_json_name_filling(message: types.Message, state: FSMContext):
 
         with Session(engine) as session:
             new_item_lst = []
-            for i in range(len(data)):  # TODO нужно из if-else превратить в 1 строку
+            for i in range(len(data)): # TODO нужно из if-else превратить в 1 строку
                 if table_name == "price_list":
                     new_item_lst.append(
                         OrderPriceList(
@@ -328,9 +396,10 @@ async def command_see_list(message: types.Message):
             + kb_admin.tattoo_order_commands
             + kb_admin.tattoo_items_commands
         ) + [
-            'Создать json файл',
-            'Удалить таблицу', 
-            "Получить данные из json"
+            "Создать json файл",
+            "Удалить таблицу", 
+            "Получить данные из json",
+            "Сменить режим"
             ]:
             i += 1
             if command not in LIST_BACK_COMMANDS:
@@ -449,7 +518,7 @@ def register_handlers_admin(dp: Dispatcher):
     dp.register_message_handler(
         get_name_json_file, state=FSM_Admin_create_json_file.table_name
     )
-    # --------------------------------------------TABLES-------------------------------------------------
+    # ----------------------------TABLES--------------------------
     dp.register_message_handler(delete_table_command, commands=["удалить_таблицу"])
     dp.register_message_handler(
         delete_table_command,
@@ -457,13 +526,21 @@ def register_handlers_admin(dp: Dispatcher):
         state=None,
     )
     dp.register_message_handler(
-        yes_no_delete_choice, state=FSM_Admin_delete_table.yes_no_delete_choice
+        delete_choice, state=FSM_Admin_delete_table.delete_choice
     )
     dp.register_message_handler(
         delete_table_with_name, state=FSM_Admin_delete_table.table_name
     )
-
-    # -------------------------------------------All Commands-------------------------------------------
+    # -----------------------------CHANGE MODE-------------------------------
+    dp.register_message_handler(command_change_mode, commands=["сменить_режим"], state="*")
+    dp.register_message_handler(
+        command_change_mode, 
+        Text(equals="Сменить режим"),
+        state="*"
+    )
+    dp.register_message_handler(get_mode_name, state=FSM_Admin_change_view_mode.get_mode_choice)
+    
+    # -----------------------------Get All Commands-------------------------------
     dp.register_message_handler(cancel_handler, state="*", commands="отмена")
     dp.register_message_handler(
         cancel_handler, Text(equals=LIST_CANCEL_COMMANDS, ignore_case=True), state="*"
