@@ -176,7 +176,7 @@ async def get_status_to_view_giftbox_order(message: types.Message):
             await FSM_Admin_send_to_view_giftbox_order.giftbox_order_number.set()
             await bot.send_message(
                 message.from_user.id,
-                "Какой номер заказа хочешь посмотреть?",
+                "❔ Какой номер заказа посмотреть?",
                 reply_markup=kb,
             )
 

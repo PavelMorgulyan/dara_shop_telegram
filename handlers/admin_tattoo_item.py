@@ -39,7 +39,7 @@ async def get_tattoo_items_and_item_command_list(message: types.Message):
         )
 
 
-# -------------------------------------------------------CHANGE TATTOO ITEM-----------------------------------------
+# -------------------------------------------------------CHANGE_TATTOO_ITEM-----------------------------------------
 class FSM_Admin_tattoo_item_change(StatesGroup):
     tattoo_name = State()
     new_state = State()
@@ -68,7 +68,7 @@ async def command_change_tattoo_item(message: types.Message):
 
             await FSM_Admin_tattoo_item_change.tattoo_name.set()
             await message.reply(
-                "Какое тату хочешь изменить?", reply_markup=kb_tattoo_names
+                "❔ Какое тату изменить?", reply_markup=kb_tattoo_names
             )
 
 
@@ -84,8 +84,8 @@ async def get_tattoo_name_for_changing(message: types.Message, state: FSMContext
             data["tattoo_name"] = message.text
         await FSM_Admin_tattoo_item_change.next()
         await message.reply(
-            f'Хорошо, вы выбрали тату под названием "{message.text}".\n'
-            "❔ Что хотите изменить?",
+            f'💬 Выбрано тату под названием "{message.text}".\n'
+            "❔ Что изменить?",
             reply_markup=kb_admin.kb_new_tattoo_item_state,
         )
 
@@ -98,7 +98,7 @@ async def get_tattoo_name_for_changing(message: types.Message, state: FSMContext
 
 async def get_new_tattoo_item_state(message: types.Message, state: FSMContext):
     if message.text in kb_admin.new_tattoo_item_state.keys():
-        await FSM_Admin_tattoo_item_change.next()
+        await FSM_Admin_tattoo_item_change.next() #-> set_new_tattoo_item_state
         async with state.proxy() as data:
             data["new_state"] = message.text
 
@@ -106,21 +106,19 @@ async def get_new_tattoo_item_state(message: types.Message, state: FSMContext):
             "name": kb_client.kb_back,
             "photo": kb_client.kb_back,
             "price": kb_admin.kb_price_list_commands,
-            "size": kb_admin.kb_sizes,
             "colored": kb_client.kb_colored_tattoo_choice,
-            "details_number": kb_client.kb_number_tattoo_details,
             "note": kb_client.kb_back,
             "creator": kb_admin.kb_creator_lst,
         }
         if message.text != "Фотография":
             await message.reply(
-                "❔ На какое значение хотите изменить?",
+                "❔ На какое значение изменить?",
                 reply_markup=kb_new_state_tattoo_item[
                     kb_admin.new_tattoo_item_state[message.text]
                 ],
             )
         else:
-            await FSM_Admin_tattoo_item_change.next()
+            await FSM_Admin_tattoo_item_change.next() # -> set_new_tattoo_photo
             await message.reply(
                 "📎 Загрузи новую фотографию тату, пожалуйста",
                 reply_markup=kb_new_state_tattoo_item[
@@ -140,11 +138,31 @@ async def set_new_tattoo_item_state(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         new_state = kb_admin.new_tattoo_item_state[data["new_state"]]
         tattoo_name = data["tattoo_name"]
-
-    new_state_value = message.text
-    await update_info("tattoo_items", "name", tattoo_name, new_state, new_state_value)
+        
+    with Session(engine) as session:
+        tattoo_item = session.scalars(select(TattooItems)
+            .where(TattooItems.name == tattoo_name)).one()
+        
+        if new_state == "name":
+            tattoo_item.name = message.text
+            
+        elif new_state == "price":
+            tattoo_item.price = message.text
+            
+        elif new_state == "colored":
+            tattoo_item.colored = message.text
+        
+        elif new_state == "note":
+            tattoo_item.note = message.text
+            
+        elif new_state == "creator":
+            tattoo_item.creator = message.text
+            
+        session.commit()
+        
+    await message.reply(MSG_SUCCESS_CHANGING)
     await message.reply(
-        f"Отлично, ты поменяла значение {new_state} у {tattoo_name}",
+        f"🎉 Отлично, изменено значение {new_state} у {tattoo_name}",
         reply_markup=kb_admin.kb_tattoo_items_commands,
     )
     await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE)
@@ -155,13 +173,26 @@ async def set_new_tattoo_photo(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         tattoo_name = data["tattoo_name"]
         new_state = data["new_state"]
-    await update_info("tattoo_items", "name", tattoo_name, "photo", message.text)
+    
+    with Session(engine) as session:
+        tattoo_item = session.scalars(select(TattooItems)
+            .where(TattooItems.name == tattoo_name)).one()
+        
+        new_tattoo_item_photo = TattooItemPhoto(
+            tattoo_item_id= tattoo_item.id,
+            photo= message.photo[0].file_id,
+            tattoo_item_name= tattoo_name
+        )
+        
+        session.add(new_tattoo_item_photo)
+        session.commit()
+            
     await update_info_in_json(
-        "tattoo_items", "name", tattoo_name, "photo", message.text
+        "tattoo_items", "name", tattoo_name, "photo", message.photo[0].file_id
     )
-
+    await message.reply(MSG_SUCCESS_CHANGING)
     await message.reply(
-        f"Отлично, ты поменяла значение {new_state} у {tattoo_name}",
+        f"🎉 Отлично, изменено значение {new_state} у {tattoo_name}",
         reply_markup=kb_admin.kb_tattoo_items_commands,
     )
     await bot.send_message(message.from_id, MSG_DO_CLIENT_WANT_TO_DO_MORE)
@@ -186,13 +217,13 @@ class FSM_Admin_tattoo_item(StatesGroup):
     1) command_load_tattoo_item:
         a) 'Введи название тату' - Complete
         b) LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME  -  Complete
-    2) load_tattoo_name
+    2) get_tattoo_name
         a) 'А теперь загрузи фотографию тату' -  Complete
         b) LIST_CANCEL_COMMANDS + LIST_BACK_COMMANDS + LIST_BACK_TO_HOME  -  Complete
     3) load_tattoo_photo
         a) 'Введи примерную цену тату' -  Complete
         b) MSG_PLS_SEND_TATTOO_PHOTO_OR_CANCEL_ACTION - NO
-    4) load_tattoo_price -
+    4) get_tattoo_price -
 """
 
 
@@ -202,11 +233,11 @@ async def command_load_tattoo_item(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await FSM_Admin_tattoo_item.tattoo_name.set()
-        await message.reply("Введи название тату", reply_markup=kb_client.kb_cancel)
+        await message.reply("💬 Введите название тату", reply_markup=kb_client.kb_cancel)
 
 
 # Отправляем название тату
-async def load_tattoo_name(message: types.Message, state: FSMContext):
+async def get_tattoo_name(message: types.Message, state: FSMContext):
     if message.text in LIST_CANCEL_COMMANDS + LIST_BACK_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()
         await message.reply(
@@ -214,21 +245,22 @@ async def load_tattoo_name(message: types.Message, state: FSMContext):
         )
     else:
         async with state.proxy() as data:
-            data["tattoo_name"] = message.text
+            data["tattoo_name"] = message.text #-> get_tattoo_item_photo
         await FSM_Admin_tattoo_item.next()
         await message.reply(
-            "Загрузи фотографию тату", reply_markup=kb_client.kb_back_cancel
+            "📎 Загрузите фотографию тату", reply_markup=kb_client.kb_back_cancel
         )
 
 
 # Отправляем фото тату
-async def load_tattoo_item_photo(message: types.Message, state: FSMContext):
+async def get_tattoo_item_photo(message: types.Message, state: FSMContext):
     # try:
     if message.content_type == "photo":
         async with state.proxy() as data:
             data["tattoo_photo"] = message.photo[0].file_id
         await FSM_Admin_tattoo_item.next()
-        await message.reply("Введи примерную цену тату", reply_markup=kb_admin.kb_price)
+        await message.reply("💬 Введите примерную цену тату", reply_markup=kb_admin.kb_price)
+        
     else:
         if message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
             await state.finish()
@@ -239,14 +271,22 @@ async def load_tattoo_item_photo(message: types.Message, state: FSMContext):
         elif message.text in LIST_BACK_COMMANDS:
             await message.reply(
                 f"{MSG_BACK}\n"
-                "❔ Какое имя для тату хочешь поставить?",
+                "❔ Какое имя выставить для тату?",
                 reply_markup=kb_admin.kb_back_home,
             )
-            await FSM_Admin_tattoo_item.previous()
+            await FSM_Admin_tattoo_item.previous() #-> get_tattoo_name
+
+
+# Возможность добавления цены через ввод, а не кб
+async def process_callback_set_price_from_line(callback_query: types.CallbackQuery, state: FSMContext):
+    await bot.answer_callback_query(callback_query.id)
+    await bot.send_message(callback_query.from_user.id, 
+        MSG_ADMIN_SET_ANOTHER_PRICE_FROM_LINE, reply_markup= kb_client.kb_cancel
+    )
 
 
 # Отправляем стоимость тату
-async def load_tattoo_price(message: types.Message, state: FSMContext):
+async def get_tattoo_price(message: types.Message, state: FSMContext):
     if message.text in kb_admin.another_price_lst:
         await message.reply(
             MSG_ADMIN_SET_ANOTHER_PRICE,
@@ -258,7 +298,7 @@ async def load_tattoo_price(message: types.Message, state: FSMContext):
             data["tattoo_price"] = message.text
         await FSM_Admin_tattoo_item.next()
         await message.reply(
-            f"Тату будет ч/б или цветная?",
+            f"❔ Тату будет ч/б или цветная?",
             reply_markup=kb_client.kb_colored_tattoo_choice,
         )
 
@@ -268,8 +308,8 @@ async def load_tattoo_price(message: types.Message, state: FSMContext):
 
     elif message.text in LIST_BACK_COMMANDS:
         await message.reply(
-            "Вы вернулись назад к выбору фото для тату."
-            " Какое фото для тату хочешь поставить?",
+            "🔙 Вы вернулись назад к выбору фото для тату."
+            "❔ Какое фото для тату поставить?",
             reply_markup=kb_client.kb_back_cancel,
         )
         await FSM_Admin_tattoo_item.previous()
@@ -280,13 +320,13 @@ async def load_tattoo_price(message: types.Message, state: FSMContext):
 
 
 # Отправляем цвет тату
-async def load_tattoo_colored(message: types.Message, state: FSMContext):
+async def get_tattoo_colored(message: types.Message, state: FSMContext):
     if message.text in kb_client.colored_tattoo_choice:
         async with state.proxy() as data:
             data["tattoo_colored"] = message.text.split()[0]
         await FSM_Admin_tattoo_item.next()
         await message.reply(
-            f"Хорошо, тату будет {message.text}.\n" "Опиши тату, пожалуйста",
+            f"❕ Тату будет {message.text}.\n💬 Опишите тату, пожалуйста",
             reply_markup=kb_client.kb_number_tattoo_details,
         )
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
@@ -298,7 +338,7 @@ async def load_tattoo_colored(message: types.Message, state: FSMContext):
     elif message.text in LIST_BACK_COMMANDS:
         await FSM_Admin_tattoo_item.previous()
         await message.reply(
-            "Вы вернулись назад к выбору цены. Какая примерная цена тату?",
+            "🔙 Вы вернулись назад к выбору цены. \n❔ Какая примерная цена тату?",
             reply_markup=kb_admin.kb_price,
         )
 
@@ -341,9 +381,9 @@ async def load_tattoo_note(message: types.Message, state: FSMContext):
         await state.finish()
         await message.reply(MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_main)
     elif message.text in LIST_BACK_COMMANDS:
-        await FSM_Admin_tattoo_item.previous()
+        await FSM_Admin_tattoo_item.previous() # -> get_tattoo_colored
         await message.reply(
-            "Хорошо, укажи цвет тату", reply_markup=kb_client.kb_colored_tattoo_choice
+            f"{MSG_BACK}\n💬 Укажи цвет тату", reply_markup=kb_client.kb_colored_tattoo_choice
         )
 
     elif (
@@ -351,22 +391,25 @@ async def load_tattoo_note(message: types.Message, state: FSMContext):
         not in LIST_CANCEL_COMMANDS + LIST_BACK_COMMANDS + LIST_BACK_TO_HOME
     ):
         async with state.proxy() as data:
-            data["tattoo_note"] = message.text
-
-            new_tattoo_info = {
-                "tattoo_name": data["tattoo_name"],
-                "tattoo_photo": data["tattoo_photo"],
-                "tattoo_price": data["tattoo_price"],
-                # "tattoo_size":              data['tattoo_size'],
-                "tattoo_colored": data["tattoo_colored"],
-                # "tattoo_details_number":    data['tattoo_details_number'],
-                "tattoo_note": data["tattoo_note"],
-                "creator": "admin",
-            }
-        await set_to_table(tuple(new_tattoo_info.values()), "tattoo_items")
-        await dump_to_json(new_tattoo_info, "tattoo_items")
+            with Session(engine) as session:
+                new_tattoo_item = TattooItems(
+                    name= data["tattoo_name"],
+                    price= data["tattoo_price"],
+                    tattoo_photo = [TattooItemPhoto(
+                        name= data["tattoo_name"],
+                        photo= data['tattoo_photo']
+                    )],
+                    colored= data["tattoo_colored"],
+                    note= data["tattoo_note"], 
+                    creator= "admin"
+                )
+                session.add(new_tattoo_item)
+                session.commit()
+                
+        # await dump_to_json(new_tattoo_info, "tattoo_items")
+        await message.reply(MSG_SUCCESS_CHANGING)
         await message.reply(
-            "Готово! Вы добавили тату в таблицу tattoo_items.\n\n"
+            "🎉 Готово! Тату добавлено в таблицу tattoo_items.\n\n"
             f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
             reply_markup=kb_admin.kb_tattoo_items_commands,
         )
@@ -516,7 +559,7 @@ async def command_get_info_admin_tattoo(message: types.Message):
 
         if tattoo_items == []:
             await message.reply(
-                "Прости, но у тебя пока нет своих тату в таблице. "
+                "❌ У тебя пока нет своих тату в таблице. "
                 'Данную таблицу можно заполнить через кнопку "добавить тату"'
             )
         else:
@@ -566,9 +609,10 @@ async def get_tattoo_name_for_tattoo_info(message: types.Message, state: FSMCont
             tattoo_items = session.scalars(
                 select(TattooItems).where(TattooItems.name == message.text)
             ).all()
+            
         if tattoo_items == []:
             await message.reply(
-                "Таких тату нет. Выбери тату из списка или вернись домой."
+                "❌ Таких тату нет. Выберите тату из списка или вернись домой."
             )
         else:
             await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
@@ -577,7 +621,7 @@ async def get_tattoo_name_for_tattoo_info(message: types.Message, state: FSMCont
                 MSG_DO_CLIENT_WANT_TO_DO_MORE,
                 reply_markup=kb_admin.kb_tattoo_items_commands,
             )
-            await state.finish()  #  полностью очищает данные
+            await state.finish() #  полностью очищает данные
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_COMMANDS:
         await state.finish()
         await bot.send_message(
@@ -586,7 +630,7 @@ async def get_tattoo_name_for_tattoo_info(message: types.Message, state: FSMCont
             reply_markup=kb_admin.kb_tattoo_items_commands,
         )
     else:
-        await message.reply("Таких тату нет. Выбери тату из списка или вернись домой.")
+        await message.reply("❌ Таких тату нет. Выбери тату из списка или вернись домой.")
 
 
 # /посмотреть_все_пользовательские_тату
@@ -625,30 +669,38 @@ async def delete_info_tattoo_in_table(message: types.Message):
         message.text.lower() in ["удалить тату", "/удалить_тату"]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
-        tattoo_items = await get_info_many_from_table("tattoo_items")
+        with Session(engine) as session:
+            tattoo_items = session.scalars(select(TattooItems)).all()
+            
         if tattoo_items == []:
             await bot.send_message(
                 message.from_user.id,
-                "Увы, в базе пока нет тату, а значит и удалять нечего",
+                "❌ В базе нет тату, а значит и удалять нечего",
             )
         else:
             await send_to_view_tattoo_item(message.from_user.id, tattoo_items)
             kb_tattoo_names = ReplyKeyboardMarkup(resize_keyboard=True)
             for item in tattoo_items:
-                kb_tattoo_names.add(item[0])
+                kb_tattoo_names.add(KeyboardButton(item[0]))
+                
             kb_tattoo_names.add(kb_admin.home_btn)
             await FSM_Admin_delete_tattoo_item.delete_tattoo_name.set()
             await bot.send_message(
                 message.from_user.id,
-                "Какую тату хотите удалить?",
+                "❔ Какую тату удалить?",
                 reply_markup=kb_tattoo_names,
             )
 
 
 async def delete_info_tattoo_in_table_next(message: types.Message, state: FSMContext):
-    await delete_info("tattoo_items", "name", message.text)
+    with Session(engine) as session:
+        tattoo_item = session.scalars(select(TattooItems)
+            .where(TattooItems.name == message.text)).one()
+        session.delete(tattoo_item)
+        
+    await message.reply(MSG_SUCCESS_CHANGING)
     await message.reply(
-        f"Готово! Вы удалили тату {message.text}. \n"
+        f"🎉 Готово! Удалено тату под название \"{message.text}\".\n"
         f"{MSG_WHICH_INFO_DO_CLIENT_WANT_TO_GET}",
         reply_markup=kb_admin.kb_tattoo_items_commands,
     )
@@ -669,18 +721,18 @@ async def delete_info_tattoo_in_table_next(message: types.Message, state: FSMCon
             pass
 
     with open(f"./db/{json_name}.json", "w", encoding="cp1251") as outfile:
-        json.dump(update_data_to_json, outfile, ensure_ascii=False, indent=2)
+        json.dump(update_data_to_json, outfile, ensure_ascii=True, indent=2)
 
     """ for i in range(1, len(data_deleted)):
         delete_data_to_json[str(i)] = data_deleted[str(i)]
     with open(f'./db/{json_name}_deleted.json', 'w', encoding='cp1251') as outfile:
-        json.dump(delete_data_to_json, outfile, ensure_ascii=False, indent=2) """
+        json.dump(delete_data_to_json, outfile, ensure_ascii=True, indent=2) """
 
     await state.finish()
 
 
 def register_handlers_admin_tattoo_item(dp: Dispatcher):
-    # ---------------------------------- TATTOO ITEM COMMAND-------------------------
+    # --------------------------- TATTOO_ITEM_COMMAND-------------------------
     dp.register_message_handler(
         get_tattoo_items_and_item_command_list, commands=["татуировки"]
     )
@@ -690,7 +742,7 @@ def register_handlers_admin_tattoo_item(dp: Dispatcher):
         state=None,
     )
 
-    # ---------------------------------------CHANGE TATTOO------------------------------------
+    # -------------------------------CHANGE_TATTOO----------------------
     dp.register_message_handler(command_change_tattoo_item, commands=["изменить_тату"])
     dp.register_message_handler(
         command_change_tattoo_item,
@@ -712,7 +764,7 @@ def register_handlers_admin_tattoo_item(dp: Dispatcher):
         state=FSM_Admin_tattoo_item_change.new_photo,
     )
 
-    # ----------------------------------------ADD TATTOO-----------------------------------------
+    # ----------------------------------------ADD TATTOO-------------------------
     dp.register_message_handler(
         command_load_tattoo_item, commands=["добавить_тату"], state=None
     )
@@ -722,26 +774,28 @@ def register_handlers_admin_tattoo_item(dp: Dispatcher):
         state=None,
     )
     dp.register_message_handler(
-        load_tattoo_name, state=FSM_Admin_tattoo_item.tattoo_name
+        get_tattoo_name, state=FSM_Admin_tattoo_item.tattoo_name
     )
     dp.register_message_handler(
-        load_tattoo_item_photo,
+        get_tattoo_item_photo,
         content_types=["photo", "text"],
         #  types.ContentType.all(),
         state=FSM_Admin_tattoo_item.tattoo_photo,
     )
+    dp.register_callback_query_handler(process_callback_set_price_from_line,
+        state=FSM_Admin_tattoo_item.tattoo_price)
     dp.register_message_handler(
-        load_tattoo_price, state=FSM_Admin_tattoo_item.tattoo_price
+        get_tattoo_price, state=FSM_Admin_tattoo_item.tattoo_price
     )
     dp.register_message_handler(
-        load_tattoo_colored, state=FSM_Admin_tattoo_item.tattoo_colored
+        get_tattoo_colored, state=FSM_Admin_tattoo_item.tattoo_colored
     )
     # dp.register_message_handler(load_tattoo_number_of_details,
     # state=FSM_Admin_tattoo_item.tattoo_number_of_details)
     dp.register_message_handler(
         load_tattoo_note, state=FSM_Admin_tattoo_item.tattoo_note
     )
-
+    #-------------------------VIEW_ALL_TATTOO_ITEMS------------------------
     dp.register_message_handler(
         command_get_info_all_tattoo, commands=["посмотреть_все_тату"]
     )
@@ -750,7 +804,7 @@ def register_handlers_admin_tattoo_item(dp: Dispatcher):
         Text(equals="посмотреть все тату", ignore_case=True),
         state=None,
     )
-
+    #-------------------------VIEW_ALL_ADMIN_TATTOO_ITEMS------------------------
     dp.register_message_handler(
         command_get_info_all_admin_tattoo, commands=["посмотреть_все_мои_тату"]
     )
@@ -759,7 +813,8 @@ def register_handlers_admin_tattoo_item(dp: Dispatcher):
         Text(equals="посмотреть все мои тату", ignore_case=True),
         state=None,
     )
-
+    
+    #-------------------------VIEW_TATTOO_ADMIN_ITEM------------------------
     dp.register_message_handler(
         command_get_info_admin_tattoo, commands=["посмотреть_мои_тату"]
     )
@@ -779,6 +834,7 @@ def register_handlers_admin_tattoo_item(dp: Dispatcher):
         state=None,
     )
 
+    #-------------------------VIEW_ALL_TATTOO_CLIETNS_ITEMS------------------------
     dp.register_message_handler(
         command_get_info_client_tattoo, commands=["посмотреть_пользовательские_тату"]
     )
@@ -792,6 +848,7 @@ def register_handlers_admin_tattoo_item(dp: Dispatcher):
         state=FSM_Admin_get_info_tattoo_item.tattoo_name,
     )
 
+    #-------------------------VIEW_TATTOO_ITEMS------------------------
     dp.register_message_handler(command_get_info_tattoo, commands=["посмотреть_тату"])
     dp.register_message_handler(
         command_get_info_tattoo,
@@ -801,7 +858,8 @@ def register_handlers_admin_tattoo_item(dp: Dispatcher):
     dp.register_message_handler(
         get_tattoo_name_for_info, state=FSM_Admin_get_info_tattoo_item.tattoo_name
     )
-
+    
+    #-------------------------DELETE_TATTOO_ITEM------------------------
     dp.register_message_handler(delete_info_tattoo_in_table, commands=["удалить_тату"])
     dp.register_message_handler(
         delete_info_tattoo_in_table,

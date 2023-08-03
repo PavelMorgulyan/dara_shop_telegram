@@ -146,7 +146,7 @@ async def get_max_size_to_new_price_list(message: types.Message, state: FSMConte
         await FSM_Admin_create_price_list.previous()
         await message.reply(
             f"{MSG_BACK}."
-            "❔ Какой минимальный размер хочешь поставить в этой прайс-листе?",
+            "❔ Какой минимальный размер поставить в этой прайс-листе?",
             reply_markup=kb_admin.kb_sizes,
         )
 

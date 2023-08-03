@@ -1,3 +1,4 @@
+import re
 from aiogram import types, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -36,9 +37,10 @@ class FSM_Admin_add_user(StatesGroup):
     user_telegram = State()
     user_phone = State()
 
+
 async def command_add_users_info_command(message: types.Message):
     if (
-        message.text.lower() == "добавить пользователя"
+        message.text.lower() == "добавить нового пользователя"
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await FSM_Admin_add_user.user_status.set()
@@ -52,12 +54,137 @@ async def get_user_status(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data['user_status'] = clients_status['admin'] \
                 if message.text == kb_admin.user_status['admin'] else clients_status['client']
+        
+        await FSM_Admin_add_user.next() #-> get_user_name
+        await message.reply(
+            "❔ Какое у пользователя имя?", reply_markup=kb_client.kb_cancel
+        )
+    elif any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME):
+        await state.finish()
+        await message.reply(
+            MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
+            reply_markup=kb_admin.kb_clients_commands,
+        )
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
-# -------------------------------VIEW ALL USERS-------------------------------------------
+async def get_user_name(message: types.Message, state: FSMContext):
+    if message.text not in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
+        async with state.proxy() as data:
+            data['user_name'] = message.text
+        
+        await message.reply(
+            "❔ Телеграм пользователя известен?", reply_markup=kb_client.kb_yes_no
+        )
+        
+    elif message.text == kb_client.yes_str:
+        await FSM_Admin_add_user.next()
+        await message.reply(
+            MSG_WHICH_USERNAME_IN_ORDER, reply_markup=kb_client.kb_yes_no
+        )
+        
+    elif message.text == kb_client.no_str:
+        async with state.proxy() as data:
+            data['user_telegram'] = "Нет телеграма"
+        for _ in range(2):
+            await FSM_Admin_add_user.next() # -> get_user_phone
+        await message.reply(
+            "❔ Дополнить информацию о пользователе его номером телефона?", reply_markup=kb_client.kb_yes_no
+        )
+        
+    elif any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME):
+        await state.finish()
+        await message.reply(
+            MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
+            reply_markup=kb_admin.kb_clients_commands,
+        )
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def get_user_telegram(message: types.Message, state: FSMContext):
+    if "@" in message.text or "https://t.me/" in message.text:
+        async with state.proxy() as data:
+            data['user_telegram'] = message.text
+        await FSM_Admin_add_user.next() # -> get_user_phone
+        await message.reply(
+            "❔ Дополнить информацию о пользователе его номером телефона?", reply_markup=kb_client.kb_yes_no
+        )
+    elif any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME):
+        await state.finish()
+        await message.reply(
+            MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
+            reply_markup=kb_admin.kb_clients_commands,
+        )
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def add_new_user_to_db(message: types.Message,state: FSMContext):
+    async with state.proxy() as data:
+        with Session(engine) as session:
+            new_user = User(
+                name = data["username"],
+                telegram_name= data["telegram"],
+                phone= data["number"],
+                status= clients_status['client']
+            )
+            session.add(new_user)
+            session.commit()
+            
+        username, telegram, phone = data["username"], data["telegram"], data["number"]
+        tattoo_order_number = data["order_number"]
+
+        await bot.send_message(
+            message.from_user.id,
+            f"🎉 Заказ под номером {tattoo_order_number}"
+            f" оформлен на пользователя {username} с телеграмом {telegram}, телефон: {phone}!",
+            reply_markup=kb_admin.kb_tattoo_order_commands,
+        )
+        await state.finish() # полностью очищает данные
+
+
+async def get_user_phone(message: types.Message, state: FSMContext):
+    if message.text in kb_admin.phone_answer + [kb_client.no_str]:
+        async with state.proxy() as data:
+            data["number"] = "Нет номера"
+        
+        await add_new_user_to_db(message, state)
+        
+    elif message.text == kb_client.yes_str:
+        await message.reply(
+            MSG_WHICH_USERNAME_PHONE_IN_ORDER,
+            reply_markup=kb_admin.kb_admin_has_no_phone_username,
+        )
+    elif any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME):
+        await state.finish()
+        await message.reply(
+            MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
+            reply_markup=kb_admin.kb_clients_commands,
+        )
+    else:
+        
+        result = re.match(
+            r"^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?"
+            "[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$",
+            message.text,
+        )
+
+        if not result:
+            await message.reply("❌ Номер некорректен. Пожалуйста, введите номер заново.")
+            
+        else:
+            async with state.proxy() as data:
+                data["number"] = message.text
+                
+            await add_new_user_to_db(message, state)
+    
+
+# -------------------------------VIEW_ALL_USERS-------------------------------------------
 class FSM_Admin_get_info_user(StatesGroup):
     user_name = State()
-    
+
 
 async def get_client_orders(user: ScalarResult["User"]) -> dict:
     with Session(engine) as session:
@@ -343,7 +470,7 @@ def register_handlers_admin_client_commands(dp: Dispatcher):
         Text(equals="посмотреть всех пользователей", ignore_case=True),
         state=None,
     )
-
+    #----------------------------------VIEW_CLIENT_INFO------------------------------
     dp.register_message_handler(
         get_user_info_command, commands=["посмотреть_пользователя"]
     )
@@ -354,7 +481,7 @@ def register_handlers_admin_client_commands(dp: Dispatcher):
         get_user_info_command_with_name, state=FSM_Admin_get_info_user.user_name
     )
 
-
+    #--------------------------------ADD_CLIENT_TO_BLACK_LIST-----------------------------------
     dp.register_message_handler(command_set_client_to_black_list,
         Text(equals="отправить пользователя в черный список", ignore_case=True),
         state=None,
@@ -365,3 +492,12 @@ def register_handlers_admin_client_commands(dp: Dispatcher):
     dp.register_message_handler(
         set_to_black_list_user_with_name, state=FSM_Admin_set_client_to_black_list.user_name
     )
+    #-----------------------------------ADD_NEW_USER_TO_DB-----------------------------
+    dp.register_message_handler(command_add_users_info_command,
+        Text(equals="добавить нового пользователя", ignore_case=True),
+        state=None,
+    )
+    dp.register_message_handler(get_user_status, state=FSM_Admin_add_user.user_status)
+    dp.register_message_handler(get_user_name, state=FSM_Admin_add_user.user_name)
+    dp.register_message_handler(get_user_telegram, state=FSM_Admin_add_user.user_telegram)
+    dp.register_message_handler(get_user_phone, state=FSM_Admin_add_user.user_phone)

@@ -78,7 +78,7 @@ async def command_create_json_file(message: types.Message):
         await FSM_Admin_create_json_file.table_name.set()
         await bot.send_message(
             message.from_id,
-            "Какую таблицу хочешь выгрузить в json?",
+            "❔ Какую таблицу хочешь выгрузить в json?",
             reply_markup=kb_tables_names,
         )
 
@@ -93,8 +93,9 @@ async def get_name_json_file(message: types.Message, state: FSMContext):
         result = await dump_to_json_from_db(table_name=message.text)
         if result == "Succsess":
             await state.finish()
+            await message.reply(MSG_SUCCESS_CHANGING)
             await message.reply(
-                f"Готово! Вы выгрузили таблицу {message.text}! {MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+                f"🎉 Готово! Вы выгрузили таблицу {message.text}! {MSG_DO_CLIENT_WANT_TO_DO_MORE}",
                 reply_markup=kb_admin.kb_main,
             )
         else:
@@ -248,7 +249,7 @@ async def delete_table_with_name(message: types.Message, state: FSMContext):
 
 
 # TODO доделать загрузку базы
-# ----------------------------------------------GET DATA FROM JSON--------------------------------
+# ----------------------------------------------GET_DATA_FROM_JSON--------------------------------
 class FSM_Admin_get_data_from_json(StatesGroup):
     table_name = State()
     json_name = State()

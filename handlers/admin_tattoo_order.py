@@ -2733,8 +2733,12 @@ async def answer_user_name(message: types.Message, state: FSMContext):
         await message.reply(
             MSG_WHICH_USERNAME_IN_ORDER
         )
-    else:
-        await FSM_Admin_username_info.next()
+    elif any(text in message.text.lower() for text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME):
+        await state.finish()
+        await message.reply(
+            MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
+            reply_markup=kb_admin.kb_price_list_commands,
+        )
 
 
 async def load_telegram(message: types.Message, state: FSMContext):
@@ -2751,9 +2755,36 @@ async def load_telegram(message: types.Message, state: FSMContext):
     )
 
 
+async def add_new_user_to_db(message: types.Message,state: FSMContext):
+    async with state.proxy() as data:
+        with Session(engine) as session:
+            new_user = User(
+                name = data["username"],
+                telegram_name= data["telegram"],
+                phone= data["number"],
+                status= clients_status['client']
+            )
+            session.add(new_user)
+            session.commit()
+            
+        username, telegram, phone = data["username"], data["telegram"], data["number"]
+        tattoo_order_number = data["order_number"]
+
+        await bot.send_message(
+            message.from_user.id,
+            f"🎉 Заказ под номером {tattoo_order_number}"
+            f" оформлен на пользователя {username} с телеграмом {telegram}, телефон: {phone}!",
+            reply_markup=kb_admin.kb_tattoo_order_commands,
+        )
+        await state.finish() # полностью очищает данные
+
+
 async def load_phone(message: types.Message, state: FSMContext):
     if message.text in kb_admin.phone_answer + [kb_client.no_str]:
-        number = "Нет номера"
+        async with state.proxy() as data:
+            data["number"] = "Нет номера"
+        
+        await add_new_user_to_db(message, state)
         
     elif message.text == kb_client.yes_str:
         await message.reply(
@@ -2761,37 +2792,22 @@ async def load_phone(message: types.Message, state: FSMContext):
             reply_markup=kb_admin.kb_admin_has_no_phone_username,
         )
     else:
-        number = message.text
+        
         result = re.match(
             r"^(\+7|7|8)?[\s\-]?\(?[489][0-9]{2}\)?[\s\-]?"
             "[0-9]{3}[\s\-]?[0-9]{2}[\s\-]?[0-9]{2}$",
-            number,
+            message.text,
         )
 
         if not result:
             await message.reply("❌ Номер некорректен. Пожалуйста, введите номер заново.")
-
-        async with state.proxy() as data:
-            with Session(engine) as session:
-                new_user = User(
-                    name = data["username"],
-                    telegram_name= data["telegram"],
-                    phone= number,
-                    status= clients_status['client']
-                )
-                session.add(new_user)
-                session.commit()
+            
+        else:
+            async with state.proxy() as data:
+                data["number"] = message.text
                 
-            username, telegram, phone = data["username"], data["telegram"], number
-            tattoo_order_number = data["order_number"]
-
-            await bot.send_message(
-                message.from_user.id,
-                f"🎉 Заказ под номером {tattoo_order_number}"
-                f" оформлен на пользователя {username} с телеграмом {telegram}, телефон: {phone}!",
-                reply_markup=kb_admin.kb_tattoo_order_commands,
-            )
-            await state.finish()  #  полностью очищает данные
+            await add_new_user_to_db(message, state)
+        
 
 
 # -------------------------------ADD NEW EVENT SCHEDULE TO TATTOO ORDER--------------------------------
@@ -3030,7 +3046,7 @@ async def process_get_new_date_for_new_data_schedule(
     selected, date = await DialogCalendar().process_selection(callback_query, callback_data)  # type: ignore
     if selected:
         await callback_query.message.answer(
-            f'Вы выбрали новую дату {date.strftime("%d/%m/%Y")}'
+            f'🕒 Выбрана дата {date.strftime("%d/%m/%Y")}'
         )
 
         async with state.proxy() as data:
@@ -3134,13 +3150,14 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
             )
             session.add(new_schedule_event)
             session.commit()
-
+            
+        await bot.send_message(user_id, MSG_SUCCESS_CHANGING)
         await bot.send_message(
             user_id,
             f"🎉 У тату заказа №{order_number} добавилась дата сеанса с "
             f"{start_time_in_tattoo_order.strftime('%Y-%m-%d %H:%M')} по"
             f"{end_time_in_tattoo_order.strftime('%Y-%m-%d %H:%M')}.\n\n"
-            "🎉А также добавилась новая дата в Google календаре.",
+            "🎉 А также добавилась новая дата в Google календаре.",
         )
         #-> get_anwser_to_notify_client
         await FSM_Admin_create_new_schedule_event_to_tattoo_order.next()
