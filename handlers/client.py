@@ -528,9 +528,11 @@ async def fill_client_table(data: dict, message: types.Message) -> None:
             user[0].phone = data["phone"]
             session.commit()
 
+    await bot.send_message(message.from_id, f"{MSG_THANK_FOR_ORDER}")
+    
     await bot.send_message(
         message.from_id,
-        f"{MSG_THANK_FOR_ORDER}\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
+        f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
         reply_markup=kb_client.kb_client_main,
     )
 
@@ -571,7 +573,7 @@ async def load_phone(message: types.Message, state: FSMContext):
 
         elif message.text == kb_client.no_str:
             await bot.send_message(
-                message.from_id, "☎️ Хорошо, тогда отправь свой телефон, пожалуйста."
+                message.from_id, "☎️ Отправьте свой телефон, пожалуйста."
             )
 
         else:
