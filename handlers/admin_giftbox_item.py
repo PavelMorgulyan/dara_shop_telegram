@@ -53,9 +53,7 @@ class FSM_Admin_giftbox_item(StatesGroup):
     # если свеча нет, то цена 0
     giftbox_candle_note = State()  # описание свечи
 
-    giftbox_candle_state = (
-        State()
-    )  # есть ли эти свечи сейчас в наличии или надо докупать
+    giftbox_candle_state = () # есть ли эти свечи сейчас в наличии или надо докупать
 
     giftbox_tattoo_theme = State()  # если есть тату, то какая тематика
 
@@ -70,47 +68,95 @@ class FSM_Admin_giftbox_item(StatesGroup):
 
 
 # /добавить_новый_гифтбокс, Команда для добавление гифтбокс итема
-async def command_load_giftbox_item(message: types.Message):
+async def command_get_giftbox_item(message: types.Message):
     if (
         message.text.lower() in ["/добавить_новый_гифтбокс", "добавить новый гифтбокс"]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await FSM_Admin_giftbox_item.giftbox_name.set()
         await message.reply(
-            "Введи название гифтбокса", reply_markup=kb_client.kb_cancel
+            "💬 Введи название гифтбокса", reply_markup=kb_client.kb_cancel
         )
 
 
 # Отправляем название гифтбокса
-async def load_giftbox_name(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["giftbox_name"] = message.text
-    await FSM_Admin_giftbox_item.next()
+async def get_giftbox_name(message: types.Message, state: FSMContext):
+    if message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
+        await state.finish()
+        await bot.send_message(
+            message.from_id,
+            MSG_BACK_TO_HOME,
+            reply_markup= kb_admin.kb_giftbox_item_commands,
+        )
+        
+    else:
+        async with state.proxy() as data:
+            data["giftbox_name"] = message.text
+        await FSM_Admin_giftbox_item.next() #-> get_giftbox_photo
+        await bot.send_message(
+            message.from_id, "❔ Добавить фотографию гифтбокса?", reply_markup= kb_client.kb_yes_no
+        )
+
+# -> get_giftbox_photo -> get_request_to_price_into_giftbox_item
+async def get_request_to_price_into_giftbox_item(message: types.Message, state: FSMContext):
+    await FSM_Admin_giftbox_item.next() #-> get_giftbox_price
     await message.reply(
-        MSG_CLIENT_LOAD_PHOTO, reply_markup=kb_client.kb_cancel
+        "❔ На какую цену сертификат? Выбери цену из списка",
+        reply_markup=kb_admin.kb_price
+    )
+    await bot.send_message(
+        message.from_id, 
+        MSG_ADMIN_CAN_SET_ANOTHER_PRICE,
+        reply_markup= kb_admin.kb_set_another_price_from_line
     )
 
 
 # Отправляем фото гифтбокса
-async def load_giftbox_photo(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["giftbox_photo"] = message.photo[0].file_id
-    await FSM_Admin_giftbox_item.next()
-    await message.reply(
-        "Введи примерную цену на гифтбокс", reply_markup=kb_admin.kb_price
+async def get_giftbox_photo(message: types.Message, state: FSMContext):
+    
+    if message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
+        await state.finish()
+        await bot.send_message(
+            message.from_id,
+            MSG_BACK_TO_HOME,
+            reply_markup= kb_admin.kb_giftbox_item_commands,
+        )
+    elif message.text == kb_client.yes_str:
+        await message.reply(
+            MSG_CLIENT_LOAD_PHOTO, reply_markup=kb_client.kb_cancel
+        )
+    elif message.text == kb_client.no_str:
+        async with state.proxy() as data:
+            data["giftbox_photo"] = None
+        await get_request_to_price_into_giftbox_item(message, state)
+        
+    elif message.content_type == 'photo':
+        async with state.proxy() as data:
+            data["giftbox_photo"] = message.photo[0].file_id
+            
+        await get_request_to_price_into_giftbox_item(message, state)
+
+
+# Возможность добавления цены через ввод, а не кб
+async def process_callback_set_price_from_line(
+    callback_query: types.CallbackQuery, 
+    state: FSMContext
+    ):
+    await bot.answer_callback_query(callback_query.id)
+    await bot.send_message(callback_query.from_user.id, 
+        MSG_ADMIN_SET_ANOTHER_PRICE_FROM_LINE, reply_markup= kb_client.kb_cancel
     )
 
 
-# TODO добавить возможность вбить другую цену
 # Отправляем стоимость гифтбокса
-async def load_giftbox_price(message: types.Message, state: FSMContext):
-    if message.text in kb_admin.price_lst:
+async def get_giftbox_price(message: types.Message, state: FSMContext):
+    if message.text.isdigit():
         async with state.proxy() as data:
             data["giftbox_price"] = int(message.text)
 
         await FSM_Admin_giftbox_item.next()
         await message.reply(
-            "Введи описание гифтбокса", reply_markup=kb_client.kb_cancel
+            "💬 Введите описание гифтбокса", reply_markup=kb_client.kb_cancel
         )
     else:
         await message.reply(
@@ -119,36 +165,86 @@ async def load_giftbox_price(message: types.Message, state: FSMContext):
 
 
 # Отправляем описание гифтбокса
-async def load_giftbox_note(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        data["giftbox_note"] = message.text
-    await FSM_Admin_giftbox_item.next()
-    await message.reply(
-        "Хорошо, теперь необходимо добавить свечу в гифтбокс. "
-        f"❔ Добавить в этот гифтбокс новую свечу или выбрать из готовых?",
-        reply_markup=kb_admin.kb_candle_choice,
-    )
+async def get_giftbox_note(message: types.Message, state: FSMContext):
+    if message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
+        await state.finish()
+        await bot.send_message(
+            message.from_id,
+            MSG_BACK_TO_HOME,
+            reply_markup= kb_admin.kb_giftbox_item_commands,
+        )
+        
+    else:
+        async with state.proxy() as data:
+            data["giftbox_note"] = message.text
+        await FSM_Admin_giftbox_item.next() #-> get_giftbox_candle_choice
+        await bot.send_message(message.from_id, MSG_SUCCESS_CHANGING)
+        await message.reply(
+            "❕ Хорошо, теперь необходимо добавить свечу в гифтбокс.\n"
+            f"❔ Добавить в этот гифтбокс новую свечу или выбрать из готовых?",
+            reply_markup=kb_admin.kb_candle_choice,
+        )
 
 
 async def get_giftbox_candle_choice(message: types.Message, state: FSMContext):
     await FSM_Admin_giftbox_item.next() #-> get_giftbox_candle_name
     if message.text == kb_admin.candle_choice["new"]:
         await FSM_Admin_giftbox_item.next()
-        await message.reply("Назови имя свечи", reply_markup=kb_client.kb_cancel)
+        await message.reply("💬 Назови имя свечи", reply_markup=kb_client.kb_cancel)
 
     elif message.text == kb_admin.candle_choice["having"]:
-        kb_candle_names = ReplyKeyboardMarkup(resize_keyboard=True)
         with Session(engine) as session:
             candle_items = session.scalars(select(CandleItems)).all()
-        for item in candle_items:
-            kb_candle_names.add(KeyboardButton(item.name))
-        await message.reply("Выбери имя готовой свечи", reply_markup=kb_candle_names)
+        
+        if candle_items == []:
+            await message.reply(MSG_NO_CANDLE_IN_DB)
+            await message.reply(MSG_ADMIN_HAVE_TO_ADD_NEW_CANDLE_TO_GIFTBOX_ITEM)
+            await FSM_Admin_giftbox_item.next() #-> get_giftbox_candle_name
+            await message.reply(
+                "💬 Назови имя свечи",
+                reply_markup= kb_client.kb_cancel
+                    .add(KeyboardButton(kb_admin.candle_choice["no_candle"]))
+            )
+            
+        else:
+            kb_candle_names = ReplyKeyboardMarkup(resize_keyboard=True)
+            for item in candle_items:
+                kb_candle_names.add(KeyboardButton(item.name))
+            kb_candle_names.add(kb_client.cancel_btn)
+            
+            async with state.proxy() as data:
+                data["kb_candle_names"] = kb_candle_names
+            
+            await message.reply("💬 Выберите имя готовой свечи", reply_markup=kb_candle_names)
+            
+    elif message.text == kb_admin.candle_choice["no_candle"]:
+        async with state.proxy() as data:
+            data['candle_id'] = None
+            data["candle_name"] = None
+            data["candle_photo"] = None
+            data["candle_price"] = None
+            data["candle_note"] = None
+
+        kb_tattoo_theme = ReplyKeyboardMarkup(resize_keyboard=True)
+        for theme in TATTOO_THEMES:
+            kb_tattoo_theme.add(KeyboardButton(theme))
+            
+        for _ in range(7):
+            await FSM_Admin_giftbox_item.next() #-> get_tattoo_theme
+        
+        kb_tattoo_theme.add(kb_client.cancel_btn)
+        
+        await message.reply(
+            f"Хорошо, а теперь необходимо добавить тему тату в этом гифтбоксе."
+            f" На данный момент у тебя есть эти темы: {', '.join(TATTOO_THEMES)}.\n"
+            f"❔ Какую выбираешь?",
+            reply_markup= kb_tattoo_theme,
+        )
 
 
 async def get_giftbox_candle_name(message: types.Message, state: FSMContext):
-
-    with Session(engine) as session:
-        candle_items = session.scalars(select(CandleItems.name)).all()
+    async with state.proxy() as data:
+        kb_candle_names = data["kb_candle_names"]
         
     if message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()
@@ -156,10 +252,11 @@ async def get_giftbox_candle_name(message: types.Message, state: FSMContext):
             f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
             reply_markup=kb_admin.kb_price_list_commands,
         )
-    elif message.text in candle_items:
+    elif message.text in kb_candle_names:
         async with state.proxy() as data:
             with Session(engine) as session:
-                candle = session.scalars(select(CandleItems).where(CandleItems.name == message.text)).one()
+                candle = session.scalars(select(CandleItems)
+                    .where(CandleItems.name == message.text)).one()
             data['candle_id'] = candle.id
             data["candle_name"] = candle.name
             data["candle_photo"] = candle.photo
@@ -178,20 +275,29 @@ async def get_giftbox_candle_name(message: types.Message, state: FSMContext):
         if message.text not in candles_name:
             async with state.proxy() as data:
                 data["giftbox_candle_name"] = message.text
-            await FSM_Admin_giftbox_item.next() #-> load_giftbox_candle_photo
-            await message.reply("Загрузи фото свечи")
+            await FSM_Admin_giftbox_item.next() #-> get_giftbox_candle_photo
+            await message.reply("📎 Загрузите фото свечи")
+            
         else:
-            await bot.send_message(message.from_id, f'У тебя уже есть свеча с названием {message.text}. '
-                'Введи другое название')
+            await bot.send_message(
+                message.from_id, 
+                f'⛔️ Уже есть свеча с названием {message.text}. '
+                'Введите другое название'
+            )   
 
 
 # Отправляем фото свечи в гифтбоксе
-async def load_giftbox_candle_photo(message: types.Message, state: FSMContext):
+async def get_giftbox_candle_photo(message: types.Message, state: FSMContext):
     if message.content_type == 'photo':
         async with state.proxy() as data:
             data["candle_photo"] = message.photo[0].file_id
-        await FSM_Admin_giftbox_item.next()
-        await message.reply("Введи примерную цену свечи", reply_markup=kb_admin.kb_price)
+        await FSM_Admin_giftbox_item.next() #-> get_giftbox_candle_price
+        await message.reply("💬 Введи примерную цену свечи", reply_markup=kb_admin.kb_price)
+        await bot.send_message(
+            message.from_id, 
+            MSG_ADMIN_CAN_SET_ANOTHER_PRICE,
+            reply_markup= kb_admin.kb_set_another_price_from_line
+        )
         
     elif message.content_type == 'text':
         if message in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
@@ -202,8 +308,19 @@ async def load_giftbox_candle_photo(message: types.Message, state: FSMContext):
             )
 
 
+# Возможность добавления цены через ввод, а не кб
+async def process_callback_set_price_candle_from_line(
+    callback_query: types.CallbackQuery, 
+    state: FSMContext
+    ):
+    await bot.answer_callback_query(callback_query.id)
+    await bot.send_message(callback_query.from_user.id, 
+        MSG_ADMIN_SET_ANOTHER_PRICE_FROM_LINE, reply_markup= kb_client.kb_cancel
+    )
+
+
 # Отправляем стоимость свечи в гифтбоксе
-async def load_giftbox_candle_price(message: types.Message, state: FSMContext):
+async def get_giftbox_candle_price(message: types.Message, state: FSMContext):
     if message.text == kb_admin.another_price_lst[0]:
         await bot.send_message(
             message.from_id,
@@ -240,7 +357,9 @@ async def giftbox_candle_note(message: types.Message, state: FSMContext):
 async def giftbox_candle_state(message: types.Message, state: FSMContext):
     if message.text in list(kb_admin.in_stock_button.values()):
         async with state.proxy() as data:
-            data["candle_quantity"] = 0 if message.text == kb_admin.in_stock_button["not_in_stock"] else 1
+            data["candle_quantity"] = 0 \
+                if message.text == kb_admin.in_stock_button["not_in_stock"] else 1
+                
             with Session(engine) as session:
                 new_candle_item = CandleItems(
                     name= data['candle_name'],
@@ -253,13 +372,16 @@ async def giftbox_candle_state(message: types.Message, state: FSMContext):
                 session.commit()
                 
             with Session(engine) as session:
-                candle_id = session.scalars(select(CandleItems).where(CandleItems.name == data['candle_name'])).one().id
+                candle_id = session.scalars(select(CandleItems)
+                    .where(CandleItems.name == data['candle_name'])
+                    ).one().id
                 data["candle_id"] = candle_id
         
         kb_tattoo_theme = ReplyKeyboardMarkup(resize_keyboard=True)
         for theme in TATTOO_THEMES:
             kb_tattoo_theme.add(KeyboardButton(theme))
-        await FSM_Admin_giftbox_item.next() #-> load_tattoo_theme
+            
+        await FSM_Admin_giftbox_item.next() #-> get_tattoo_theme
         await message.reply(
             f"Хорошо, а теперь добавь тему тату в этом гифтбоксе."
             f" На данный момент у тебя есть эти темы: {', '.join(TATTOO_THEMES)}.\n"
@@ -277,12 +399,12 @@ async def giftbox_candle_state(message: types.Message, state: FSMContext):
 
 
 # Отправляем тему тату в гифтбоксе
-async def load_tattoo_theme(message: types.Message, state: FSMContext):
+async def get_tattoo_theme(message: types.Message, state: FSMContext):
     if message.text != "Другая":
         async with state.proxy() as data:
             data["tattoo_theme"] = message.text
-        await FSM_Admin_giftbox_item.next() #-> load_giftbox_tattoo_other_theme
-        await message.reply(f"Выбрана тема: {message.text}. Введи описание тату")
+        await FSM_Admin_giftbox_item.next() #-> get_giftbox_tattoo_other_theme
+        await message.reply(f"💬 Выбрана тема: {message.text}. Введи описание тату")
         
     elif message.text == "Другая":
         await message.reply("❔ Какая тема будет у тату?", kb_client.kb_cancel)
@@ -298,7 +420,7 @@ async def load_tattoo_theme(message: types.Message, state: FSMContext):
 
 
 # Отправляем описание тату в гифтбоксе
-async def load_giftbox_tattoo_note(message: types.Message, state: FSMContext):
+async def get_giftbox_tattoo_note(message: types.Message, state: FSMContext):
     if message.text in list(kb_admin.in_stock_button.values()):
         async with state.proxy() as data:
             data["tattoo_note"] = message.text
@@ -319,11 +441,13 @@ async def load_giftbox_tattoo_note(message: types.Message, state: FSMContext):
 
 
 # есть ли эти тату сейчас в наличии или надо докупать
-async def load_giftbox_tattoo_state(message: types.Message, state: FSMContext):
+async def get_giftbox_tattoo_state(message: types.Message, state: FSMContext):
     if message.text in list(kb_admin.in_stock_button.values()):
         async with state.proxy() as data:
-            data["tattoo_quantity"] = 0 if message.text == kb_admin.in_stock_button["not_in_stock"] else 1
-        await FSM_Admin_giftbox_item.next() # -> load_giftbox_sequins_type
+            data["tattoo_quantity"] = 0 \
+                if message.text == kb_admin.in_stock_button["not_in_stock"] else 1
+                
+        await FSM_Admin_giftbox_item.next() # -> get_giftbox_sequins_type
         
         kb_sequin_types = ReplyKeyboardMarkup(resize_keyboard=True)
         with Session(engine) as session:
@@ -345,7 +469,7 @@ async def load_giftbox_tattoo_state(message: types.Message, state: FSMContext):
 
 
 # впиши тип блесток
-async def load_giftbox_sequins_type(message: types.Message, state: FSMContext):
+async def get_giftbox_sequins_type(message: types.Message, state: FSMContext):
     if message.text in kb_admin.sequin_types:
         async with state.proxy() as data:
             data["sequins_type"] = message.text
@@ -362,7 +486,7 @@ async def load_giftbox_sequins_type(message: types.Message, state: FSMContext):
 
 
 # впиши статус блесток
-async def load_giftbox_sequins_state(message: types.Message, state: FSMContext):
+async def get_giftbox_sequins_state(message: types.Message, state: FSMContext):
     if message.text in list(kb_admin.in_stock_button.values()):
         async with state.proxy() as data:
             data["sequins_state"] = message.text
@@ -668,26 +792,28 @@ def register_handlers_admin_giftbox_item(dp: Dispatcher):
     )
 
     dp.register_message_handler(
-        command_load_giftbox_item, commands="добавить_новый_гифтбокс", state=None
+        command_get_giftbox_item, commands="добавить_новый_гифтбокс", state=None
     )
     dp.register_message_handler(
-        command_load_giftbox_item,
+        command_get_giftbox_item,
         Text(equals="добавить новый гифтбокс", ignore_case=True),
         state=None,
     )
     dp.register_message_handler(
-        load_giftbox_name, state=FSM_Admin_giftbox_item.giftbox_name
+        get_giftbox_name, state=FSM_Admin_giftbox_item.giftbox_name
     )
     dp.register_message_handler(
-        load_giftbox_photo,
-        content_types=["photo"],
+        get_giftbox_photo,
+        content_types=["photo", "text"],
         state=FSM_Admin_giftbox_item.giftbox_photo,
     )
     dp.register_message_handler(
-        load_giftbox_price, state=FSM_Admin_giftbox_item.giftbox_price
+        get_giftbox_price, state=FSM_Admin_giftbox_item.giftbox_price
     )
+    dp.register_callback_query_handler(process_callback_set_price_from_line,
+        state=FSM_Admin_giftbox_item.giftbox_price)
     dp.register_message_handler(
-        load_giftbox_note, state=FSM_Admin_giftbox_item.giftbox_note
+        get_giftbox_note, state=FSM_Admin_giftbox_item.giftbox_note
     )
     dp.register_message_handler(
         get_giftbox_candle_choice, state=FSM_Admin_giftbox_item.giftbox_candle_choice
@@ -696,13 +822,16 @@ def register_handlers_admin_giftbox_item(dp: Dispatcher):
         get_giftbox_candle_name, state=FSM_Admin_giftbox_item.giftbox_candle_name
     )
     dp.register_message_handler(
-        load_giftbox_candle_photo,
+        get_giftbox_candle_photo,
         content_types=["photo"],
         state=FSM_Admin_giftbox_item.giftbox_candle_photo,
     )
     dp.register_message_handler(
-        load_giftbox_candle_price, state=FSM_Admin_giftbox_item.giftbox_candle_price
+        get_giftbox_candle_price, state=FSM_Admin_giftbox_item.giftbox_candle_price
     )
+    dp.register_callback_query_handler(process_callback_set_price_candle_from_line,
+        state=FSM_Admin_giftbox_item.giftbox_candle_price)
+    
     dp.register_message_handler(
         giftbox_candle_note, state=FSM_Admin_giftbox_item.giftbox_candle_note
     )
@@ -710,19 +839,19 @@ def register_handlers_admin_giftbox_item(dp: Dispatcher):
         giftbox_candle_state, state=FSM_Admin_giftbox_item.giftbox_candle_state
     )
     dp.register_message_handler(
-        load_tattoo_theme, state=FSM_Admin_giftbox_item.giftbox_tattoo_theme
+        get_tattoo_theme, state=FSM_Admin_giftbox_item.giftbox_tattoo_theme
     )
     dp.register_message_handler(
-        load_giftbox_tattoo_note, state=FSM_Admin_giftbox_item.giftbox_tattoo_note
+        get_giftbox_tattoo_note, state=FSM_Admin_giftbox_item.giftbox_tattoo_note
     )
     dp.register_message_handler(
-        load_giftbox_tattoo_state, state=FSM_Admin_giftbox_item.giftbox_tattoo_state
+        get_giftbox_tattoo_state, state=FSM_Admin_giftbox_item.giftbox_tattoo_state
     )
     dp.register_message_handler(
-        load_giftbox_sequins_type, state=FSM_Admin_giftbox_item.giftbox_sequins_type
+        get_giftbox_sequins_type, state=FSM_Admin_giftbox_item.giftbox_sequins_type
     )
     dp.register_message_handler(
-        load_giftbox_sequins_state, state=FSM_Admin_giftbox_item.giftbox_sequins_state
+        get_giftbox_sequins_state, state=FSM_Admin_giftbox_item.giftbox_sequins_state
     )
     # -------------------------------------------------------COMMANDS GIFTBOX ITEM------------------------------------------------------
 

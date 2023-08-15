@@ -23,7 +23,7 @@ from sqlalchemy import select
 from db.sqlalchemy_base.db_classes import *
 
 
-# -------------------------------------------------------сert ORDER-----------------------------------------
+#----------------------------CREATE_CERTIFICATE_ORDER-------------------------------
 class FSM_Client_сert_item(StatesGroup):
     сert_price = State()
     сert_payment_choise = State()
@@ -43,7 +43,7 @@ async def command_load_сert_item(message: types.Message):
         
     await bot.send_message(
         message.from_id,
-        "❔ На какую цену хотите сертификат?",
+        "❔ Какая цена сертификата?",
         reply_markup=kb_admin.kb_price,
     )
 

@@ -98,7 +98,10 @@ async def command_load_сert_item(message: types.Message):
 
 
 # Возможность добавления цены через ввод, а не кб
-async def process_callback_set_price_from_line(callback_query: types.CallbackQuery, state: FSMContext):
+async def process_callback_set_price_from_line(
+    callback_query: types.CallbackQuery, 
+    state: FSMContext
+    ):
     await bot.answer_callback_query(callback_query.id)
     await bot.send_message(callback_query.from_user.id, 
         MSG_ADMIN_SET_ANOTHER_PRICE_FROM_LINE, reply_markup= kb_client.kb_cancel

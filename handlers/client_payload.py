@@ -32,7 +32,7 @@ class FSM_Client_paid_order(StatesGroup):
 
 async def command_get_payment_order_choice(message: types.Message):
     if message.text.lower() in ["оплатить заказ 💳", "/pay_for_the_order"]:
-        await FSM_Client_paid_order.order_type.set()  # -> command_send_to_view_orders_to_payloading
+        await FSM_Client_paid_order.order_type.set() # -> command_send_to_view_orders_to_payloading
         await bot.send_message(
             message.from_id,
             MSG_WHICH_ORDER_CLIENT_WANT_TO_PAY,
@@ -41,34 +41,56 @@ async def command_get_payment_order_choice(message: types.Message):
         # await FSM_Client_paid_order.order_name.set()
 
 
-async def send_to_view_orders(orders: ScalarResult["Orders"], order_type: str) -> tuple:
+async def send_to_view_orders(orders: ScalarResult["Orders"]) -> tuple:
     unpaid_order_lst = []
     kb_unpaid_orders = ReplyKeyboardMarkup(resize_keyboard=True)
-    orders_str = ""
-    msg = ""
+    msg, orders_str = ("", "")
+    
     for order in orders:
         creation_date = order.creation_date.strftime("%H:%M %d/%m/%Y")
-        if order_type in kb_client.choice_order_type_to_payloading["Тату заказы 🕸"]:
-            with Session(engine) as session:
-                schedule = session.scalars(
-                    select(ScheduleCalendar).where(
-                        ScheduleCalendar.id == order.schedule_id
-                    )
-                ).one()
-            start_time = schedule.start_datetime.strftime("%d/%m/%Y c %H:%M")
-            end_time = schedule.end_datetime.strftime("%H:%M")
+        
+        if order.order_type in kb_client.choice_order_type_to_payloading["Тату заказы 🕸"]:
             orders_str += (
                 f"🕸 Тату заказ № {order.order_number} от {creation_date}\n"
-                f"🕒 Дата и время встречи: {start_time} по {end_time}"
+                f"🕒 Дата и время встречи:\n"
+            )
+            
+            # Если заказ на постоянное тату, то добавляем список встреч
+            if order.order_type == kb_admin.price_lst_types['constant_tattoo']:
+                with Session(engine) as session:
+                    schedule_order_items = session.scalars(
+                        select(ScheduleCalendarItems)
+                            .where(ScheduleCalendarItems.order_number == order.order_number)
+                        ).all()
+                
+                if schedule_order_items == []:
+                    orders_str += ("⭕️ Без даты встречи\n")
+                else:
+                    for number, event in enumerate(schedule_order_items):
+                        with Session(engine) as session:
+                            schedule_event = session.scalars(
+                                select(ScheduleCalendar).where(
+                                    ScheduleCalendar.id == event.schedule_id
+                                )
+                            ).one()
+                        
+                        start_time = schedule_event.start_datetime.strftime("%d/%m/%Y c %H:%M")
+                        end_time = schedule_event.end_datetime.strftime("%H:%M")
+                        orders_str += f"    {number+1}) {start_time} по {end_time}\n"
+                    
+            orders_str += (
                 f"📜 Наименования тату: {order.order_name}\n"
                 f"📏 Размер: {order.tattoo_size}\n"
                 f"🍃 Описание тату: {order.tattoo_note}\n"
                 f"💬 Описание заказа: {order.order_note}\n"
                 f"📃 Состояние заказа: {order.order_state}\n"
             )
-            msg = f"Тату заказ № {order.order_number} на {start_time} {end_time} от {creation_date} 🕸"
+            
+            msg = (
+                f"Тату заказ № {order.order_number} от {creation_date} 🕸"
+            )
 
-        elif order_type in kb_client.choice_order_type_to_payloading["Гифтбоксы 🎁"]:
+        elif order.order_type in kb_client.choice_order_type_to_payloading["Гифтбоксы 🎁"]:
             orders_str += (
                 f"🎁 Гифтбокс заказ № {order.order_number}\n"
                 f"💬 Описание заказа: {order.order_note}\n"
@@ -78,7 +100,7 @@ async def send_to_view_orders(orders: ScalarResult["Orders"], order_type: str) -
             msg = f"Гифтбокс заказ № {order.order_number} от {creation_date} 🎁"
 
         elif (
-            order_type in kb_client.choice_order_type_to_payloading["Заказы эскизов 🎨"]
+            order.order_type in kb_client.choice_order_type_to_payloading["Заказы эскизов 🎨"]
         ):
             orders_str += (
                 f"🕸 Эскиз заказ № {order.order_number} от {creation_date}\n"
@@ -88,7 +110,7 @@ async def send_to_view_orders(orders: ScalarResult["Orders"], order_type: str) -
             )
             msg = f"Эскиз заказ № {order.order_number} от {creation_date} 🎨"
 
-        elif order_type in kb_client.choice_order_type_to_payloading["Сертификаты 🎫"]:
+        elif order.order_type in kb_client.choice_order_type_to_payloading["Сертификаты 🎫"]:
             orders_str += (
                 f"🎫 Заказ сертификата № {order.order_number}\n"
                 f"💰 Цена сертификата: {order.price}\n"
@@ -108,20 +130,27 @@ async def command_send_to_view_orders_to_payloading(
     if message.text in list(kb_client.choice_order_type_to_payloading.keys()):
         async with state.proxy() as data:
             data["order_type"] = kb_client.choice_order_type_to_payloading[message.text]
+        
         with Session(engine) as session:
             unpaid_orders = session.scalars(
                 select(Orders)
+                .order_by(Orders.creation_date)
                 .where(
                     Orders.order_type.in_(
                         kb_client.choice_order_type_to_payloading[message.text]
                     )
                 )
                 .where(Orders.user_id == message.from_id)
-                .where(Orders.order_state.in_([STATES["open"], STATES["processed"]]))
+                .where(Orders.order_state.in_([
+                            STATES["open"], 
+                            STATES["processed"]
+                        ])
+                    )
             ).all()
-
+            
             paid_orders = session.scalars(
                 select(Orders)
+                .order_by(Orders.creation_date)
                 .where(
                     Orders.order_type.in_(
                         kb_client.choice_order_type_to_payloading[message.text]
@@ -130,6 +159,7 @@ async def command_send_to_view_orders_to_payloading(
                 .where(Orders.user_id == message.from_id)
                 .where(Orders.order_state.not_in([STATES["open"], STATES["processed"]]))
             ).all()
+            
 
         if paid_orders != [] and unpaid_orders == []:
             await bot.send_message(
@@ -145,12 +175,10 @@ async def command_send_to_view_orders_to_payloading(
             )
 
         else:
-            # TODO нет вывода заказов
-            kb_unpaid_orders, orders_str, unpaid_order_lst = await send_to_view_orders(
-                orders=unpaid_orders,
-                order_type=kb_client.choice_order_type_to_payloading[message.text],
+            kb_unpaid_orders, orders_str, unpaid_order_lst = (
+                await send_to_view_orders(orders=unpaid_orders)
             )
-
+            
             async with state.proxy() as data:
                 data["kb_unpaid_orders"] = kb_unpaid_orders
                 data["orders_str"] = orders_str
@@ -162,7 +190,7 @@ async def command_send_to_view_orders_to_payloading(
                 f"📃 Ваши заказы:\n {orders_str}",
                 reply_markup=kb_unpaid_orders,
             )
-            await FSM_Client_paid_order.order_name.set()
+            await FSM_Client_paid_order.next()
             await bot.send_message(
                 message.from_id, MSG_WHICH_ORDER_DO_CLIENT_WANT_TO_PAY
             )
@@ -184,19 +212,21 @@ async def get_order_name_to_paid(message: types.Message, state=FSMContext):
         price, order_number = 0, ""
         async with state.proxy() as data:  # type: ignore
             order_type = data["order_type"]
-            if order_type in kb_client.choice_order_type_to_payloading["сертификат"]:
+            if order_type in kb_client.choice_order_type_to_payloading["Сертификаты 🎫"]:
                 order_number = message.text.split()[1]
             else:
                 order_number = message.text.split()[3]
-            order_number = data["order_number"]
+                
+            data["order_number"] = order_number
+            
             with Session(engine) as session:
-                order = session.scalars(
-                    select(Orders).where(Orders.order_number == order_number)
+                price = session.scalars(
+                    select(Orders.price)
+                        .where(Orders.order_number == order_number)
                 ).one()
-                price = order.price
-            data["order"] = order
+                
             data["price"] = price
-        await FSM_Client_paid_order.next()
+        await FSM_Client_paid_order.next() #-> get_order_check_document_to_paid
         await bot.send_message(
             message.from_id,
             MSG_CLIENT_CHOOSE_ORDER % (order_number, price),
@@ -204,7 +234,7 @@ async def get_order_name_to_paid(message: types.Message, state=FSMContext):
         )
 
     elif message.text in LIST_BACK_COMMANDS:
-        await FSM_Client_paid_order.previous()  # -> command_send_to_view_orders_to_payloading
+        await FSM_Client_paid_order.previous() # -> command_send_to_view_orders_to_payloading
         await bot.send_message(
             message.from_id,
             MSG_WHICH_ORDER_CLIENT_WANT_TO_PAY,
@@ -228,7 +258,9 @@ async def get_order_check_document_to_paid(message: types.Message, state=FSMCont
 
             await bot.send_message(
                 message.from_id,
-                f"📃 Твои заказы:\n {unpaid_order_lst}",
+                f"📃 Заказы:\n" + "".join([f"{number+1}) {order}\n" 
+                        for number, order in enumerate(unpaid_order_lst)
+                    ]),
                 reply_markup=kb_unpaid_orders,
             )
 
@@ -240,7 +272,7 @@ async def get_order_check_document_to_paid(message: types.Message, state=FSMCont
             await state.finish()  # type: ignore
             await bot.send_message(
                 message.from_id,
-                MSG_CANCEL_ACTION + MSG_BACK_TO_HOME,
+                f"{MSG_CANCEL_ACTION}{MSG_BACK_TO_HOME}",
                 reply_markup=kb_client.kb_client_main,
             )
         else:
@@ -311,7 +343,8 @@ async def get_order_check_document_to_paid(message: types.Message, state=FSMCont
                 await bot.send_message(
                         DARA_ID,
                         f"🔆 Дорогая Тату-мастерица!\n"
-                        f"❕ Заказ на {current_order_type} под номером {order_number} имеет новый статус заказа!\n"
+                        f"❕ Заказ на {current_order_type} под номером {order_number} "
+                        "имеет новый статус заказа!\n"
                         f"📃 Статус заказа: {STATES['paid']}.\n"
                         f"💬 Имя клиента: {message.from_user.full_name}\n"
                         f"💬 Телеграм клиента: @{message.from_user.username}",
@@ -325,11 +358,13 @@ async def get_order_check_document_to_paid(message: types.Message, state=FSMCont
                 MSG_DO_CLIENT_WANT_TO_DO_MORE,
                 reply_markup=kb_client.kb_client_main,
             )
-
-            await state.finish()  # type: ignore
+            await state.finish()
 
         else:
-            await bot.send_message(message.from_id, f"❌ Чек не подошел! {check_doc['report_msg']}")  # type: ignore
+            await bot.send_message(
+                message.from_id, 
+                f"❌ Чек не подошел! {check_doc['report_msg']}"
+            )
 
 
 def register_handlers_client_payload(dp: Dispatcher):

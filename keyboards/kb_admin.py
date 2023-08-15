@@ -472,7 +472,11 @@ add_or_delete_order_photo = {
     "delete_and_add":   "Удалить старую фото и добавить новую"
 }
 
-candle_choice = {"new_candle": "Новую", "having":"Выбрать из готовых"}
+candle_choice = {
+    "new_candle": "Новую", 
+    "having":"Выбрать из готовых",
+    "no_candle":"Не добавлять свечу"
+}
 
 kb_candle_choice = create_kb(list(candle_choice.values()) + cancel_lst)
 

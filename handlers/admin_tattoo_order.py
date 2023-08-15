@@ -41,7 +41,7 @@ from prettytable import PrettyTable
 
 #TODO закончить добавление нового тату заказа и изменение тату заказа для админа
 
-# ----------------------------------- TATTOO ORDER COMMANDS LIST-----------------------------------
+# --------------------------- TATTOO ORDER COMMANDS LIST-----------------------------------
 async def get_tattoo_order_and_item_command_list(message: types.Message):
     if (
         message.text in [kb_admin.order_commands['tattoo'], "/тату_заказы"]
@@ -53,7 +53,7 @@ async def get_tattoo_order_and_item_command_list(message: types.Message):
         )
 
 
-# ------------------------------------- TATTOO ORDER COMMANDS-----------------------------------
+# ---------------------------- TATTOO_ORDER_COMMANDS-----------------------------------
 async def send_to_view_tattoo_order(
     message: types.Message, tattoo_orders: ScalarResult["Orders"]
 ):
@@ -74,11 +74,13 @@ async def send_to_view_tattoo_order(
                 for item in user:
                     username_telegram = (
                         "Без телеграма"
-                        if item.telegram_name in ["", None]
+                        if item.telegram_name in ["", None, "Без телеграма"]
                         else item.telegram_name
                     )
                     username_phone = (
-                        "Без номера" if item.phone in ["", None] else item.phone
+                        "Без номера" 
+                        if item.phone in ["", None, "Без номера"] 
+                        else item.phone
                     )
             else:
                 username_telegram = "Без телеграма"
@@ -121,7 +123,7 @@ async def send_to_view_tattoo_order(
                         msg += f"\t{i}) {start_time} до {end_time}\n"
                 else:
                     msg += (f"🕒 Дата и время встречи не выбраны - "
-                        "свободных ячеек в календаре нет.\n")
+                        "нет свободных ячеек в календаре.\n")
                     
             if order.order_state in list(STATES["closed"].values()):
                 msg += f"❌ Состояние заказа: {order.order_state}\n"
@@ -569,8 +571,10 @@ async def get_new_status_for_tattoo_order(message: types.Message, state: FSMCont
     with Session(engine) as session:
         orders = session.scalars(
             select(Orders)
-            .where(Orders.order_type.in_([kb_admin.price_lst_types["constant_tattoo"],
-                kb_admin.price_lst_types["shifting_tattoo"]]))
+            .where(Orders.order_type.in_([
+                    kb_admin.price_lst_types["constant_tattoo"],
+                    kb_admin.price_lst_types["shifting_tattoo"]
+                ]))
             .where(Orders.user_id == message.from_id)
         ).all()
     tattoo_order_numbers_lst = []
@@ -587,7 +591,8 @@ async def get_new_status_for_tattoo_order(message: types.Message, state: FSMCont
         await bot.send_message(message.from_id, MSG_SEND_ORDER_STATE_INFO)
         
         kb_new_status = ReplyKeyboardMarkup(resize_keyboard=True)
-        for status in status_distribution[kb_admin.price_lst_types["constant_tattoo"]][message.text.split()[3]]\
+        for status in status_distribution[
+            kb_admin.price_lst_types["constant_tattoo"]][message.text.split()[3]]\
             + list(STATES['closed'].values()):
                 
             kb_new_status.add(KeyboardButton(status))

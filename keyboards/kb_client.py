@@ -127,8 +127,8 @@ client_schedule_menu = {
 }
 
 choice_order_view = {
-    "client_change_order":              "Изменить заказы 🛠",
     "client_watch_tattoo_order":        "Посмотреть мои тату заказы 🕸",
+    "client_change_order":              "Изменить заказы 🛠",
     "client_add_photo_to_tattoo_order": "Добавить фотографии к тату заказу 📷",
     "client_add_photo_to_sketch_order": "Добавить фотографию к заказу эскиза 🌿",
     "client_watch_giftbox_order":       "Посмотреть мои гифтбоксы 🎁",
