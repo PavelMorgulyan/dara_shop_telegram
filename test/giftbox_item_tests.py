@@ -1,4 +1,4 @@
-import pytest
+""" import pytest
 
 
 @pytest.fixture(scope='session') # fixture runs Bot app only once for entire tess session
@@ -14,4 +14,4 @@ async def application():
 
 	await app.updater.stop()
 	await app.stop()
-	await app.shutdown()
+	await app.shutdown() """

@@ -29,7 +29,7 @@ from handlers.calendar_client import obj
 import os
 
 
-PAYMENTS_PROVIDER_TOKEN = os.environ["PAYMENTS_PROVIDER_TOKEN_DARA_TELEGRAM_BOT"]
+# PAYMENTS_PROVIDER_TOKEN = os.environ["PAYMENTS_PROVIDER_TOKEN_DARA_TELEGRAM_BOT"]
 ADMIN_NAMES = ["MorgulyanPavel", "dara_redwan"]
 CODE_LENTH = 8
 ORDER_CODE_LENTH = 6
@@ -42,7 +42,7 @@ async def command_start(message: types.Message):
     if message.from_user.username not in ADMIN_NAMES:
         await bot.send_message(
             message.from_user.id,
-            "Привет пользователь!",
+            "👋 Привет пользователь!",
             reply_markup=kb_client.kb_client_main,
         )
         await message.delete()
@@ -50,7 +50,7 @@ async def command_start(message: types.Message):
     else:
         await bot.send_message(
             message.from_user.id,
-            "Привет админ! Какие команды хочешь выполнить?",
+            "👋 Привет админ! Какие команды хочешь выполнить?",
             reply_markup=kb_admin.kb_main,
         )
         

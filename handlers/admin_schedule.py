@@ -103,7 +103,7 @@ async def get_name_for_photo_to_schedule(message: types.Message, state: FSMConte
         async with state.proxy() as data:
             data["name_schedule_photo"] = message.text
         await FSM_Admin_create_new_photo_to_schedule.next()
-        await message.reply("📷 Добавьте фото календаря")
+        await message.reply("📷 Добавьте фото календаря через файлы")
 
     elif message.text.lower() in LIST_CANCEL_COMMANDS:
         await state.finish()
@@ -148,7 +148,7 @@ async def get_photo_to_schedule(message: types.Message, state: FSMContext):
             )
 
 
-# -------------------------------------- ADD_NEW_SCHEDULE_DATE -----------------------------------
+# ------------------------------ ADD_NEW_SCHEDULE_DATE ---------------
 class FSM_Admin_create_new_date_to_schedule(StatesGroup):
     event_type_choice = State()
     date_choice = State()
@@ -186,16 +186,16 @@ async def choice_event_type_in_schedule(message: types.Message, state: FSMContex
             data["user_id"] = message.from_user.id
             
         # -> choice_how_to_create_new_date_to_schedule
-        await FSM_Admin_create_new_date_to_schedule.next() 
+        await FSM_Admin_create_new_date_to_schedule.next()
         
         # 'Хочу ввести конкретную дату', 'Хочу выбрать день недели и месяц'
         await message.reply(
-            f"💭 Ты выбрал добавить в календарь тип расписания как \"{message.text}\".\n"
-            "❔ Ввести конкретную дату, или выбрать месяц и день недели?",
+            f"💭 Выбрано событие как \"{message.text}\".\n"
+            "❔ Ввести конкретную дату или выбрать месяц и день недели?",
             reply_markup=kb_admin.kb_new_date_choice,
         )
         await bot.send_message(
-            message.from_id, 
+            message.from_id,
             MSG_INFO_ADMIN_CREATE_NEW_SCHEDULE_EVENT
         )
         
@@ -206,7 +206,6 @@ async def choice_event_type_in_schedule(message: types.Message, state: FSMContex
         )
     else:
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
-        
 
 
 # выбираем год или конкретную дату
@@ -219,7 +218,7 @@ async def choice_how_to_create_new_date_to_schedule(
         for _ in range(4):
             await FSM_Admin_create_new_date_to_schedule.next()  # -> get_day_by_date_for_schedule
         await message.reply(
-            "💬 Давай выберем конкретную дату. Введи ее",
+            "💬 Давай выберем конкретную дату. Введите ее",
             reply_markup=await DialogCalendar().start_calendar(),
         )
 
@@ -228,7 +227,7 @@ async def choice_how_to_create_new_date_to_schedule(
     ):  # Хочу выбрать день недели и месяц
         await FSM_Admin_create_new_date_to_schedule.next()  # -> get_schedule_year
         await message.reply(
-            "💬 Давай выберем год. Выбери год из списка",
+            "💬 Давай выберем год. Выберите год из списка",
             reply_markup=kb_admin.kb_years.add(kb_client.cancel_btn)
         )
     else:
@@ -343,7 +342,7 @@ async def get_day_by_date_for_schedule(
             await FSM_Admin_create_new_date_to_schedule.next()
             await bot.send_message(
                 username_id,
-                "Отлично, давай определимся со временем.\n"
+                "🎉 Отлично, давай определимся со временем.\n"
                 "❔ С какого времени начинается сеанс?",
                 reply_markup=await FullTimePicker().start_picker(),
             )
@@ -387,17 +386,18 @@ async def process_hour_timepicker_start_time(
             elif int(r.time.strftime("%H")) < 8:
                 await bot.send_message(
                     username_id,
-                    "Прости, но ты так рано не работаешь. "
-                    "Вряд-ли и ты захочешь работать в 8 утра. Введи другое время ",
+                    "❌ Прости, но ты так рано не работаешь. "
+                    "Вряд-ли и ты захочешь работать в 8 утра.\n\n"
+                    "💬 Введи другое время",
                     reply_markup=await FullTimePicker().start_picker(),
                 )
 
             elif int(r.time.strftime("%H")) > 23:
                 await bot.send_message(
                     username_id,
-                    "Прости, но ты так поздно не работаешь. "
-                    "Вряд-ли и ты захочешь работать в 23 вечера. \
-                    Введи другое время",
+                    "❌ Прости, но ты так поздно не работаешь. "
+                    "Вряд-ли и ты захочешь работать в 23 вечера.\n\n"
+                    "💬 Введи другое время",
                     reply_markup=await FullTimePicker().start_picker(),
                 )
 
@@ -423,10 +423,8 @@ async def process_hour_timepicker_end_time(
             
             if r.time.strftime("%H:%M") > start_time:
                 data["end_time_in_schedule"] = r.time.strftime("%H:%M")
-                date = data["date"]
-                year = data["year_number"]
-                month_name = data["month_name"]
-                month_number = data["month_number"]
+                date, year = data["date"], data["year_number"]
+                month_name, month_number = data["month_name"], data["month_number"]
                 end_time = data["end_time_in_schedule"]
                 month_name_from_number = await get_month_from_number(month_number, "ru")
 
@@ -437,8 +435,8 @@ async def process_hour_timepicker_end_time(
 
                     await bot.send_message(
                         username_id,
-                        f"❌ Дата {date} и месяц {month_name} не совпадают. "
-                        "Введите месяц и дату в этом месяце корректно",
+                        f"❌ Дата {date} и месяц {month_name} не совпадают.\n\n"
+                        "💬 Введите месяц и дату в этом месяце корректно",
                         reply_markup=await DialogCalendar().start_calendar(),
                     )
                 else:
@@ -464,7 +462,7 @@ async def process_hour_timepicker_end_time(
                                 Проверяем, нет ли в расписании такой даты
                                 с таким же статусом, временем и тд
                                 для этого достаем календарь из бд
-                                а ниже делаем проверку 
+                                а ниже делаем проверку
                             """
                             schedule = session.scalars(select(ScheduleCalendar)
                                 .where(ScheduleCalendar.start_datetime == start_datetime)
@@ -508,7 +506,7 @@ async def process_hour_timepicker_end_time(
                                     await bot.send_message(
                                         username_id,
                                         "❔ Добавить к этому сеансу заказ?",
-                                        reply_markup= kb_client.kb_yes_no
+                                        reply_markup=kb_client.kb_yes_no
                                     )
                                 
                             else:
@@ -531,16 +529,15 @@ async def process_hour_timepicker_end_time(
                         """ определяем переменную для вывода списка дат """
                         no_added_dates = False
                         dates_str, dates_not_added  = ("", "")
-                        
                         for iter_date in dates:
                             with Session(engine) as session:
                                 schedule = session.scalars(select(ScheduleCalendar)
                                     .where(ScheduleCalendar.start_datetime==iter_date["start_datetime"])
                                     .where(ScheduleCalendar.end_datetime==iter_date["end_datetime"])
                                 ).all()
-                            """ Делаем проверку на наличие даты в бд """
-                            if schedule == []:
-                                with Session(engine) as session:
+                                
+                                """ Делаем проверку на наличие даты в бд """
+                                if schedule == []:
                                     new_schedule_event = ScheduleCalendar(
                                         start_datetime=iter_date["start_datetime"],
                                         end_datetime=iter_date["end_datetime"],
@@ -548,15 +545,15 @@ async def process_hour_timepicker_end_time(
                                         event_type=data["event_type"],
                                     )
                                     session.add(new_schedule_event)
-                                dates_str += (
-                                    f"{iter_date['start_datetime'].strftime('%d/%m/%Y')}, "
-                                )
-                            else:
-                                no_added_dates = True
-                                dates_not_added += (
-                                    f"{iter_date['start_datetime'].strftime('%d/%m/%Y')}, "
-                                )
-                            session.commit()
+                                    session.commit()
+                                    dates_str += (
+                                        f"{iter_date['start_datetime'].strftime('%d/%m/%Y')}, "
+                                    )
+                                else:
+                                    no_added_dates = True
+                                    dates_not_added += (
+                                        f"{iter_date['start_datetime'].strftime('%d/%m/%Y')}, "
+                                    )
                             
                         await bot.send_message(username_id, MSG_SUCCESS_CHANGING)
                         msg = ""

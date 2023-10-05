@@ -47,7 +47,7 @@ from datetime import datetime
 # import torch
 
 
-# --------------------------------------------------CREATE TATTOO ORDER--------------------------------------
+# ----------------------------CREATE TATTOO ORDER------------------------
 class FSM_Client_tattoo_order(StatesGroup):
     client_choice_main_or_temporary_tattoo = State()
     tattoo_order_photo = State()
@@ -709,7 +709,7 @@ async def change_menu_tattoo_from_galery(message: types.Message, state: FSMConte
         await bot.send_message(
             message.from_id,  # f'🔧 Давайте поменяем детали в тату.\n'\
             # f' Изначальное количество деталей в тату: {details}\n\n'\
-            "🔧❔ Опишите, какие детали Хотите изменить или убрать из эскиза этого тату?",
+            "🔧❔ Опишите, какие детали хотите изменить или убрать из эскиза этого тату?",
             reply_markup=kb_client.kb_back_cancel,
         )
 

@@ -518,9 +518,9 @@ async def get_new_value_candle_item(message: types.Message, state: FSMContext):
             reply_markup=kb_admin.kb_another_price_full,
         )
         await bot.send_message(
-            message.from_id, 
+            message.from_id,
             MSG_ADMIN_CAN_SET_ANOTHER_PRICE,
-            reply_markup= kb_admin.kb_set_another_price_from_line
+            reply_markup=kb_admin.kb_set_another_price_from_line
         )
         await FSM_Admin_change_candle_item.next() #-> get_another_price_from_admin
     else:

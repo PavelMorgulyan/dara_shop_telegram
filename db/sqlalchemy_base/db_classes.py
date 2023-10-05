@@ -150,7 +150,7 @@ class Orders(Base):
     order_name: Mapped[Optional[str]]  # = mapped_column(String(50))
     user_id: Mapped[
         str
-    ]  #  = mapped_column(ForeignKey("user_account.id")), user.from_id
+    ] #  = mapped_column(ForeignKey("user_account.id")), user.from_id
     order_photo: Mapped[List["OrderPhoto"]] = relationship(
         back_populates="photo_id", cascade="all, delete-orphan"
     )
@@ -178,9 +178,10 @@ class Orders(Base):
     tattoo_place_photo: Mapped[List["TattooPlacePhoto"]] = relationship(
         back_populates="photo_id", cascade="all, delete-orphan"
     )  #
-    tattoo_place_video_note: Mapped[List["TattooPlaceVideoNote"]] = relationship(
-        back_populates="video_id", cascade="all, delete-orphan"
-    )  # только для заказа тату - видео записка тела тату
+    tattoo_place_video_note: Mapped[List["TattooPlaceVideoNote"]] = \
+        relationship(
+            back_populates="video_id", cascade="all, delete-orphan"
+        )  # только для заказа тату - видео записка тела тату
     tattoo_place_video: Mapped[List["TattooPlaceVideo"]] = relationship(
         back_populates="video_id", cascade="all, delete-orphan"
     )  # только для заказа тату - видео тела тату
@@ -234,7 +235,9 @@ class TattooPlacePhoto(Base):
     order_number: Mapped[Optional[int]]
     telegram_user_id: Mapped[Optional[int]]
     photo: Mapped[Optional[str]]
-    photo_id: Mapped["Orders"] = relationship(back_populates="tattoo_place_photo")
+    photo_id: Mapped["Orders"] = relationship(
+        back_populates="tattoo_place_photo"
+    )
 
     def __repr__(self) -> dict:
         return {
@@ -255,7 +258,9 @@ class TattooPlaceVideoNote(Base):
     ]  # Mapped["TattooOrders"] = relationship(back_populates="tattoo_order_number")
     telegram_user_id: Mapped[Optional[int]]  # = mapped_column(ForeignKey("user.id"))
     video: Mapped[Optional[str]]
-    video_id: Mapped["Orders"] = relationship(back_populates="tattoo_place_video_note")
+    video_id: Mapped["Orders"] = relationship(
+        back_populates="tattoo_place_video_note"
+    )
 
     def __repr__(self) -> dict:
         return {
@@ -276,7 +281,9 @@ class TattooPlaceVideo(Base):
     ]  # Mapped["TattooOrders"] = relationship(back_populates="tattoo_order_number")
     telegram_user_id: Mapped[int]  # = mapped_column(ForeignKey("user.id"))
     video: Mapped[str]
-    video_id: Mapped["Orders"] = relationship(back_populates="tattoo_place_video")
+    video_id: Mapped["Orders"] = relationship(
+        back_populates="tattoo_place_video"
+    )
 
     def __repr__(self) -> dict:
         return {
@@ -379,7 +386,9 @@ class GiftboxItemsPhoto(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     giftbox_id: Mapped[int] = mapped_column(ForeignKey("giftbox_items.id"))
     photo: Mapped[Optional[str]]
-    item_mapped_id: Mapped["GiftboxItems"] = relationship(back_populates="photo")
+    item_mapped_id: Mapped["GiftboxItems"] = relationship(
+        back_populates="photo"
+    )
 
     def __repr__(self) -> dict:
         return {"id": self.id, "photo": self.photo}

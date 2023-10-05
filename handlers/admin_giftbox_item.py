@@ -761,7 +761,7 @@ async def set_new_price_giftbox_item(message: types.Message, state: FSMContext):
             f"Готово! Вы обновили цену  {giftbox_item_name} на {message.text}",
             reply_markup=kb_admin.kb_main,
         )
-        await state.finish()  #  полностью очищает данные
+        await state.finish()  # полностью очищает данные
     else:
         await FSM_Admin_change_price_giftbox_items.next()
         await message.reply(MSG_ADMIN_SET_ANOTHER_PRICE)

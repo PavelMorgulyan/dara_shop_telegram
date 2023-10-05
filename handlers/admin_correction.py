@@ -9,21 +9,18 @@ from handlers.client import ADMIN_NAMES
 
 from handlers.other import *
 from sqlalchemy.orm import Session
-from sqlalchemy import select, ScalarResult
+from sqlalchemy import select
 from db.sqlalchemy_base.db_classes import *
 
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
-from aiogram_calendar import simple_cal_callback, dialog_cal_callback, DialogCalendar
-from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, CallbackQuery
+from aiogram_calendar import dialog_cal_callback, DialogCalendar
 from aiogram_timepicker.panel import FullTimePicker, full_timep_callback
-from aiogram_timepicker import result, carousel, clock
 from msg.main_msg import *
 from handlers.admin_schedule import get_view_schedule
 import json
 
 
-#TODO создать функции: записать пользователя на коррекцию
+# TODO создать функции: записать пользователя на коррекцию
 
 async def get_correction_commands(message: types.Message):
     if (
@@ -37,7 +34,7 @@ async def get_correction_commands(message: types.Message):
         )
 
 
-#------------------------------CREATE CORRECTION DATE------------------------------------------
+# ------------------------------CREATE CORRECTION DATE-------------------------
 class FSM_Admin_create_correction(StatesGroup):
     order_number = State()
     schedule_type = State()
@@ -54,7 +51,7 @@ async def command_create_correction_event_date(message: types.Message):
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await bot.send_message(
-            message.from_id, 
+            message.from_id,
             "💭 Данная команда позволяет добавить новый сеанс коррекции к существующему заказу",
         )
         
@@ -158,7 +155,8 @@ async def update_schedule_table(state: FSMContext):
 
 
 # ---------------------------get_tattoo_order_number_to_new_schedule_event--------------------------------
-async def get_tattoo_order_number_to_new_schedule_event(message: types.Message, state: FSMContext):
+async def get_tattoo_order_number_to_new_schedule_event(message: types.Message,
+                                                        state: FSMContext):
     with Session(engine) as session:
         orders = session.scalars(
             select(Orders).where(
@@ -169,7 +167,8 @@ async def get_tattoo_order_number_to_new_schedule_event(message: types.Message, 
                 )
             ).all()
     order_lst = []
-    kb_tattoo_order_numbers_with_status = ReplyKeyboardMarkup(resize_keyboard=True)
+    kb_tattoo_order_numbers_with_status = ReplyKeyboardMarkup(
+        resize_keyboard=True)
     
     for order in orders:
         msg_item = f"{order.order_number} статус: {order.order_state}"
@@ -178,11 +177,13 @@ async def get_tattoo_order_number_to_new_schedule_event(message: types.Message, 
         
     if message.text in order_lst:
         async with state.proxy() as data:
-            data['kb_tattoo_order_numbers_with_status'] = kb_tattoo_order_numbers_with_status
+            data['kb_tattoo_order_numbers_with_status'] = \
+                kb_tattoo_order_numbers_with_status
             data['order_number'] = message.text.split()[0]
             with Session(engine) as session:
                 orders = session.scalars(
-                        select(Orders).where(Orders.order_number == message.text.split()[0])
+                        select(Orders).where(
+                            Orders.order_number == message.text.split()[0])
                     ).one()
             data['client_name'] = orders.username
             data['client_id'] = order.user_id
@@ -260,7 +261,7 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
             MSG_ADMIN_ADD_NEW_CORRECTION_EVENT_TO_CLIENT_TATTOO_ORDER
         )
         
-        #-> get_anwser_to_notify_client
+        # -> get_anwser_to_notify_client
         for _ in range(3):
             await FSM_Admin_create_correction.next()
         
