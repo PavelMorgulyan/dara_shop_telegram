@@ -407,18 +407,18 @@ def db_create_tattoo_img_from_ai_table():
     try:
         # state - удачный, неудачный
         sqlite_connection = sqlite3.connect(DB_NAME)
-        sqlite_create_table_query = """CREATE TABLE tattoo_ai(
+        sqlite_create_table_query = """CREATE TABLE ai_images(
                 id TEXT PRIMARY KEY,
                 name TEXT,
                 photo TEXT,
-                state TEXT,
-                author_name TEXT
+                status TEXT,
+                author TEXT
             );"""
 
         cursor = sqlite_connection.cursor()
         cursor.execute(sqlite_create_table_query)
         sqlite_connection.commit()
-        print("Таблица сертификатов сert_orders создана")
+        print("Таблица сертификатов ai_images создана")
         cursor.close()
     except sqlite3.Error as error:
         print("Ошибка при подключении к sqlite", error)

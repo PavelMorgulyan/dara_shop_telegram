@@ -9,7 +9,7 @@ from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
 
 from handlers.client import ADMIN_NAMES, ORDER_CODE_LENTH, CODE_LENTH
 from msg.main_msg import *
-from diffusers import StableDiffusionPipeline
+from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
 import torch
 from handlers.other import *
 from keyboards import kb_admin, kb_client
@@ -18,19 +18,20 @@ import time
 from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
+import json
 
 
-# ----------------------------------------GENERATE TATTOO ITEM FROM AI---------------------------
+# --------------------------------GENERATE TATTOO ITEM FROM AI---------------------------
 class FSM_Admin_generate_ai_woman_model(StatesGroup):
     tattoo_desc = State()  # введи описание тату эскиза
     change_ai_img_state = State()
 
 
-# /generate_ai_img # 'Хочу создать тату эскиз'
+# /generate_ai_img # 'Cоздать тату эскиз'
 async def command_generage_woman_model_img(message: types.Message):
     if (
-        message.text.lower()
-        in ["хочу создать изображение", "/хочу_создать_изображение"]
+        message.text
+        in ["Создать изображение", "/создать_изображение"]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         await bot.send_message(
@@ -48,23 +49,31 @@ async def command_generage_woman_model_img(message: types.Message):
 async def create_ai_img(message: types.Message, state: FSMContext, img_text: str):
     await bot.send_message(
         message.from_id,
-        "Пока думаю над изображением, придется немного подождать. Примерно 40-50 секунд",
+        "🕒 Пока думаю над изображением, придется немного подождать."
+        " Примерно 40-50 секунд",
     )
-    model_id = "./stable-diffusion/cyberrealistic-model/"  # .ckpt "stable-diffusion/stable-diffusion-v1-5/"
-    pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+    with open(f"files\models_configuration.json", encoding="cp1251") as f:
+        data = json.load(f)
+    
+    model_id = data['work']
+    print(f"{model_id=}")
+    pipe = StableDiffusionPipeline.from_pretrained(
+        pretrained_model_name_or_path=model_id, 
+        torch_dtype=torch.float16
+    )
+    pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
     pipe = pipe.to("cuda")
 
     image = pipe(img_text).images[0]
     img_name = await generate_random_order_number(ORDER_CODE_LENTH + 3)
 
-    #! path = f"./img/tattoo_ideas/{message.from_user.username}/{session}/{image_name}.png"
+    # path = f"./img/tattoo_ideas/{message.from_user.username}/{session}/{image_name}.png"
 
-    path = f"D:/example_imgs/{str(img_name)}.png"  # path = f"./img/tattoo_ideas/{image_name}.png"
+    path = f"files\\ai_img\\{str(img_name)}.png"
     image.save(path)
-
-    msg = MSG_ANSWER_ABOUT_RESULT_TATTOO_FROM_AI
+    
     ai_img = await bot.send_photo(message.chat.id, open(path, "rb"))
-    # "Да, отличное изображение, хочу такой эскиз ☘️", "Нет, хочу другое изображение 😓"
+    
     id = await generate_random_order_number(CODE_LENTH)
     async with state.proxy() as data:
         data["id"] = id
@@ -73,19 +82,20 @@ async def create_ai_img(message: types.Message, state: FSMContext, img_text: str
         data["state"] = "неудачный"
 
     with Session(engine) as session:
-        new_falling_img = TattooAI(
-            img_id=id,
-            text=img_text,
+        new_falling_img = TattooAIImage(
+            id=id,
+            description=img_text,
             photo=ai_img["photo"][0]["file_id"],
-            state="неудачный",
-            author_name=message.from_user.username,
+            status="неудачный",
+            author=message.from_user.username,
         )
         session.add(new_falling_img)
         session.commit()
-
+    # "Да, отличное изображение, хочу такой эскиз ☘️",
+    # "Нет, хочу другое изображение 😓"
     await bot.send_message(
         message.chat.id,
-        msg,
+        MSG_ANSWER_ABOUT_RESULT_TATTOO_FROM_AI,
         reply_markup=kb_client.kb_correct_photo_from_ai_or_get_another,
     )
 
@@ -93,9 +103,11 @@ async def create_ai_img(message: types.Message, state: FSMContext, img_text: str
 async def get_text_from_admin_to_generate_img_ai(
     message: types.Message, state: FSMContext
 ):
-    text_img_lst = Session(engine).scalars(
-        select(TattooAI).where(TattooAI.author_name == message.from_user.username)
-    )
+    with Session(engine) as session:
+        text_img_lst = session.scalars(
+            select(TattooAIImage)
+            .where(TattooAIImage.author == message.from_user.username)
+        ).all()
     unique_text_img = []
     for text_img in text_img_lst:
         if list(text_img)[1] not in unique_text_img:
@@ -183,7 +195,7 @@ async def get_text_from_admin_to_generate_img_ai(
     ):
         if text_img_lst == []:
             await message.reply(
-                "Прости, но у тебя не было пока никаких текстов. Введи новый текст",
+                "❌ Прости, но у тебя не было пока никаких текстов. Введи новый текст",
                 reply_markup=kb_client.kb_back_cancel,
             )
         else:
@@ -213,22 +225,25 @@ async def get_text_from_admin_to_generate_img_ai(
             if i + 1 == int(message.text):
                 text_to_ai = unique_text_img[i]
 
-        await bot.send_message(message.chat.id, f"Вы выбрали следующий текст:")
+        await bot.send_message(message.chat.id, f"📃 Вы выбрали следующий текст:")
         await bot.send_message(message.chat.id, f"{text_to_ai}")
         await create_ai_img(message, state, text_to_ai)
 
     else:
+        # -> change_ai_img_state
         await FSM_Admin_generate_ai_woman_model.next()
         text_to_ai = WOMAN_BOHO_STYLE_DESC % (
             f"({message.text}:1.6),"
-        )  #! Создание модели девушки из этого описания!
+        )  # Создание модели девушки из этого описания!
         await create_ai_img(message, state, text_to_ai)
 
 
 async def change_ai_img_state(message: types.Message, state: FSMContext):
-    text_img_lst = Session(engine).scalars(
-        select(TattooAI).where(TattooAI.author_name == message.from_user.username)
-    )
+    with Session(engine) as session:
+        text_img_lst = session.scalars(
+            select(TattooAIImage)
+            .where(TattooAIImage.author == message.from_user.username)
+        ).all()
 
     unique_text_img = []
     for text_img in text_img_lst:
@@ -241,9 +256,17 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
     ):
         async with state.proxy() as data:
             id = data["id"]
-        await update_info("tattoo_ai", "id", id, "state", "удачный")
+        
+        with Session(engine) as session:
+            img = session.scalars(
+                select(TattooAIImage)
+                .where(TattooAIImage.id == id)
+            ).one()
+            img.status = "удачный"
+            session.commit()
+            
         await message.reply(
-            f"Отлично, получилось удачное изображение! \n\n❔ Хочешь попробовать еще?.",
+            f"🎉 Отлично, получилось удачное изображение! \n\n❔ Попробовать еще?.",
             reply_markup=kb_client.kb_want_another_ai_img,
         )
 
@@ -311,7 +334,7 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data["menu_number_img_text"] = True
         kb_list_text_img = ReplyKeyboardMarkup(resize_keyboard=True)
-        await bot.send_message(message.chat.id, "Вот твои прерыдущие тексты:")
+        await bot.send_message(message.chat.id, "📃 Вот твои прерыдущие тексты:")
 
         for i in range(len(unique_text_img)):
             await bot.send_message(message.chat.id, f"{i+1}) {unique_text_img[i]}\n\n")
@@ -319,7 +342,7 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
 
         kb_list_text_img.add(kb_client.back_btn).add(kb_client.cancel_btn)
         await message.reply(
-            "Какой текст хочешь снова использовать для изображения?",
+            "❔ Какой текст хочешь снова использовать для изображения?",
             reply_markup=kb_list_text_img,
         )
 
@@ -329,7 +352,7 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
             if i + 1 == int(message.text):
                 text_to_ai = unique_text_img[i]
 
-        await bot.send_message(message.chat.id, f"Вы выбрали следующий текст:")
+        await bot.send_message(message.chat.id, f"📃 Вы выбрали следующий текст:")
         await bot.send_message(message.chat.id, f"{text_to_ai}")
         await create_ai_img(message, state, text_to_ai)
 
@@ -342,19 +365,20 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
 
 
 def register_handlers_admin_generate_img(dp: Dispatcher):
-    # --------------------------------------GENERATE TATTOO ITEM FROM AI---------------------------
+    # --------------GENERATE TATTOO ITEM FROM AI---------------------------
     dp.register_message_handler(
-        command_generage_woman_model_img, commands=["хочу создать изображение"]
+        command_generage_woman_model_img, commands=["создать_изображение"]
     )
     dp.register_message_handler(
         command_generage_woman_model_img,
-        Text(equals="хочу создать изображение", ignore_case=True),
-        state=None,
+        Text(equals="Создать изображение", ignore_case=True),
+        state=None
     )
     dp.register_message_handler(
         get_text_from_admin_to_generate_img_ai,
         state=FSM_Admin_generate_ai_woman_model.tattoo_desc,
     )
     dp.register_message_handler(
-        change_ai_img_state, state=FSM_Admin_generate_ai_woman_model.change_ai_img_state
+        change_ai_img_state, 
+        state=FSM_Admin_generate_ai_woman_model.change_ai_img_state
     )

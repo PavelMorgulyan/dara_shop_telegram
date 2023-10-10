@@ -1122,11 +1122,13 @@ async def get_column_name_to_change_sketch_order(message: types.Message, state: 
         async with state.proxy() as data:
             data["column_name_to_new_value"] = message.text
             order_number = data['order_number']
-            await FSM_Admin_set_new_value_sketch_order.next() # -> get_new_value_to_sketch_order
+            
+            # -> get_new_value_to_sketch_order
+            await FSM_Admin_set_new_value_sketch_order.next() 
             
     if message.text in [
-        kb_admin.sketch_column_names_to_change["note"], # "Описание",
-        kb_admin.sketch_column_names_to_change["user_name"] # "Имя клиента"
+            kb_admin.sketch_column_names_to_change["note"], # "Описание",
+            kb_admin.sketch_column_names_to_change["user_name"] # "Имя клиента"
         ]:
         
         await bot.send_message(message.from_id, f"💬 Введи новое значение для '{message.text}'",
@@ -1246,7 +1248,8 @@ async def get_new_value_to_sketch_order(message: types.Message, state: FSMContex
             elif column_name == kb_admin.sketch_column_names_to_change["user_name"]:
                 order.username = message.text
                 col_name = 'Имя пользователя'
-                """ elif column_name == kb_admin.sketch_column_names_to_change["user_telegram_name"]:
+                """ elif column_name == \
+                    kb_admin.sketch_column_names_to_change["user_telegram_name"]:
                     telegram_id = order.user_id
                     user = session.scalars(select(User).where(User.telegram_id == telegram_id)).one()
                     user.telegram_name = message.text 

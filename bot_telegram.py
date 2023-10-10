@@ -21,7 +21,8 @@ from handlers import (
     admin_giftbox_item, 
     admin_giftbox_order,
     admin_sequins,
-    admin_correction
+    admin_correction,
+    admin_generate_ai_img
 )
 
 """ admin_generate_ai_img """
@@ -67,8 +68,7 @@ admin_candle.register_handlers_admin_candle(dp)
 admin_giftbox_item.register_handlers_admin_giftbox_item(dp)
 admin_giftbox_order.register_handlers_admin_giftbox_order(dp)
 admin_sequins.register_handlers_admin_sequins(dp)
-"""
-admin_generate_ai_img.register_handlers_admin_generate_img(dp) """
+admin_generate_ai_img.register_handlers_admin_generate_img(dp)
 # other.register_handlers_other(dp)
 
 

@@ -89,7 +89,8 @@ help_info_msgs = {
 
 correction_commands = [
     "создать запись на коррекцию",
-    "записи на коррекцию"
+    "записи на коррекцию",
+    "удалить запись на коррекцию"
 ]
 
 tattoo_order_commands = [
@@ -149,8 +150,6 @@ schedule_commands = [
     "удалить фото расписания",
     "удалить дату в расписании",
 ]
-
-
 
 candle_item_commands = [
     "добавить свечу",
@@ -563,7 +562,9 @@ kb_choice_new_date_or_new_day_name = create_kb(
 kb_free_or_close_event_in_schedule = create_kb(
     list(schedule_event_status.values()) + LIST_BACK_TO_HOME
 )
-kb_type_of_schedule = create_kb(list(schedule_event_type.values()) + LIST_BACK_TO_HOME)
+kb_type_of_schedule = create_kb(
+    list(schedule_event_type.values()) + LIST_BACK_TO_HOME
+)
 # kb_price = create_kb(price)
 kb_choice_new_date_or_no_date_in_tattoo_order = create_kb(
     list(choice_new_date_or_no_date_in_tattoo_order.values()) + LIST_BACK_TO_HOME

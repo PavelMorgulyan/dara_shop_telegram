@@ -387,6 +387,8 @@ MSG_ADMIN_ADD_NEW_CORRECTION_EVENT_TO_CLIENT_TATTOO_ORDER = (
     "🎉 Отлично, теперь у клиента появилась запись на коррекцию!"
 )
 
+MSG_NO_CORRECTION_EVENTS = "⭕️ Пока у вас нет сеансов коррекции"
+
 MSG_SUCCESS_CHANGING = "🎉 Изменение успешно!"
 
 MSG_TATTOO_ORDER_CLIENT_CHOICE_BODY_LATER = (

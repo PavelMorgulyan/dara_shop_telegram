@@ -423,6 +423,23 @@ class GiftboxItems(Base):
         }
 
 
+class TattooAIImage(Base):
+    __tablename__ = "ai_images"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    description: Mapped[Optional[str]]
+    photo: Mapped[Optional[str]]
+    status: Mapped[Optional[str]]
+    author: Mapped[Optional[str]]
+    
+    def __repr__(self) -> dict:
+        return {
+            "id": self.id,
+            "photo": self.photo,
+            "description": self.description,
+            "status": self.status,
+            "author": self.author,
+        }
+    
 Base.metadata.create_all(engine)
 # session = scoped_session(sessionmaker(bind=engine))
 # Base.query = session.query_property()

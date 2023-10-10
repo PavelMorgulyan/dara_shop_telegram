@@ -32,7 +32,7 @@ from msg.main_msg import *
 import json
 
 
-# --------------------------------------- SEND TO ADMIN ALL SCHEDULE AT 12:00----------------------------
+# ---------------------- SEND TO ADMIN ALL SCHEDULE AT 12:00----------------------------
 async def send_notification_schedule():
     with Session(engine) as session:
         orders = session.scalars(
@@ -47,7 +47,8 @@ async def send_notification_schedule():
         if DARA_ID != 0:
             await bot.send_message(
                 DARA_ID,
-                "📃 Дорогая тату мастерица! Вот твое расписание на сегодня:\n"
+                "📃 Дорогая тату мастерица! "
+                "Вот твое расписание на сегодня:\n"
                 f"{order.order_type}\n"
                 f"Номер заказа: {order.order_number}"
                 f"Статус заказа: {order.order_state}",
@@ -66,7 +67,7 @@ async def command_get_schedule_command_list(message: types.Message):
         )
 
 
-# -------------------------------------- ADD NEW PHOTO SCHEDULE DATE -----------------------------------
+# ----------------------- ADD NEW PHOTO SCHEDULE DATE ---------------------
 # /добавить фото расписания
 class FSM_Admin_create_new_photo_to_schedule(StatesGroup):
     number_month_year_for_photo = State()
@@ -87,7 +88,7 @@ async def command_new_photo_to_schedule(message: types.Message):
         kb_month_year.add(KeyboardButton("Назад"))
         await FSM_Admin_create_new_photo_to_schedule.number_month_year_for_photo.set()
         await message.reply(
-            "❔ На какой месяц хочешь добавить фото к расписанию?",
+            "❔ На какой месяц добавить фото к расписанию?",
             reply_markup=kb_month_year,
         )
 
@@ -132,7 +133,7 @@ async def get_photo_to_schedule(message: types.Message, state: FSMContext):
             
         await bot.send_message(
             message.from_id,
-            f"Отлично! Ты добавила фото календаря! \n\n"
+            f"📎 Отлично! Фото календаря добавлено! \n\n"
             f"{MSG_DO_CLIENT_WANT_TO_DO_MORE}",
             reply_markup=kb_admin.kb_schedule_commands,
         )
@@ -214,9 +215,11 @@ async def choice_how_to_create_new_date_to_schedule(
 ):
     if (
         message.text == kb_admin.new_date_choice["one_date"]
-    ):  # Хочу ввести конкретную дату
+    ):  
+        # Хочу ввести конкретную дату
+        # -> get_day_by_date_for_schedule
         for _ in range(4):
-            await FSM_Admin_create_new_date_to_schedule.next()  # -> get_day_by_date_for_schedule
+            await FSM_Admin_create_new_date_to_schedule.next()
         await message.reply(
             "💬 Давай выберем конкретную дату. Введите ее",
             reply_markup=await DialogCalendar().start_calendar(),
@@ -225,7 +228,8 @@ async def choice_how_to_create_new_date_to_schedule(
     elif (
         message.text == kb_admin.new_date_choice["many_dates"]
     ):  # Хочу выбрать день недели и месяц
-        await FSM_Admin_create_new_date_to_schedule.next()  # -> get_schedule_year
+        # -> get_schedule_year
+        await FSM_Admin_create_new_date_to_schedule.next()
         await message.reply(
             "💬 Давай выберем год. Выберите год из списка",
             reply_markup=kb_admin.kb_years.add(kb_client.cancel_btn)
@@ -243,7 +247,10 @@ async def get_schedule_year(message: types.Message, state: FSMContext):
             data["year_number"] = message.text
 
         kb = ReplyKeyboardMarkup(resize_keyboard=True)
-        name_month_now = await get_month_from_number(int(datetime.now().strftime('%m')), lang='ru')
+        name_month_now = await get_month_from_number(
+            int(datetime.now().strftime('%m')),
+            lang='ru'
+        )
         kb.add(KeyboardButton(name_month_now))
         
         for month in kb_admin.month:
@@ -258,7 +265,8 @@ async def get_schedule_year(message: types.Message, state: FSMContext):
                 kb.add(KeyboardButton(month))
                 
         await message.reply(
-            f"💬 Выбран год {message.text}. Давай выберем месяц. Выбери имя месяца из списка",
+            f"💬 Выбран год {message.text}."
+            " Давай выберем месяц. Выбери имя месяца из списка",
             reply_markup=kb.add(kb_client.cancel_btn),
         )
     else:
@@ -273,10 +281,12 @@ async def get_schedule_month(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data["month_name"] = message.text
             data["month_number"] = await get_month_number_from_name(message.text)
-
-        await FSM_Admin_create_new_date_to_schedule.next()  # -> get_schedule_day
+            
+        # -> get_schedule_day
+        await FSM_Admin_create_new_date_to_schedule.next()  
         await message.reply(
-            "❔ Какой день недели?", reply_markup=kb_admin.kb_days_for_schedule
+            "❔ Какой день недели?",
+            reply_markup=kb_admin.kb_days_for_schedule
         )
     else:
         await bot.send_message(
@@ -289,19 +299,22 @@ async def get_schedule_day(message: types.Message, state: FSMContext):
     if message.text in kb_admin.days:
         async with state.proxy() as data:
             data["date"] = message.text
-
+            
+        # -> process_hour_timepicker_start_time
         for _ in range(2):
-            await FSM_Admin_create_new_date_to_schedule.next() # -> process_hour_timepicker_start_time
+            await FSM_Admin_create_new_date_to_schedule.next()
 
         await bot.send_message(
             message.from_user.id,
-            f"🕒 Отлично, день недели будет {message.text}. Давай определимся со временем.\n"
+            f"🕒 Отлично, день недели будет {message.text}."
+            " Давай определимся со временем.\n"
             "❔ С какого времени начинается твой рабочее расписание в этот день?",
             reply_markup=await FullTimePicker().start_picker(),
         )
 
     elif message.text == kb_admin.new_date_choice["one_date"]:
-        await FSM_Admin_create_new_date_to_schedule.next()  # -> get_day_by_date_for_schedule
+        # -> get_day_by_date_for_schedule
+        await FSM_Admin_create_new_date_to_schedule.next()  
         await bot.send_message(
             message.from_user.id,
             "💬 Выбери конкретную дату",
@@ -350,7 +363,7 @@ async def get_day_by_date_for_schedule(
         else:
             await bot.send_message(
                 username_id,
-                "Выбери еще раз конкретную дату. '\
+                "❌ Выбери еще раз конкретную дату. '\
                 'Дата должна быть позже в этом году, а не раньше.",
                 reply_markup=await DialogCalendar().start_calendar(),
             )
@@ -367,7 +380,7 @@ async def process_hour_timepicker_start_time(
     r = await FullTimePicker().process_selection(callback_query, callback_data)  # type: ignore
     if r.selected:
         await callback_query.message.edit_text(
-            f'Вы выбрали начало рабочего дня в {r.time.strftime("%H:%M")} ',
+            f'🕒 Вы выбрали начало рабочего дня в {r.time.strftime("%H:%M")} ',
         )
         # await callback_query.message.delete_reply_markup()
         username_id = 0
@@ -409,11 +422,11 @@ async def process_hour_timepicker_start_time(
 async def process_hour_timepicker_end_time(
     callback_query: CallbackQuery, callback_data: dict, state: FSMContext
 ):
-    r = await FullTimePicker().process_selection(callback_query, callback_data)  # type: ignore
+    r = await FullTimePicker().process_selection(callback_query, callback_data)
     if r.selected:
         new_event_to_schedule_bool = False
         await callback_query.message.edit_text(
-            f'Выбран конец рабочего дня в {r.time.strftime("%H:%M")} ',
+            f'🕒 Выбран конец рабочего дня в {r.time.strftime("%H:%M")} ',
         )
         # await callback_query.message.delete_reply_markup()
         username_id = 0
@@ -426,7 +439,8 @@ async def process_hour_timepicker_end_time(
                 date, year = data["date"], data["year_number"]
                 month_name, month_number = data["month_name"], data["month_number"]
                 end_time = data["end_time_in_schedule"]
-                month_name_from_number = await get_month_from_number(month_number, "ru")
+                month_name_from_number = \
+                    await get_month_from_number(month_number, "ru")
 
                 if date not in kb_admin.days and month_name_from_number != month_name:
                     # -> get_day_by_date_for_schedule
@@ -491,7 +505,8 @@ async def process_hour_timepicker_end_time(
                                 await bot.send_message(username_id, MSG_SUCCESS_CHANGING)
                                 await bot.send_message(
                                     username_id,
-                                    f"🎉 Отлично, теперь в {month_name} в {date.strftime('%d/%m/%Y')}"
+                                    f"🎉 Отлично, теперь в {month_name}"
+                                    f" в {date.strftime('%d/%m/%Y')}"
                                     f" c {start_time} "
                                     f"по {end_time} у тебя рабочее время!",
                                 )
@@ -694,7 +709,8 @@ async def get_order_number_to_connect_with_new_event(message: types.Message, sta
 async def get_view_schedule(user_id: int, schedule: ScalarResult[ScheduleCalendar]):
     if schedule == []:
         await bot.send_message(
-            user_id, f"{MSG_NO_SCHEDULE_IN_TABLE_IN_STATUS}\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}"
+            user_id, 
+            f"{MSG_NO_SCHEDULE_IN_TABLE_IN_STATUS}\n{MSG_DO_CLIENT_WANT_TO_DO_MORE}"
         )
     else:
         headers = [
@@ -1114,7 +1130,15 @@ async def get_event_date(
                     "type":date.event_type
                 }
             await FSM_Admin_change_schedule.next() #-> get_new_state_event_in_schedule
-            # ['Время начала работы', 'Время окончания работы', 'Дату', 'Статус', 'Тип']
+            """ 
+            [
+                'Время начала работы', 
+                'Время окончания работы',
+                'Дату', 
+                'Статус', 
+                'Тип'
+            ] 
+            """
             await message.reply(
                 f"❔ Что изменить?", reply_markup=kb_admin.kb_date_states
             )
@@ -1211,22 +1235,25 @@ async def get_new_state_event_in_schedule(message: types.Message, state: FSMCont
             data["new_date_tattoo_order"] = False
 
         if message.text == "Дату":
+            # -> get_changing_day_by_date_for_schedule
             for _ in range(3):
-                await FSM_Admin_change_schedule.next()  # -> get_changing_day_by_date_for_schedule
+                await FSM_Admin_change_schedule.next() 
             await message.reply(
                 "💬 Выберите конкретную дату",
                 reply_markup=await DialogCalendar().start_calendar(),
             )
 
         elif message.text == "Время начала работы":
-            await FSM_Admin_change_schedule.next() #-> process_hour_timepicker_start_or_end_time
+            #-> process_hour_timepicker_start_or_end_time
+            await FSM_Admin_change_schedule.next() 
             await message.reply(
                 "💬 Выберите новое время начала работы",
                 reply_markup=await FullTimePicker().start_picker(),
             )
 
         elif message.text == "Время окончания работы":
-            await FSM_Admin_change_schedule.next() #-> process_hour_timepicker_start_or_end_time
+            #-> process_hour_timepicker_start_or_end_time
+            await FSM_Admin_change_schedule.next() 
             await message.reply(
                 "💬 Выберите новое время окончания работы",
                 reply_markup=await FullTimePicker().start_picker(),
@@ -1236,8 +1263,9 @@ async def get_new_state_event_in_schedule(message: types.Message, state: FSMCont
         # есть ли какой-либо заказ в это время, 
         # и менять дату расписания для заказа + оповещать пользователя
         elif message.text == "Статус":
+            # -> set_new_state_event_in_schedule
             for _ in range(2):
-                await FSM_Admin_change_schedule.next()  # -> set_new_state_event_in_schedule
+                await FSM_Admin_change_schedule.next()
 
             await message.reply(
                 "💬 Выберите новый статус сеанса",
@@ -1250,22 +1278,18 @@ async def get_new_state_event_in_schedule(message: types.Message, state: FSMCont
                 reply_markup=kb_admin.kb_type_of_schedule,
             )
 
-        elif message.text in list(kb_admin.schedule_event_type.values()):
-            async with state.proxy() as data:
-                schedule_id = data["schedule_id"]
+    elif message.text in list(kb_admin.schedule_event_type.values()):
+        async with state.proxy() as data:
+            schedule_id = data["schedule_id"]
 
-            with Session(engine) as session:
-                schedule_event = session.get(ScheduleCalendar, schedule_id)
-                schedule_event.event_type = message.text.lower()
-                session.commit()
-            await bot.send_message(message.from_id, MSG_SUCCESS_CHANGING)
-            await update_schedule_table(state)
-            await bot.send_message(
-                message.from_id,
-                MSG_DO_CLIENT_WANT_TO_DO_MORE,
-                reply_markup=kb_admin.kb_schedule_commands,
-            )
-            await state.finish()
+        with Session(engine) as session:
+            schedule_event = session.get(ScheduleCalendar, schedule_id)
+            schedule_event.event_type = message.text
+            session.commit()
+            
+        await bot.send_message(message.from_id, MSG_SUCCESS_CHANGING)
+        await update_schedule_table(state)
+        await state.finish()
 
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
         await state.finish()
@@ -1279,12 +1303,14 @@ async def get_new_state_event_in_schedule(message: types.Message, state: FSMCont
 
 # выбираем новое время начала или конца рабочего дня
 @dp.callback_query_handler(
-    full_timep_callback.filter(), state=FSM_Admin_change_schedule.start_time_in_schedule
+    full_timep_callback.filter(), 
+    state=FSM_Admin_change_schedule.start_time_in_schedule
 )
 async def process_hour_timepicker_start_or_end_time(
     callback_query: CallbackQuery, callback_data: dict, state: FSMContext
 ):
-    r = await FullTimePicker().process_selection(callback_query, callback_data)  # type: ignore
+    r = await FullTimePicker(
+        ).process_selection(callback_query, callback_data)
     if r.selected:
         await callback_query.message.edit_text(
             f'🕒 Выбрано время {r.time.strftime("%H:%M")} ',
@@ -1316,15 +1342,26 @@ async def process_hour_timepicker_start_or_end_time(
 
 # Выставляем новый статус у сеанса
 # state=FSM_Admin_change_schedule.month_or_day_get_name_for_new_state_schedule)
-async def set_new_state_event_in_schedule(message: types.Message, state: FSMContext):
+async def set_new_state_event_in_schedule(
+    message: types.Message, 
+    state: FSMContext
+    ):
     with Session(engine) as session:
         orders = session.scalars(
             select(Orders)
             .where(
-                Orders.order_state.in_([STATES["closed"]["postponed"], STATES["open"]])
+                Orders.order_state.in_(
+                    [
+                        STATES["closed"]["postponed"], 
+                        STATES["open"]
+                    ]
+                )
             )
             .where(Orders.schedule_id == None)
-            .where(Orders.order_type == kb_admin.price_lst_types['constant_tattoo'])
+            .where(
+                Orders.order_type == 
+                    kb_admin.price_lst_types['constant_tattoo']
+                )
         ).all()
 
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -1352,12 +1389,14 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
             
         if tattoo_order != []:
             order = session.scalars(select(Orders)
-                .where(Orders.order_number == tattoo_order[0].order_number)).one()
+                .where(
+                    Orders.order_number == tattoo_order[0].order_number
+                    )
+                ).one()
             
             async with state.proxy() as data:
                 data["order_id"] = order.id
                 data["tattoo_order_number"] = order.order_number
-                
                 
                 with Session(engine) as session:
                     
@@ -1378,7 +1417,7 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
 
             await bot.send_message(
                 message.from_id,
-                f"С этим расписанием у вас связан тату заказ. "
+                f"❌ С этим расписанием у вас связан тату заказ. "
                 'Если читаешь это сообщение в первый раз, то нажми кнопку \
                     "Информация об изменении статусов календаря"',
             )
@@ -1410,7 +1449,8 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
                     await bot.send_message(
                         message.from_id,
                         "❔ Точно хотите закрыть данный сеанс?",
-                        reply_markup= kb_admin.kb_admin_choice_close_or_not_opened_schedule_event
+                        reply_markup= 
+                            kb_admin.kb_admin_choice_close_or_not_opened_schedule_event
                     )
 
             elif old_schedule_state == kb_admin.schedule_event_status['free'] and \
@@ -1426,21 +1466,25 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
             # если статусы равны
             elif old_schedule_state == new_schedule_state:
                 await message.reply(
-                    "Выбран такой же статус календаря. Пожалуйста, введи другой статус",
+                    "❌ Выбран такой же статус календаря. "
+                    "Пожалуйста, введи другой статус",
                     reply_markup=kb_admin.kb_free_or_close_event_in_schedule,
                 )
                 
         else:
             await update_schedule_table(state)
             await state.finish()
-
-    # "Добавить самому новый заказ в этот календарный день".
-    # Если статус календаря меняется со Свободен на занят
-    # -> если админ хочет добавить в пустой заказ новый ивент календаря из уже созданных в бд
+    
     elif (
         message.text
         == kb_admin.admin_choice_get_new_order_to_schedule_event["new_order"]
-    ):
+    ):  
+        """ 
+            "Добавить самому новый заказ в этот календарный день".
+            Если статус календаря меняется со Свободен на занят
+            -> если админ хочет добавить в пустой заказ новый ивент календаря 
+            из уже созданных в бд 
+        """
         async with state.proxy() as data:
             schedule_id = data["schedule_id"]
             new_schedule_state = data["new_schedule_state"]
@@ -1454,19 +1498,22 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
         await FSM_Admin_tattoo_order.get_tattoo_type.set()
         await bot.send_message(
             message.from_id,
-            "Привет, админ. Сейчас будет создан тату заказ. "
+            "➡️ Привет, админ. Сейчас будет создан тату заказ. "
             "Тату заказ будет для переводного тату или для постоянного?",
             reply_markup=kb_client.kb_client_choice_main_or_temporary_tattoo,
         )
 
-    # "Выбрать из тех заказов, у которых нет даты сеанса" -> выдает список заказов без расписания
+    # "Выбрать из тех заказов, у которых нет даты сеанса" -> 
+    # выдает список заказов без расписания
     # Если статус календаря меняется со Свободен на занят
     elif (
-        message.text
-        == kb_admin.admin_choice_get_new_order_to_schedule_event["choice_created_order"]
+        message.text == 
+            kb_admin.admin_choice_get_new_order_to_schedule_event[
+                "choice_created_order"
+            ]
     ):
         await bot.send_message(
-            message.from_id, "Какой заказ хочешь выбрать?", reply_markup=kb
+            message.from_id, "❔ Какой заказ выбрать?", reply_markup=kb
         )
 
     # Если статус календаря меняется со Свободен на занят -> просто меняем статус
@@ -1486,12 +1533,7 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
         await message.reply(MSG_SUCCESS_CHANGING)
         await update_schedule_table(state)
         await state.finish()
-        await bot.send_message(
-            message.from_id,
-            MSG_DO_CLIENT_WANT_TO_DO_MORE,
-            reply_markup=kb_admin.kb_schedule_commands,
-        )
-
+        
     # Если статус календаря меняется со Свободен на занят
     # если админ хочет добавить в пустой заказ новый ивент календаря из уже созданных в бд
     elif message.text in order_kb_lst:
@@ -1529,11 +1571,7 @@ async def set_new_state_event_in_schedule(message: types.Message, state: FSMCont
             session.commit()
         await message.reply(MSG_SUCCESS_CHANGING)
         await update_schedule_table(state)
-        await bot.send_message(
-            message.from_id,
-            MSG_DO_CLIENT_WANT_TO_DO_MORE,
-            reply_markup=kb_admin.kb_schedule_commands,
-        )
+        
     # TODO message.text == kb_admin.admin_choice_close_or_not_opened_schedule_event['dont_close']:
     # "Не закрывать сеанс"
     
@@ -1773,7 +1811,7 @@ async def process_get_new_date_for_new_data_schedule(
     selected, date = await DialogCalendar().process_selection(callback_query, callback_data)
     if selected:
         await callback_query.message.answer(
-            f'Вы выбрали новую дату {date.strftime("%d/%m/%Y")}'
+            f'🎉 Вы выбрали новую дату {date.strftime("%d/%m/%Y")}'
         )
 
         async with state.proxy() as data:
@@ -1786,7 +1824,7 @@ async def process_get_new_date_for_new_data_schedule(
             await FSM_Admin_change_schedule.next()
             await bot.send_message(
                 user_id,
-                f"Введи новое время для тату заказа",
+                f"💬 Введи новое время для тату заказа",
                 reply_markup=await FullTimePicker().start_picker(),
             )
 
@@ -1794,11 +1832,13 @@ async def process_get_new_date_for_new_data_schedule(
             with Session(engine) as session:
                 schedule_event = session.get(ScheduleCalendar, schedule_id)
                 schedule_event.start_datetime = datetime.strptime(
-                    f"{date.strftime('%Y-%m-%d')} {schedule_event.start_datetime.strftime('%H:%M')}",
+                    f"{date.strftime('%Y-%m-%d')} "
+                    f"{schedule_event.start_datetime.strftime('%H:%M')}",
                     "%Y-%m-%d %H:%M",
                 )
                 schedule_event.end_datetime = datetime.strptime(
-                    f"{date.strftime('%Y-%m-%d')} {schedule_event.start_datetime.strftime('%H:%M')}",
+                    f"{date.strftime('%Y-%m-%d')} "
+                    f"{schedule_event.start_datetime.strftime('%H:%M')}",
                     "%Y-%m-%d %H:%M",
                 )
                 session.commit()
@@ -1821,11 +1861,11 @@ async def process_get_new_date_for_new_data_schedule(
 async def process_hour_timepicker_new_start_time_in_tattoo_order(
     callback_query: CallbackQuery, callback_data: dict, state: FSMContext
 ):
-    r = await FullTimePicker().process_selection(callback_query, callback_data)  # type: ignore
+    r = await FullTimePicker().process_selection(callback_query, callback_data)
 
     if r.selected:
         await callback_query.message.edit_text(
-            f'Вы выбрали время {r.time.strftime("%H:%M")} ',
+            f'🕒 Вы выбрали время {r.time.strftime("%H:%M")} ',
         )
         async with state.proxy() as data:
             user_id = data["user_id"]
@@ -1833,7 +1873,7 @@ async def process_hour_timepicker_new_start_time_in_tattoo_order(
         await FSM_Admin_change_schedule.next()
         await bot.send_message(
             user_id,
-            f"А теперь введи время окончания сеанса",
+            f"💬 А теперь введи время окончания сеанса",
             reply_markup=await FullTimePicker().start_picker(),
         )
 
@@ -1846,20 +1886,22 @@ async def process_hour_timepicker_new_start_time_in_tattoo_order(
 async def process_hour_timepicker_new_end_time_in_tattoo_order(
     callback_query: CallbackQuery, callback_data: dict, state: FSMContext
 ):
-    r = await FullTimePicker().process_selection(callback_query, callback_data)  # type: ignore
+    r = await FullTimePicker().process_selection(callback_query, callback_data)
 
     if r.selected:
         await callback_query.message.edit_text(
-            f'Вы выбрали время {r.time.strftime("%H:%M")}'
+            f'🕒 Вы выбрали время {r.time.strftime("%H:%M")}'
         )
 
         async with state.proxy() as data:
             start_time_in_tattoo_order = datetime.strptime(
-                f"{data['date_meeting'].strftime('%Y-%m-%d')} {data['start_time_in_tattoo_order']}",
+                f"{data['date_meeting'].strftime('%Y-%m-%d')} "
+                f"{data['start_time_in_tattoo_order']}",
                 "%Y-%m-%d %H:%M",
             )
             end_time_in_tattoo_order = datetime.strptime(
-                f"{data['date_meeting'].strftime('%Y-%m-%d')} {r.time.strftime('%H:%M')}",
+                f"{data['date_meeting'].strftime('%Y-%m-%d')} "
+                f"{r.time.strftime('%H:%M')}",
                 "%Y-%m-%d %H:%M",
             )
             tattoo_order_number = data["tattoo_order_number"]
@@ -1924,7 +1966,7 @@ async def get_anwser_to_notify_client(message: types.Message, state: FSMContext)
         )
 
 
-# ----------------------------------------- DELETE SCHEDULE EVENT-----------------------------------
+# ---------------------- DELETE SCHEDULE EVENT-----------------------------------
 class FSM_Admin_delete_schedule_date(StatesGroup):
     date_name = State()
 
@@ -1932,7 +1974,10 @@ class FSM_Admin_delete_schedule_date(StatesGroup):
 # удалить дату в расписании
 async def command_delete_date_schedule(message: types.Message):
     if (
-        message.text in ["удалить дату в расписании", "/удалить_дату_в_расписании"]
+        message.text in [
+            "удалить дату в расписании", 
+            "/удалить_дату_в_расписании"
+        ]
         and str(message.from_user.username) in ADMIN_NAMES
     ):
         with Session(engine) as session:
@@ -1952,8 +1997,10 @@ async def command_delete_date_schedule(message: types.Message):
                 (
                     "❕❕❕ Данная функция \"удалить дату в расписании\" "
                     "полностью удаляет расписание из базы!\n\n"
-                    "Чтобы просто закрыть расписание, необходимо нажать на \"изменить мое расписание\" "
-                    "в списке команд Расписания, затем изменить статус конкретной даты.\n\n"
+                    "Чтобы просто закрыть расписание, необходимо нажать "
+                    "на \"изменить мое расписание\" "
+                    "в списке команд Расписания, затем изменить "
+                    "статус конкретной даты.\n\n"
                     "❕ Данная функция не делает проверку на статус в расписании."
                 )
             )
@@ -2004,7 +2051,7 @@ async def delete_schedule_date(message: types.Message, state: FSMContext):
     await state.finish()
 
 
-# ---------------------------------------SCHEDULE------------------------------------------------------
+# ---------------------------------------SCHEDULE------------------------------
 def register_handlers_admin_schedule(dp: Dispatcher):
     dp.register_message_handler(
         command_get_schedule_command_list, commands=["расписание"]
@@ -2160,17 +2207,19 @@ def register_handlers_admin_schedule(dp: Dispatcher):
     # dp.register_message_handler(get_new_day_name_if_month_is_not_succsess,
     # state=FSM_Admin_change_schedule.get_new_day_name_if_month_is_not_succsess)
 
-    # ---------------------------------------DELETE SCHEDULE---------------------------------------
+    # -----------------------------DELETE SCHEDULE--------------------
 
     dp.register_message_handler(
-        command_delete_date_schedule, commands=["удалить_дату_в_расписании"]
+        command_delete_date_schedule, 
+        commands=["удалить_дату_в_расписании"]
     )
     dp.register_message_handler(
         command_delete_date_schedule,
         Text(equals="удалить дату в расписании", ignore_case=True),
-        state=None,
+        state=None
     )
 
     dp.register_message_handler(
-        delete_schedule_date, state=FSM_Admin_delete_schedule_date.date_name
+        delete_schedule_date, 
+        state=FSM_Admin_delete_schedule_date.date_name
     )

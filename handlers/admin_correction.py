@@ -223,7 +223,9 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
         kb.add(KeyboardButton(event_item))
     kb.add(kb_admin.home_btn)
     
-    if message.text == kb_admin.admin_choice_create_new_or_created_schedule_item['create_new_schedule']:
+    if message.text == kb_admin.admin_choice_create_new_or_created_schedule_item[
+            'create_new_schedule'
+        ]:
         # -> process_get_new_date_for_new_data_schedule    
         await FSM_Admin_create_correction.next() 
         await message.reply(
@@ -235,9 +237,16 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             order_number = data['order_number']
             
-        start_time = datetime.strptime(f"{message.text.split(' по ')[0]}", '%d/%m/%Y с %H:%M')
+        start_time = datetime.strptime(
+            f"{message.text.split(' по ')[0]}", '%d/%m/%Y с %H:%M'
+        )
+        
         with Session(engine) as session:
-            order = session.scalars(select(Orders).where(Orders.order_number == order_number)).one()
+            order = session.scalars(
+                select(Orders)
+                    .where(Orders.order_number == order_number)
+                ).one()
+            
             schedule = session.scalars(select(ScheduleCalendar)
                     .where(ScheduleCalendar.start_datetime == start_time)
                 ).one()
@@ -248,6 +257,7 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
                     schedule_id = schedule.id
                 )
             )
+            date_meeting = schedule.start_datetime
             # TODO проверить запонение нового статуса и нового event_type в остальных случаях 
             # изменения статуса и ивента календаря
             
@@ -260,9 +270,12 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
             message.from_id, 
             MSG_ADMIN_ADD_NEW_CORRECTION_EVENT_TO_CLIENT_TATTOO_ORDER
         )
+        async with state.proxy() as data:
+            data["new_start_date"] = date_meeting.strftime("%Y-%m-%d")
+            data["new_start_time"] = date_meeting.strftime("%H:%M")
         
         # -> get_anwser_to_notify_client
-        for _ in range(3):
+        for _ in range(4):
             await FSM_Admin_create_correction.next()
         
         await bot.send_message(
@@ -271,7 +284,9 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
             reply_markup=kb_client.kb_yes_no,
         )
         
-    elif message.text == kb_admin.admin_choice_create_new_or_created_schedule_item['choice_created_schedule']:
+    elif message.text == kb_admin.admin_choice_create_new_or_created_schedule_item[
+            'choice_created_schedule'
+        ]:
         await bot.send_message(
             message.from_id, "❔ Какой день выбираешь?", reply_markup=kb
         )
@@ -283,7 +298,10 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
         )
     elif message.text in LIST_BACK_COMMANDS:
         async with state.proxy() as data:
-            kb_tattoo_order_numbers_with_status = data['kb_tattoo_order_numbers_with_status']
+            kb_tattoo_order_numbers_with_status = \
+                data[
+                    'kb_tattoo_order_numbers_with_status'
+                ]
         #-> get_tattoo_order_number_to_new_schedule_event
         await FSM_Admin_create_correction.previous() 
         await message.reply(
@@ -299,7 +317,8 @@ async def get_schedule_type(message: types.Message, state: FSMContext):
 async def process_get_new_date_for_new_data_schedule(
     callback_query: CallbackQuery, callback_data: dict, state: FSMContext
 ):
-    selected, date = await DialogCalendar().process_selection(callback_query, callback_data)  # type: ignore
+    selected, date = await DialogCalendar(
+        ).process_selection(callback_query, callback_data)
     if selected:
         await callback_query.message.answer(
             f'🕒 Вы выбрали новую дату {date.strftime("%d/%m/%Y")}'
@@ -324,12 +343,14 @@ async def process_get_new_date_for_new_data_schedule(
             with Session(engine) as session:
                 schedule_event = session.get(ScheduleCalendar, schedule_id)
                 schedule_event.start_datetime = datetime.strptime(
-                    f"{date.strftime('%Y-%m-%d')} {schedule_event.start_datetime.strftime('%H:%M')}",
+                    f"{date.strftime('%Y-%m-%d')} "
+                    f"{schedule_event.start_datetime.strftime('%H:%M')}",
                     "%Y-%m-%d %H:%M",
                 )
                 schedule_event.end_datetime = datetime.strptime(
-                    f"{date.strftime('%Y-%m-%d')} {schedule_event.start_datetime.strftime('%H:%M')}",
-                    "%Y-%m-%d %H:%M",
+                    f"{date.strftime('%Y-%m-%d')} "
+                    f"{schedule_event.start_datetime.strftime('%H:%M')}",
+                    "%Y-%m-%dT%H:%M",
                 )
                 session.commit()
             await update_schedule_table(state)
@@ -375,7 +396,7 @@ async def process_hour_timepicker_new_start_time_in_tattoo_order(
 async def process_hour_timepicker_new_end_time_in_tattoo_order(
     callback_query: CallbackQuery, callback_data: dict, state: FSMContext
 ):
-    r = await FullTimePicker().process_selection(callback_query, callback_data)  # type: ignore
+    r = await FullTimePicker().process_selection(callback_query, callback_data)
 
     if r.selected:
         await callback_query.message.edit_text(
@@ -384,13 +405,17 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
 
         async with state.proxy() as data:
             start_time_in_tattoo_order = datetime.strptime(
-                f"{data['date_meeting'].strftime('%Y-%m-%d')} {data['start_time_in_tattoo_order']}",
+                f"{data['date_meeting'].strftime('%Y-%m-%d')}T"
+                f"{data['start_time_in_tattoo_order']}",
                 "%Y-%m-%d %H:%M",
             )
+            
             end_time_in_tattoo_order = datetime.strptime(
-                f"{data['date_meeting'].strftime('%Y-%m-%d')} {r.time.strftime('%H:%M')}",
+                f"{data['date_meeting'].strftime('%Y-%m-%d')}"
+                f" {r.time.strftime('%H:%M')}",
                 "%Y-%m-%d %H:%M",
             )
+            
             order_number = data["order_number"]
             user_id = data["user_id"]
             data["new_start_date"] = data["date_meeting"].strftime("%Y-%m-%d")
@@ -410,8 +435,8 @@ async def process_hour_timepicker_new_end_time_in_tattoo_order(
         await bot.send_message(
             user_id,
             f"🎉 У тату заказа №{order_number} добавилась дата сеанса с "
-            f"{start_time_in_tattoo_order.strftime('%Y-%m-%d %H:%M')} по"
-            f"{end_time_in_tattoo_order.strftime('%Y-%m-%d %H:%M')}.\n\n"
+            f"{start_time_in_tattoo_order.strftime('%Y-%m-%d %H:%M')} по "
+            f"{end_time_in_tattoo_order.strftime('%H:%M')}.\n\n"
             "🕒 А также добавилась новая дата в календаре.",
         )
         #-> get_anwser_to_notify_client
@@ -459,17 +484,195 @@ async def command_view_correction_event_dates(message: types.Message):
     ):
         with Session(engine) as session:
             events = session.scalars(select(ScheduleCalendar)
-                    .where(ScheduleCalendar.event_type == kb_admin.schedule_event_type['correction'])
+                    .where(
+                        ScheduleCalendar.event_type == kb_admin.schedule_event_type[
+                                'correction'
+                            ]
+                        )
                 ).all()
             
         await get_view_schedule(message.from_id, events)
 
 
-# TODO добавить функцию "изменить запись на коррекцию", "удалить запись на коррекцию"
+# TODO добавить функцию "изменить запись на коррекцию"
+# ------------------------------DELETE_CORRECTION_DATE-------------------------
+class FSM_Admin_delete_correction(StatesGroup):
+    order_number = State()
+
+
+async def get_kb_delete_correction() -> dict[KeyboardButton, list]:
+    order_number = ''
+    with Session(engine) as session:
+        events = session.scalars(select(ScheduleCalendar)
+                .where(
+                    ScheduleCalendar.event_type == kb_admin.schedule_event_type[
+                            'correction'
+                        ]
+                    )
+            ).all()
+        
+        for number, date in enumerate(events):
+            orders = session.scalars(
+                    select(Orders)
+                        .join(ScheduleCalendarItems)
+                        .where(ScheduleCalendarItems.schedule_id == date.id)
+                ).all()
+            order_number += f"{orders[0].order_number}"
+
+            
+    answer_lst = []
+    kb = ReplyKeyboardMarkup(resize_keyboard=True)
+    for event in events:
+        answer = (
+            f"{event.start_datetime.strftime('%Y-%m-%d %H:%M')} "
+            f"{order_number}"
+        )
+        
+        kb.add(KeyboardButton(answer))
+        answer_lst.append(answer)
+    kb.add(kb_admin.home_btn)
+    
+    return {
+        "kb": kb,
+        "answers":answer_lst
+    }
+
+# "удалить запись на коррекцию"
+async def command_delete_correction_event_date(message: types.Message):
+    if (
+        message.text.lower()
+        in ["/удалить_запись_на_коррекцию", "удалить запись на коррекцию"]
+        and str(message.from_user.username) in ADMIN_NAMES
+    ):
+        with Session(engine) as session:
+            events = session.scalars(select(ScheduleCalendar)
+                    .where(
+                        ScheduleCalendar.event_type == \
+                            kb_admin.schedule_event_type[
+                                'correction'
+                            ]
+                        )
+                ).all()
+        if events == []:
+            await message.reply(MSG_NO_CORRECTION_EVENTS)
+            await bot.send_message(
+                message.from_id, 
+                MSG_DO_CLIENT_WANT_TO_DO_MORE
+            )
+        else:
+            await get_view_schedule(message.from_id, events)
+            kb = await get_kb_delete_correction()
+            
+            # -> get_order_number_to_delete_correction_event
+            await FSM_Admin_delete_correction.order_number.set()
+            await bot.send_message(
+                message.from_id, 
+                "❔ Какую запись удалить?",
+                reply_markup= kb['kb']
+            )
+
+
+async def get_order_number_to_delete_correction_event(
+    message: types.Message, 
+    state: FSMContext
+    ):
+    
+    msg_answers = await get_kb_delete_correction()
+    
+    if message.text in \
+        [kb_client.no_str] + LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS:
+        await update_schedule_table(state)
+        await bot.send_message(
+            message.from_id, 
+            MSG_DO_CLIENT_WANT_TO_DO_MORE,
+            reply_markup=kb_admin.kb_correction_commands
+        )
+        await state.finish()
+        
+    elif message.text in LIST_BACK_COMMANDS:
+        with Session(engine) as session:
+            events = session.scalars(select(ScheduleCalendar)
+                    .where(
+                        ScheduleCalendar.event_type == \
+                            kb_admin.schedule_event_type[
+                                'correction'
+                            ]
+                        )
+                ).all()
+        await get_view_schedule(message.from_id, events)
+        kb = await get_kb_delete_correction()
+        
+        # -> get_order_number_to_delete_correction_event
+        await FSM_Admin_delete_correction.order_number.set()
+        await bot.send_message(
+            message.from_id, 
+            "❔ Какую запись удалить?",
+            reply_markup= kb['kb']
+        )
+
+    elif message.text in msg_answers['answers']:
+        async with state.proxy() as data:
+            data['order'] = tuple(message.text.split())
+        await bot.send_message(
+            message.from_id, 
+            "❔ Точно хотите удалить запись?",
+            reply_markup= kb_client.kb_yes_no
+        )
+    
+    elif message.text == kb_client.yes_str:
+        async with state.proxy() as data:
+            order = data['order']
+        date, time, order_number = order
+        
+        with Session(engine) as session:
+            event = session.scalars(
+                select(ScheduleCalendar)
+                    .where( 
+                        ScheduleCalendar.event_type == 
+                            kb_admin.schedule_event_type[
+                                'correction'
+                            ]
+                        )
+                    .where(
+                        ScheduleCalendar.start_datetime == 
+                            datetime.strptime(
+                                f"{date} {time}",
+                                "%Y-%m-%d %H:%M"
+                            )
+                        )
+                    ).one()
+            
+            event_item = session.scalars(
+                select(ScheduleCalendarItems)
+                    .where(ScheduleCalendarItems.schedule_id == event.id)
+                ).one()
+            
+            event.status = kb_admin.schedule_event_status['free']
+            event.event_type == kb_admin.schedule_event_type['free']
+            session.delete(event_item)
+            session.commit()
+            
+        await message.reply(MSG_SUCCESS_CHANGING)
+        
+        await message.reply(
+            f"🎉 Запись на коррекцию по заказу {order_number} успешно удалена!"
+        )
+        
+        await bot.send_message(
+            message.from_id, 
+            MSG_DO_CLIENT_WANT_TO_DO_MORE,
+            reply_markup=kb_admin.kb_correction_commands
+        )
+        await state.finish()
+        
+    else:
+        await bot.send_message(
+            message.from_id, MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST
+        )
 
 
 def register_handlers_admin_correction(dp: Dispatcher):
-    # ---------------------------ADD NEW SCHEDULE EVENT OT TATTOO ORDER -------------
+    # ------------------------ADD NEW SCHEDULE EVENT OT TATTOO ORDER ---------
     dp.register_message_handler(
         command_create_correction_event_date,
         Text(equals="создать запись на коррекцию", ignore_case=True),
@@ -487,8 +690,7 @@ def register_handlers_admin_correction(dp: Dispatcher):
         get_anwser_to_notify_client,
         state=FSM_Admin_create_correction.notify_client
     )
-    #---------------------SEND_TO_VIEW_CORRECTION_EVENT_DATES--------------
-    #TODO сделать функцию "записи на коррекцию"
+    #---------------------SEND_TO_VIEW_CORRECTION_EVENT_DATES-------------
     
     dp.register_message_handler(
         command_view_correction_event_dates,
@@ -500,4 +702,15 @@ def register_handlers_admin_correction(dp: Dispatcher):
         get_correction_commands,
         Text(equals="Коррекция", ignore_case=True),
         state=None,
+    )
+    
+    #------------------------------DELETE_CORRECTION_DATE----------------
+    dp.register_message_handler(
+        command_delete_correction_event_date,
+        Text(equals="удалить запись на коррекцию", ignore_case=True),
+        state=None,
+    )
+    dp.register_message_handler(
+        get_order_number_to_delete_correction_event,
+        state=FSM_Admin_delete_correction.order_number,
     )
