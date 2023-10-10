@@ -241,6 +241,9 @@ async def send_to_view_price_list(
     message: types.Message, data: ScalarResult[OrderPriceList],
     price_lst_type: str
 ) -> None:
+    with open("config.json", "r") as config_file:
+        configuration = json.load(config_file)
+        
     if price_lst_type in [
         kb_admin.price_lst_types["constant_tattoo"],
         kb_admin.price_lst_types["shifting_tattoo"],
@@ -258,8 +261,7 @@ async def send_to_view_price_list(
             left_padding_width=1,
             right_padding_width=1
         )
-        with open("config.json", "r") as config_file:
-            configuration = json.load(config_file)
+        
             
         if configuration['mode'] == 'pc':
             for header in headers_dct.keys():
@@ -284,7 +286,7 @@ async def send_to_view_price_list(
             await bot.send_message(message.from_id, msg)
 
     else:
-        if data['mode'] == 'pc':
+        if configuration['mode'] == 'pc':
             headers_dct = {"Номер": "с", "Тип": "с", "Цена р.": "r"}
             # Определяем таблицу
             table = PrettyTable(

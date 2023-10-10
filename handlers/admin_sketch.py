@@ -658,7 +658,7 @@ async def get_sketch_state(message: types.Message, state: FSMContext):
         await FSM_Admin_command_create_new_sketch_order.previous()  # -> get_sketch_price
         await bot.send_message(
             message.from_id,
-            "Добавь цену эскиза переводного тату",
+            "💬 Добавь цену эскиза переводного тату",
             reply_markup=kb_admin.kb_price,
         )
 
@@ -671,7 +671,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
         if message.text == kb_client.yes_str:
             await bot.send_message(
                 message.from_id,
-                "Хорошо, добавь фотографию или документ чека",
+                "📎 Добавь фотографию или документ чека",
                 reply_markup=kb_client.kb_cancel,
             )
 
@@ -735,7 +735,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
                 await state.finish()
             else:
                 await message.reply(
-                    f"Чек не подошел! Попробуй другой документ или изображение."
+                    f"❌ Чек не подошел! Попробуй другой документ или изображение."
                 )
 
     elif message.content_type == "photo":
@@ -767,7 +767,7 @@ async def get_sketch_check(message: types.Message, state: FSMContext):
                 await state.finish()
             else:
                 await message.reply(
-                    f"Чек не подошел! Попробуй другой документ или изображение."
+                    f"❌ Чек не подошел! Попробуй другой документ или изображение."
                 )
 
 
@@ -906,7 +906,7 @@ async def get_answer_for_getting_check_document(
     if message.text == kb_client.yes_str:
         await FSM_Admin_set_new_state_sketch_order.next()
         await message.reply(
-            f"На какую сумму чек?", reply_markup=kb_admin.kb_price
+            f"❔ На какую сумму чек?", reply_markup=kb_admin.kb_price
         )
 
     elif message.text == kb_client.no_str:
@@ -915,13 +915,13 @@ async def get_answer_for_getting_check_document(
             new_state = data["new_state"]
 
         await message.reply(
-            f"Готово! Вы обновили статус заказа {tattoo_order_number} на '{new_state}'",
+            f"🎉 Готово! Вы обновили статус заказа {tattoo_order_number} на '{new_state}'",
             reply_markup=kb_admin.kb_tattoo_order_commands,
         )
         await state.finish()
     else:
         await message.reply(
-            f"На этот вопрос можно ответит только 'Да' или 'Нет'. Выбери правильный ответ",
+            f"❌ На этот вопрос можно ответит только 'Да' или 'Нет'. Выбери правильный ответ",
             reply_markup=kb_client.kb_yes_no,
         )
 
@@ -1068,9 +1068,10 @@ async def command_change_sketch_order(message: types.Message):
             await FSM_Admin_set_new_value_sketch_order.get_order_number.set() #-> get_sketch_order_number
             kb_orders = ReplyKeyboardMarkup(resize_keyboard=True)
             for order in orders:
+                order_name = f" '{order.order_name}'" if order.order_name != None else ""
                 kb_orders.add(
                     KeyboardButton(
-                        f'{order.order_number} "{order.order_name}" статус: {order.order_state}'
+                        f'{order.order_number}{order_name} статус: {order.order_state}'
                     )
                 )
             kb_orders.add(kb_client.back_btn)
@@ -1088,23 +1089,39 @@ async def get_sketch_order_number(message: types.Message, state: FSMContext):
         ).all()
     kb_orders = []
     for order in orders:
-        kb_orders.append(f'{order.order_number} "{order.order_name}" статус: {order.order_state}')
+        order_name = f" '{order.order_name}'" if order.order_name != None else ""
+        kb_orders.append(
+            f'{order.order_number}{order_name} статус: {order.order_state}'
+        )
     
     if message.text in kb_orders:
         await FSM_Admin_set_new_value_sketch_order.next() #-> get_column_name_to_change_sketch_order
         
         async with state.proxy() as data:
             data['order_number'] = int(message.text.split()[0])
-            data['current_order_status'] = message.text.split()[3]
+            data['current_order_status'] = message.text.split("статус: ")[1]
             
-        await bot.send_message(message.from_id, "Что изменить?",
+        await bot.send_message(message.from_id, "❔ Что изменить?",
             reply_markup= kb_admin.kb_sketch_column_names_to_change)
+
+
+# Возможность добавления цены через ввод, а не кб
+async def process_callback_set_new_price_from_line(
+    callback_query: types.CallbackQuery, 
+    state: FSMContext
+    ):
+    await bot.answer_callback_query(callback_query.id)
+    await bot.send_message(callback_query.from_user.id, 
+        MSG_ADMIN_SET_ANOTHER_PRICE_FROM_LINE,
+        reply_markup= kb_client.kb_cancel
+    )
 
 
 async def get_column_name_to_change_sketch_order(message: types.Message, state: FSMContext):
     if message.text in list(kb_admin.sketch_column_names_to_change.values()):
         async with state.proxy() as data:
             data["column_name_to_new_value"] = message.text
+            order_number = data['order_number']
             await FSM_Admin_set_new_value_sketch_order.next() # -> get_new_value_to_sketch_order
             
     if message.text in [
@@ -1112,28 +1129,46 @@ async def get_column_name_to_change_sketch_order(message: types.Message, state: 
         kb_admin.sketch_column_names_to_change["user_name"] # "Имя клиента"
         ]:
         
-        await bot.send_message(message.from_id, f"Введи новое значение для {message.text}",
+        await bot.send_message(message.from_id, f"💬 Введи новое значение для '{message.text}'",
             reply_markup= kb_client.kb_cancel)
         
     elif message.text == kb_admin.sketch_column_names_to_change["check"]:
-        await FSM_Admin_set_new_value_sketch_order.next()
+        # -> get_check_to_sketch_order
+        await FSM_Admin_set_new_value_sketch_order.next() 
             
         await bot.send_message(message.from_id, MSG_ADMIN_GET_CHECK_TO_ORDER,
             reply_markup= kb_client.kb_cancel)
         
     elif message.text == kb_admin.sketch_column_names_to_change["photo"]: # :"Фото эскиза"
         
-        await bot.send_message(message.from_id, "Добавить или удалить эскиз из заказа?",
+        await bot.send_message(message.from_id, 
+            "❔ Добавить или удалить эскиз из заказа?",
             reply_markup= kb_admin.kb_add_or_delete_order_photo)
         
     elif message.text == kb_admin.sketch_column_names_to_change["price"]:# "Цену"
+        with Session(engine) as session:
+            order = session.scalars(
+                select(Orders).where(Orders.order_number == order_number)).one()
+        
+        await bot.send_message(message.from_id, f"💰 Изначальная цена: {order.price}")
         await bot.send_message(message.from_id, MSG_ADMIN_SET_ANOTHER_PRICE,
             reply_markup= kb_admin.kb_another_price_full)
+        await bot.send_message(
+            message.from_id,
+            MSG_ADMIN_CAN_SET_ANOTHER_PRICE,
+            reply_markup=kb_admin.kb_set_another_price_from_line
+        )
 
 
 async def get_new_value_to_sketch_order(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        order_number = data['order_number']
+    col_name = ''
     with Session(engine) as session:
-        order = session.scalars(select(Orders).where(Orders.order_number == order_number)).one()
+        order = session.scalars(
+            select(Orders).where(Orders.order_number == order_number)
+        ).one()
+        
         photo_items_id = []
         kb_photo_items = ReplyKeyboardMarkup(resize_keyboard= True)
         for photo in order.order_photo:
@@ -1199,17 +1234,18 @@ async def get_new_value_to_sketch_order(message: types.Message, state: FSMContex
             elif message.text == kb_admin.add_or_delete_order_photo["delete_and_add"]:
                 async with state.proxy() as data:
                     data['photo_actions'] = ['delete', 'add']
-                    
+                col_name = 'Фото эскиза'
                 await bot.send_message(
                     message.from_id, MSG_WHICH_PHOTO_DELETE, reply_markup= kb_photo_items
                 )
             
             elif column_name == kb_admin.sketch_column_names_to_change["note"]:
                 order.order_note = message.text
+                col_name = 'Описание'
                 
             elif column_name == kb_admin.sketch_column_names_to_change["user_name"]:
                 order.username = message.text
-                
+                col_name = 'Имя пользователя'
                 """ elif column_name == kb_admin.sketch_column_names_to_change["user_telegram_name"]:
                     telegram_id = order.user_id
                     user = session.scalars(select(User).where(User.telegram_id == telegram_id)).one()
@@ -1218,10 +1254,17 @@ async def get_new_value_to_sketch_order(message: types.Message, state: FSMContex
             elif column_name == kb_admin.sketch_column_names_to_change["price"]:
                 if message.text.isdigit():
                     order.order_note = int(message.text)
+                    col_name = 'Цена'
                     
             session.commit()
             await bot.send_message(
-                message.from_id, f"Отлично! '{column_name}' был изменен на {message.text}"
+                message.from_id, 
+                f"🎉 Отлично! Параметр заказа '{col_name}' был изменен на {message.text}"
+            )
+            await bot.send_message(
+                message.from_id,
+                MSG_DO_CLIENT_WANT_TO_DO_MORE, 
+                reply_markup= kb_admin.kb_tattoo_sketch_commands
             )
     with Session(engine) as session:
         if message.content_type == 'photo':
@@ -1236,7 +1279,7 @@ async def get_new_value_to_sketch_order(message: types.Message, state: FSMContex
                 order.order_photo.append(new_photo_item)
             
             await bot.send_message(
-                message.from_id, f"Отлично! Изображение было добавлено!"
+                message.from_id, f"🎉 Отлично! Изображение было добавлено!"
             )
             session.commit()
             await bot.send_message(
@@ -1244,6 +1287,7 @@ async def get_new_value_to_sketch_order(message: types.Message, state: FSMContex
                 MSG_DO_CLIENT_WANT_TO_DO_MORE, 
                 reply_markup= kb_admin.kb_tattoo_sketch_commands
             )
+        await state.finish()
 
 
 async def get_check_to_sketch_order(message: types.Message, state: FSMContext):
@@ -1433,8 +1477,9 @@ def register_handlers_admin_sketch(dp: Dispatcher):
         state= FSM_Admin_set_new_value_sketch_order.get_order_number)
     dp.register_message_handler(get_column_name_to_change_sketch_order, 
         state= FSM_Admin_set_new_value_sketch_order.set_new_order_state)
+    dp.register_callback_query_handler(process_callback_set_new_price_from_line, 
+        state= FSM_Admin_set_new_value_sketch_order.get_answer_check_document)
     dp.register_message_handler(get_new_value_to_sketch_order, 
         state= FSM_Admin_set_new_value_sketch_order.get_answer_check_document)
     dp.register_message_handler(get_check_to_sketch_order, 
         state= FSM_Admin_set_new_value_sketch_order.get_check_document)
-                                

@@ -160,7 +160,8 @@ async def admin_process_successful_cert_payment(
         await bot.send_message(message.chat.id, f"🎉 Код на сертификат: {code}.")
         await FSM_Admin_сert_item.next()
         await message.reply(
-            f"❔ Приложить чек перевода к заказу сертификата?", reply_markup=kb_client.kb_yes_no
+            f"❔ Приложить чек перевода к заказу сертификата?",
+            reply_markup=kb_client.kb_yes_no
         )
 
     elif (
