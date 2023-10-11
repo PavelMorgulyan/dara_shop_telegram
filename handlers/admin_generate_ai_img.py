@@ -9,7 +9,12 @@ from aiogram.types import CallbackQuery, ReplyKeyboardMarkup
 
 from handlers.client import ADMIN_NAMES, ORDER_CODE_LENTH, CODE_LENTH
 from msg.main_msg import *
-from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
+from diffusers import (
+    StableDiffusionPipeline, 
+    DPMSolverMultistepScheduler,
+    DiffusionPipeline
+)
+
 import torch
 from handlers.other import *
 from keyboards import kb_admin, kb_client
@@ -25,6 +30,9 @@ import json
 class FSM_Admin_generate_ai_woman_model(StatesGroup):
     tattoo_desc = State()  # введи описание тату эскиза
     change_ai_img_state = State()
+
+class FSM_Admin_change_ai_model(StatesGroup):
+    choice_model_name = State()
 
 
 # /generate_ai_img # 'Cоздать тату эскиз'
@@ -46,7 +54,7 @@ async def command_generage_woman_model_img(message: types.Message):
         )
 
 
-async def create_ai_img(message: types.Message, state: FSMContext, img_text: str):
+async def create_ai_img(message: types.Message, state: FSMContext, prompt: str):
     await bot.send_message(
         message.from_id,
         "🕒 Пока думаю над изображением, придется немного подождать."
@@ -56,15 +64,23 @@ async def create_ai_img(message: types.Message, state: FSMContext, img_text: str
         data = json.load(f)
     
     model_id = data['work']
-    print(f"{model_id=}")
-    pipe = StableDiffusionPipeline.from_pretrained(
-        pretrained_model_name_or_path=model_id, 
-        torch_dtype=torch.float16
-    )
-    pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
+    
+    if model_id == "stabilityai/stable-diffusion-xl-base-1.0":
+        pipe = DiffusionPipeline.from_pretrained(
+            model_id, 
+            torch_dtype=torch.float16, 
+            use_safetensors=True, 
+            variant="fp16"
+        )
+    else:
+        pipe = StableDiffusionPipeline.from_pretrained(
+            pretrained_model_name_or_path=model_id, 
+            torch_dtype=torch.float16
+        )
+    # pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
     pipe = pipe.to("cuda")
 
-    image = pipe(img_text).images[0]
+    image = pipe(prompt=prompt).images[0]
     img_name = await generate_random_order_number(ORDER_CODE_LENTH + 3)
 
     # path = f"./img/tattoo_ideas/{message.from_user.username}/{session}/{image_name}.png"
@@ -77,14 +93,14 @@ async def create_ai_img(message: types.Message, state: FSMContext, img_text: str
     id = await generate_random_order_number(CODE_LENTH)
     async with state.proxy() as data:
         data["id"] = id
-        data["text"] = img_text
+        data["text"] = prompt
         data["last_img_photo_from_ai"] = ai_img["photo"][0]["file_id"]
         data["state"] = "неудачный"
 
     with Session(engine) as session:
         new_falling_img = TattooAIImage(
             id=id,
-            description=img_text,
+            description=prompt,
             photo=ai_img["photo"][0]["file_id"],
             status="неудачный",
             author=message.from_user.username,
@@ -108,10 +124,14 @@ async def get_text_from_admin_to_generate_img_ai(
             select(TattooAIImage)
             .where(TattooAIImage.author == message.from_user.username)
         ).all()
+        
+    with open(f"files\example_ai_text\examples.json", encoding="cp1251") as f:
+        examples_imgs = json.load(f)    
+        
     unique_text_img = []
     for text_img in text_img_lst:
-        if list(text_img)[1] not in unique_text_img:
-            unique_text_img.append(list(text_img)[1])
+        if text_img.description not in unique_text_img:
+            unique_text_img.append(text_img.description)
 
     async with state.proxy() as data:
         data["menu_number_img_text"] = False
@@ -129,42 +149,59 @@ async def get_text_from_admin_to_generate_img_ai(
             )
         else:
             await state.finish()
-            await message.reply(MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_main)
+            await message.reply(
+                MSG_BACK_TO_HOME,
+                reply_markup=kb_admin.kb_main
+            )
 
-    elif message.text == kb_client.client_want_to_get_example_text_for_ai_img:
+    elif message.text == kb_admin.client_want_to_try_another_later_img[
+        "client_want_to_get_example_text_for_ai_img"
+    ]:
+        # "Хочу примеры текста изображения"
         await bot.send_message(message.from_id, f"{MSG_TEXT_EXAMPLES_LINKS}")
 
-        await bot.send_message(message.from_id, "Вот некоторые примеры простых тестов:")
-
+        await bot.send_message(
+            message.from_id, 
+            "Примеры простых тестов:"
+        )
         await bot.send_photo(
             message.from_id,
             open("img/tattoo_ideas/00017-881277398.png", "rb"),
-            MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME_EASY,
+            examples_imgs["MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME_EASY"],
         )
         time(3)
         await bot.send_photo(
             message.from_id,
             open("img/tattoo_ideas/00021-1526834311.png", "rb"),
-            MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME_EASY,
+            examples_imgs["MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME_EASY"],
         )
 
         await bot.send_photo(
             message.from_id,
             open("img/tattoo_ideas/00036-3411177118", "rb"),
-            MSG_EXAMPLE_TEXT_BACK_WOMAN_MODEL_IN_HOME_EASY,
+            examples_imgs["MSG_EXAMPLE_TEXT_BACK_WOMAN_MODEL_IN_HOME_EASY"],
         )
 
         time(3)
-        await bot.send_message(message.from_id, f"{MSG_FILL_TEXT_OR_CHOICE_VARIANT}")
+        await bot.send_message(
+            message.from_id,
+            MSG_FILL_TEXT_OR_CHOICE_VARIANT
+        )
 
     elif (
-        message.text == kb_admin.admin_want_to_generate_img_from_ai_woman
+        message.text == kb_admin.client_want_to_try_another_later_img[
+            "admin_want_to_generate_img_from_ai_woman"
+        ]
     ):  # 'Сгенерируй мне модель женщины'
-        text_to_ai = MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME
+        text_to_ai = examples_imgs["MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME"]
         await FSM_Admin_generate_ai_woman_model.next()
         await create_ai_img(message, state, text_to_ai)
 
-    elif message.text == kb_client.description_ai_generation_img:
+    elif (
+        message.text == kb_admin.client_want_to_try_another_later_img[
+            "description_ai_generation_img"
+        ]
+    ):
         await bot.send_message(
             message.from_id, f"{MSG_START_INSTRUCTION_OF_GENERATING_AI_IMGS}"
         )
@@ -188,14 +225,14 @@ async def get_text_from_admin_to_generate_img_ai(
         await bot.send_message(message.from_id, f"{MSG_FILL_TEXT_OR_CHOICE_VARIANT}")
 
     elif (
-        message.text
-        == kb_client.correct_photo_from_ai_or_get_another[
+        message.text == kb_client.correct_photo_from_ai_or_get_another[
             "client_want_to_try_another_later_img"
         ]
     ):
         if text_img_lst == []:
             await message.reply(
-                "❌ Прости, но у тебя не было пока никаких текстов. Введи новый текст",
+                "❌ Прости, но у тебя не было пока никаких текстов."
+                " Введи новый текст",
                 reply_markup=kb_client.kb_back_cancel,
             )
         else:
@@ -204,7 +241,10 @@ async def get_text_from_admin_to_generate_img_ai(
                 data["menu_number_img_text"] = True
 
             kb_list_text_img = ReplyKeyboardMarkup(resize_keyboard=True)
-            await bot.send_message(message.chat.id, "Вот твои прерыдущие тексты:")
+            await bot.send_message(
+                message.chat.id, 
+                "📃 Вот твои прерыдущие тексты:"
+            )
 
             for i in range(len(unique_text_img)):
                 await bot.send_message(
@@ -214,7 +254,7 @@ async def get_text_from_admin_to_generate_img_ai(
 
             kb_list_text_img.add(kb_client.back_btn).add(kb_client.cancel_btn)
             await message.reply(
-                "❔ Какой текст хочешь снова использовать для изображения?",
+                "❔ Какой текст снова использовать для изображения?",
                 reply_markup=kb_list_text_img,
             )
 
@@ -229,13 +269,42 @@ async def get_text_from_admin_to_generate_img_ai(
         await bot.send_message(message.chat.id, f"{text_to_ai}")
         await create_ai_img(message, state, text_to_ai)
 
+    elif (
+        message.text == 
+            kb_admin.client_want_to_try_another_later_img[
+                "change_model"
+            ]
+    ): 
+        await state.finish()
+        # -> get_new_ai_model
+        await FSM_Admin_change_ai_model.choice_model_name.set()
+        
+        msg = f"📃 Список доступных моделей:\n\n"
+        with open(f"files\models_configuration.json") as f:
+            models = json.load(f)
+        
+        kb = ReplyKeyboardMarkup(resize_keyboard=True)
+        for keys, model in models.items():
+            if keys != 'work':
+                msg += f"- {model}\n"
+                kb.add(KeyboardButton(model))
+                
+        kb.add(kb_client.back_btn).add(kb_client.cancel_btn)
+
+        await bot.send_message(
+            message.chat.id,
+            f"{msg}\n"
+            f"❔ Какую модель выбрать?",
+            reply_markup=kb
+        )
+        
+    
     else:
         # -> change_ai_img_state
         await FSM_Admin_generate_ai_woman_model.next()
-        text_to_ai = WOMAN_BOHO_STYLE_DESC % (
-            f"({message.text}:1.6),"
-        )  # Создание модели девушки из этого описания!
-        await create_ai_img(message, state, text_to_ai)
+        text_to_ai = """ WOMAN_BOHO_STYLE_DESC % (f"({message.text}:1.6)") """
+        # Создание модели девушки из этого описания!
+        await create_ai_img(message, state, message.text)
 
 
 async def change_ai_img_state(message: types.Message, state: FSMContext):
@@ -247,12 +316,12 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
 
     unique_text_img = []
     for text_img in text_img_lst:
-        if list(text_img)[1] not in unique_text_img:
-            unique_text_img.append(list(text_img)[1])
+        if text_img.description not in unique_text_img:
+            unique_text_img.append(text_img.description)
 
     if (
-        message.text
-        == kb_client.correct_photo_from_ai_or_get_another["correct_photo_from_ai"]
+        message.text == 
+        kb_client.correct_photo_from_ai_or_get_another["correct_photo_from_ai"]
     ):
         async with state.proxy() as data:
             id = data["id"]
@@ -302,7 +371,9 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
             kb_client.correct_photo_from_ai_or_get_another[
                 "client_want_to_change_this_text"
             ],
-            kb_client.correct_photo_from_ai_or_get_another["client_want_to_try_again"],
+            kb_client.correct_photo_from_ai_or_get_another[
+                "client_want_to_try_again"
+            ],
         ]:
             async with state.proxy() as data:
                 text_to_ai = data["text"]
@@ -336,8 +407,11 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
         kb_list_text_img = ReplyKeyboardMarkup(resize_keyboard=True)
         await bot.send_message(message.chat.id, "📃 Вот твои прерыдущие тексты:")
 
-        for i in range(len(unique_text_img)):
-            await bot.send_message(message.chat.id, f"{i+1}) {unique_text_img[i]}\n\n")
+        for i, text in enumerate(unique_text_img):
+            await bot.send_message(
+                message.chat.id,
+                f"{i + 1}) {text}\n\n"
+            )
             kb_list_text_img.add(KeyboardButton(str(i + 1)))
 
         kb_list_text_img.add(kb_client.back_btn).add(kb_client.cancel_btn)
@@ -352,8 +426,11 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
             if i + 1 == int(message.text):
                 text_to_ai = unique_text_img[i]
 
-        await bot.send_message(message.chat.id, f"📃 Вы выбрали следующий текст:")
-        await bot.send_message(message.chat.id, f"{text_to_ai}")
+        await bot.send_message(
+            message.chat.id,
+            f"📃 Вы выбрали следующий текст:"
+        )
+        await bot.send_message(message.chat.id, text_to_ai)
         await create_ai_img(message, state, text_to_ai)
 
     elif message.text in LIST_CANCEL_COMMANDS + LIST_BACK_TO_HOME:
@@ -364,10 +441,70 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
+# --------------CHANGE AI MODEL--------------------------
+async def get_new_ai_model(message: types.Message, state: FSMContext):
+    
+    tmp_dct = {}    
+    models_lst = []
+    config_file = f"files\models_configuration.json"
+    
+    with open(config_file) as f:
+        models = json.load(f)
+        
+    for model in models.values():
+        models_lst.append(model)
+    
+    if message.text in models_lst:
+        for keys, model in models.items():
+            if keys == 'work':
+                tmp_dct[keys] = message.text
+                tmp_dct[model] = models[keys]
+                
+            else:
+                tmp_dct[keys] = model
+                
+        with open(config_file, "w", encoding="cp1251") as f:
+            json.dump(tmp_dct, f, indent=2, ensure_ascii=True)
+            
+        await state.finish()
+        # -> command_generage_woman_model_img
+        await FSM_Admin_generate_ai_woman_model.tattoo_desc.set()
+        await bot.send_message(
+            message.chat.id, 
+            f"🎉 Готово! Модель изменилась на {message.text}\n"
+            f"{MSG_FILL_TEXT_OR_CHOICE_VARIANT}",
+            reply_markup=kb_admin.kb_client_want_to_try_another_later_img
+        )
+        
+    elif (
+            message.text in
+            LIST_BACK_COMMANDS + LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS
+        ):
+        
+        await state.finish()
+        await message.reply(MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_main)
+
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+# TODO продвинутый режим, где будет выбор количества эпох и других параметров
+"""  
+    1) модель stabilityai/stable-diffusion-xl-base-1.0 дает неплохие результаты для начала
+    но слишком долго - 9-10 минут на изображение
+    https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0
+
+    2) модель stable-diffusion-v1-5 отрабатывает ужасно, но делает зато быстро
+
+    3) параметры степа и размера изображения банально не срабатывают 
+"""
+
+
 def register_handlers_admin_generate_img(dp: Dispatcher):
-    # --------------GENERATE TATTOO ITEM FROM AI---------------------------
+    # --------------GENERATE TATTOO ITEM FROM AI-------------------------
     dp.register_message_handler(
-        command_generage_woman_model_img, commands=["создать_изображение"]
+        command_generage_woman_model_img,
+        commands=["создать_изображение"]
     )
     dp.register_message_handler(
         command_generage_woman_model_img,
@@ -381,4 +518,9 @@ def register_handlers_admin_generate_img(dp: Dispatcher):
     dp.register_message_handler(
         change_ai_img_state, 
         state=FSM_Admin_generate_ai_woman_model.change_ai_img_state
+    )
+    
+    dp.register_message_handler(
+        get_new_ai_model,
+        state=FSM_Admin_change_ai_model.choice_model_name
     )

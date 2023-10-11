@@ -663,41 +663,15 @@ MSG_CLIENT_ALREADY_HAVE_OPEN_ORDER = (
     '❕ Посмотреть заказ можно в меню "Мои заказы 📃"'
 )
 
-MSG_EXAMPLE_TEXT_SOVIET_HOUSES = (
-    "((( one old multi-storey Soviet houses made of concrete, six floors, "
-    "flat roof, identical windows))), "
-    "plague, upscale, highly detailed digital art masterpiece, smooth cam, dramatic pearlescent soft light, "
-    "sharp focus, artgerm,octana rending, 4k"
-)
-
-MSG_EXAMPLE_TEXT_PORTRAIT = (
-    "beautiful cute front portrait of an elvish deity, long hair in motion, herbs and blue pastel colors, "
-    "flowers orange by victo ngai, kilian eng, dynamic lighting, digital art, art by james jean, takato yamamoto, inkpunk minimalism, floating medusa background"
-)
-
-MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME = (
-    "a long-range realistic photo of (full body woman:1.6) in (casual modern boho free clothes:1.4),"
-    " standing sideways, short haircut,"
-    " (high detailed photorealistic pale skin:1.5), slim body, 8k uhd, soft lighting, high quality, "
-    "<1:1.5><2000:1.0> --scale 11.0 "
-)  # --steps 50 --H 512 --W 512 --scale 11.0
-
-MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME_EASY = (
-    "full body woman with freckles in casual modern boho "
-    "free clothes in modern home in boho style"
-)
-
-MSG_EXAMPLE_TEXT_BACK_WOMAN_MODEL_IN_HOME_EASY = (
-    "woman's back in casual modern boho free clothes in " "modern home in boho style"
-)
 
 WOMAN_BOHO_STYLE_DESC = (
     "a long-range realistic photo of %s (open shoulders:1.6), (open belly:1.1), standing sideways, short haircut,"
     " (photorealistic pale skin:1.5), slim body, background is modern home in boho style, (high detailed skin:1.3), 8k uhd, "
-    " natural soft lighting, high quality, film grain,"
-    "<hypernetworkForProject_hypernetworkForProject:1.5><hypernet:dara_body_121_linear_normal_1-3200:1.0> --steps 50 --H 512 --W 512"
+    " natural soft lighting, high quality, film grain --steps 100 --H 512 --W 512"
     "  --scale 11.0 "
 )
+
+# <hypernetworkForProject_hypernetworkForProject:1.5><hypernet:dara_body_121_linear_normal_1-3200:1.0>
 
 MSG_ANSWER_ABOUT_RESULT_TATTOO_FROM_AI = (
     "📷 Вот фотография.\n "
