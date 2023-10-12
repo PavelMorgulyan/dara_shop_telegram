@@ -396,7 +396,9 @@ kb_number_tattoo_details = create_kb(
     list(number_tattoo_details.values()) + back_lst + cancel_lst
 )
 another_number_details = [str(i) for i in range(6, 35)]
+
 kb_another_number_details = create_kb(another_number_details + back_lst + cancel_lst)
+
 kb_start_dialog_sketch_order = create_kb(
     list(start_dialog_sketch_order.values()) + cancel_lst
 )

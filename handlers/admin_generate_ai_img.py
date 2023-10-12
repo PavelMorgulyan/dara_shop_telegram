@@ -35,6 +35,10 @@ class FSM_Admin_change_ai_model(StatesGroup):
     choice_model_name = State()
 
 
+class FSM_ai_expert_mode(StatesGroup):
+    choice_step_number= State()
+
+
 # /generate_ai_img # 'Cоздать тату эскиз'
 async def command_generage_woman_model_img(message: types.Message):
     if (
@@ -162,7 +166,7 @@ async def get_text_from_admin_to_generate_img_ai(
 
         await bot.send_message(
             message.from_id, 
-            "Примеры простых тестов:"
+            "📃 Примеры простых тестов:"
         )
         await bot.send_photo(
             message.from_id,
@@ -268,13 +272,14 @@ async def get_text_from_admin_to_generate_img_ai(
         await bot.send_message(message.chat.id, f"📃 Вы выбрали следующий текст:")
         await bot.send_message(message.chat.id, f"{text_to_ai}")
         await create_ai_img(message, state, text_to_ai)
-
+    
+    # --------------CHANGE_AI_MODEL--------------------------
     elif (
-        message.text == 
-            kb_admin.client_want_to_try_another_later_img[
+        message.text == kb_admin.client_want_to_try_another_later_img[
                 "change_model"
             ]
     ): 
+        
         await state.finish()
         # -> get_new_ai_model
         await FSM_Admin_change_ai_model.choice_model_name.set()
@@ -298,7 +303,25 @@ async def get_text_from_admin_to_generate_img_ai(
             reply_markup=kb
         )
         
-    
+    # --------------EXPERT_MODE--------------------------
+    elif (
+        message.text == kb_admin.client_want_to_try_another_later_img[
+                "expert_mode"
+            ]
+    ):
+        await state.finish()
+        
+        # -> expert_mode_generate_ai_img
+        await FSM_ai_expert_mode.choice_step_number.set()
+        
+        await bot.send_message(
+            message.chat.id,
+            f"{msg}\n"
+            f"❔ Сколько стэпов?",
+            reply_markup=kb_client.kb_another_number_details
+        )
+        
+        
     else:
         # -> change_ai_img_state
         await FSM_Admin_generate_ai_woman_model.next()
@@ -441,7 +464,7 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
-# --------------CHANGE AI MODEL--------------------------
+# --------------CHANGE_AI_MODEL--------------------------
 async def get_new_ai_model(message: types.Message, state: FSMContext):
     
     tmp_dct = {}    
@@ -476,17 +499,23 @@ async def get_new_ai_model(message: types.Message, state: FSMContext):
             reply_markup=kb_admin.kb_client_want_to_try_another_later_img
         )
         
-    elif (
-            message.text in
-            LIST_BACK_COMMANDS + LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS
-        ):
+    elif (message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS):
         
         await state.finish()
         await message.reply(MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_main)
-
+        
+    elif message.text in LIST_BACK_COMMANDS:
+        await state.finish()
+        # -> command_generage_woman_model_img
+        await FSM_Admin_generate_ai_woman_model.tattoo_desc.set()
+        await bot.send_message(
+            message.chat.id, 
+            f"{MSG_FILL_TEXT_OR_CHOICE_VARIANT}",
+            reply_markup=kb_admin.kb_client_want_to_try_another_later_img
+        )
     else:
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
-
+    
 
 # TODO продвинутый режим, где будет выбор количества эпох и других параметров
 """  
@@ -498,6 +527,30 @@ async def get_new_ai_model(message: types.Message, state: FSMContext):
 
     3) параметры степа и размера изображения банально не срабатывают 
 """
+
+# Экспертный режим
+async def get_steps_expert_mode_generate_ai_img(
+    message: types.Message, 
+    state: FSMContext
+    ):
+    if message.text in kb_client.another_number_details:
+        async with state.proxy() as data:
+            data['step_n'] = message.text
+        
+    elif message.text in LIST_BACK_COMMANDS:
+        await state.finish()
+        # -> command_generage_woman_model_img
+        await FSM_Admin_generate_ai_woman_model.tattoo_desc.set()
+        await bot.send_message(
+            message.chat.id, 
+            f"{MSG_FILL_TEXT_OR_CHOICE_VARIANT}",
+            reply_markup=kb_admin.kb_client_want_to_try_another_later_img
+        )
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+
 
 
 def register_handlers_admin_generate_img(dp: Dispatcher):
@@ -522,5 +575,10 @@ def register_handlers_admin_generate_img(dp: Dispatcher):
     
     dp.register_message_handler(
         get_new_ai_model,
+        state=FSM_Admin_change_ai_model.choice_model_name
+    )
+
+    dp.register_message_handler(
+        expert_mode_generate_ai_img,
         state=FSM_Admin_change_ai_model.choice_model_name
     )
