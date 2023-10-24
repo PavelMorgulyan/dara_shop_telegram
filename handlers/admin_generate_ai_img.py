@@ -291,8 +291,8 @@ async def get_text_from_admin_to_generate_img_ai(
         kb = ReplyKeyboardMarkup(resize_keyboard=True)
         for keys, model in models.items():
             if keys != 'work':
-                msg += f"- {model}\n"
-                kb.add(KeyboardButton(model))
+                msg += f"- {model['path']}\n"
+                kb.add(KeyboardButton(model['path']))
                 
         kb.add(kb_client.back_btn).add(kb_client.cancel_btn)
 
@@ -306,11 +306,28 @@ async def get_text_from_admin_to_generate_img_ai(
     # --------------EXPERT_MODE--------------------------
     elif (
         message.text == kb_admin.client_want_to_try_another_later_img[
-                "expert_mode"
-            ]
+            "expert_mode"
+        ]
     ):
+        '''
+            Лучшие параметры фото были такими:
+            -- Sampling method: DPM++2M SDE Karras
+            -- Upscaler SwinIR 4x
+            -- Hires stes 1
+            -- Sampling steps 20
+            -- Restore faces
+            -- CFG Scale 9
+            -- WxH - 704
+            -- Denoising strenght 0.7
+            -- Seed 2262561837
+            -- Negative prompt: (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.3), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation
+            
+        Возможно, лучше всего действовать через АПИ https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/API
+        '''
         await state.finish()
-        
+        msg = f"📃 Список доступных моделей:\n\n"
+        with open(f"files\models_configuration.json") as f:
+            models = json.load(f)
         # -> expert_mode_generate_ai_img
         await FSM_ai_expert_mode.choice_step_number.set()
         
@@ -320,7 +337,6 @@ async def get_text_from_admin_to_generate_img_ai(
             f"❔ Сколько стэпов?",
             reply_markup=kb_client.kb_another_number_details
         )
-        
         
     else:
         # -> change_ai_img_state
@@ -475,16 +491,18 @@ async def get_new_ai_model(message: types.Message, state: FSMContext):
         models = json.load(f)
         
     for model in models.values():
-        models_lst.append(model)
+        models_lst.append(model['path'])
     
     if message.text in models_lst:
         for keys, model in models.items():
-            if keys == 'work':
-                tmp_dct[keys] = message.text
-                tmp_dct[model] = models[keys]
+            n_steps = models[keys]['n_steps']
+            
+            if keys == 'work':    
+                tmp_dct[keys] = {"path":message.text,"n_steps":n_steps}
+                tmp_dct[model['path']] = models[keys]['path']
                 
             else:
-                tmp_dct[keys] = model
+                tmp_dct[keys] = {"path":models[keys]['path'],"n_steps":n_steps}
                 
         with open(config_file, "w", encoding="cp1251") as f:
             json.dump(tmp_dct, f, indent=2, ensure_ascii=True)
@@ -500,7 +518,6 @@ async def get_new_ai_model(message: types.Message, state: FSMContext):
         )
         
     elif (message.text in LIST_BACK_TO_HOME + LIST_CANCEL_COMMANDS):
-        
         await state.finish()
         await message.reply(MSG_BACK_TO_HOME, reply_markup=kb_admin.kb_main)
         
@@ -528,7 +545,20 @@ async def get_new_ai_model(message: types.Message, state: FSMContext):
     3) параметры степа и размера изображения банально не срабатывают 
 """
 
-# Экспертный режим
+"""
+    Для экспертного режима выбираем следующие параметры:
+        1) n_steps 
+        2) high_noise_frac 
+        3) output_type - обычно "latent"
+        
+    Параметры внутри from_pretrained:
+        1) text_encoder_2=base.text_encoder_2
+        2) vae=base.vae
+        3) torch_dtype=torch.float16
+        4) use_safetensors=True
+        5) variant="fp16"
+"""
+# Экспертный режим, начало, вопрос о количестве степов
 async def get_steps_expert_mode_generate_ai_img(
     message: types.Message, 
     state: FSMContext
@@ -536,6 +566,12 @@ async def get_steps_expert_mode_generate_ai_img(
     if message.text in kb_client.another_number_details:
         async with state.proxy() as data:
             data['step_n'] = message.text
+        
+        await bot.send_message(
+            message.chat.id, 
+            f"Какое значение у high_noise_frac? Введи дробное значение от 0.0 до 1.0",
+            reply_markup=kb_client.kb_cancel
+        )
         
     elif message.text in LIST_BACK_COMMANDS:
         await state.finish()
@@ -550,6 +586,25 @@ async def get_steps_expert_mode_generate_ai_img(
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
+async def get_noice_frac(message: types.Message, 
+    state: FSMContext
+    ):
+    if message.text.isdigit():
+        async with state.proxy() as data:
+            data['high_noise_frac'] = message.text
+    
+    
+    elif message.text in LIST_BACK_COMMANDS:
+        await state.finish()
+        # -> command_generage_woman_model_img
+        await FSM_Admin_generate_ai_woman_model.tattoo_desc.set()
+        await bot.send_message(
+            message.chat.id, 
+            f"{MSG_FILL_TEXT_OR_CHOICE_VARIANT}",
+            reply_markup=kb_admin.kb_client_want_to_try_another_later_img
+        )
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 
@@ -579,6 +634,6 @@ def register_handlers_admin_generate_img(dp: Dispatcher):
     )
 
     dp.register_message_handler(
-        expert_mode_generate_ai_img,
+        get_steps_expert_mode_generate_ai_img,
         state=FSM_Admin_change_ai_model.choice_model_name
     )
