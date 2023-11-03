@@ -24,7 +24,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, ScalarResult
 from db.sqlalchemy_base.db_classes import *
 import json
-
+import requests
+import io
+import base64
+from PIL import Image
+import numpy as np
 
 # --------------------------------GENERATE TATTOO ITEM FROM AI---------------------------
 class FSM_Admin_generate_ai_woman_model(StatesGroup):
@@ -36,7 +40,14 @@ class FSM_Admin_change_ai_model(StatesGroup):
 
 
 class FSM_ai_expert_mode(StatesGroup):
-    choice_step_number= State()
+    choice_step_number = State()
+    get_seed = State()
+    get_batch = State()
+    get_cfg_scale = State()
+    get_ai_img_size = State()
+    get_restore_faces = State()
+    get_denoising_strength = State()
+    get_sampler_name = State()
 
 
 # /generate_ai_img # 'Cоздать тату эскиз'
@@ -69,55 +80,82 @@ async def create_ai_img(message: types.Message, state: FSMContext, prompt: str):
     
     model_id = data['work']
     
-    if model_id == "stabilityai/stable-diffusion-xl-base-1.0":
+    if model_id['path'] == "stabilityai/stable-diffusion-xl-base-1.0":
         pipe = DiffusionPipeline.from_pretrained(
             model_id, 
             torch_dtype=torch.float16, 
             use_safetensors=True, 
             variant="fp16"
         )
+        
+    elif model_id['path'] == 'sdapi':
+        with open(f"files\sd_api_options.json", encoding="cp1251") as f:
+            payload = json.load(f)
+            
+        payload['prompt'] = prompt
+        
+        url = 'http://127.0.0.1:7860'
+        
+        r = requests.post(
+            url=f'{url}/sdapi/v1/txt2img',
+            json=payload
+        ).json()
+        
     else:
         pipe = StableDiffusionPipeline.from_pretrained(
             pretrained_model_name_or_path=model_id, 
             torch_dtype=torch.float16
         )
-    # pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
-    pipe = pipe.to("cuda")
-
-    image = pipe(prompt=prompt).images[0]
-    img_name = await generate_random_order_number(ORDER_CODE_LENTH + 3)
-
-    # path = f"./img/tattoo_ideas/{message.from_user.username}/{session}/{image_name}.png"
-
-    path = f"files\\ai_img\\{str(img_name)}.png"
-    image.save(path)
-    
-    ai_img = await bot.send_photo(message.chat.id, open(path, "rb"))
-    
-    id = await generate_random_order_number(CODE_LENTH)
-    async with state.proxy() as data:
-        data["id"] = id
-        data["text"] = prompt
-        data["last_img_photo_from_ai"] = ai_img["photo"][0]["file_id"]
-        data["state"] = "неудачный"
-
-    with Session(engine) as session:
-        new_falling_img = TattooAIImage(
-            id=id,
-            description=prompt,
-            photo=ai_img["photo"][0]["file_id"],
-            status="неудачный",
-            author=message.from_user.username,
+        
+    if 'error' in r.keys():
+        await bot.send_message(
+            message.chat.id,
+            r['error']
         )
-        session.add(new_falling_img)
-        session.commit()
-    # "Да, отличное изображение, хочу такой эскиз ☘️",
-    # "Нет, хочу другое изображение 😓"
-    await bot.send_message(
-        message.chat.id,
-        MSG_ANSWER_ABOUT_RESULT_TATTOO_FROM_AI,
-        reply_markup=kb_client.kb_correct_photo_from_ai_or_get_another,
-    )
+        
+    else:
+        img_name = await generate_random_order_number(ORDER_CODE_LENTH + 3)
+        id = await generate_random_order_number(CODE_LENTH)
+        
+        msg = ''
+        for k, v in r['parameters'].items():
+            msg += f'{k}:{v}\n'
+        
+        if model_id['path'] == 'sdapi':
+            image = Image.open(io.BytesIO(base64.b64decode(r['images'][0])))
+        else:
+            # pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
+            pipe = pipe.to("cuda")
+            image = pipe(prompt=prompt).images[0]
+        
+        path = f"files\\ai_img\\{str(img_name)}.png"
+        image.save(path)
+        
+        ai_img = await bot.send_photo(message.chat.id, open(path, "rb"))
+        
+        async with state.proxy() as data:
+            data["id"] = id
+            data["text"] = prompt
+            data["last_img_photo_from_ai"] = ai_img["photo"][0]["file_id"]
+            data["state"] = "неудачный"
+
+        with Session(engine) as session:
+            new_falling_img = TattooAIImage(
+                id=id,
+                description=prompt,
+                photo=ai_img["photo"][0]["file_id"],
+                status="неудачный",
+                author=message.from_user.username,
+            )
+            session.add(new_falling_img)
+            session.commit()
+        # "Да, отличное изображение ☘️",
+        # "Нет, хочу другое изображение 😓"
+        await bot.send_message(
+            message.chat.id,
+            MSG_ANSWER_ABOUT_RESULT_TATTOO_FROM_AI,
+            reply_markup=kb_client.kb_correct_photo_from_ai_or_get_another,
+        )
 
 
 async def get_text_from_admin_to_generate_img_ai(
@@ -157,11 +195,11 @@ async def get_text_from_admin_to_generate_img_ai(
                 MSG_BACK_TO_HOME,
                 reply_markup=kb_admin.kb_main
             )
-
+    # "Хочу примеры текста изображения"
     elif message.text == kb_admin.client_want_to_try_another_later_img[
         "client_want_to_get_example_text_for_ai_img"
     ]:
-        # "Хочу примеры текста изображения"
+        
         await bot.send_message(message.from_id, f"{MSG_TEXT_EXAMPLES_LINKS}")
 
         await bot.send_message(
@@ -170,33 +208,33 @@ async def get_text_from_admin_to_generate_img_ai(
         )
         await bot.send_photo(
             message.from_id,
-            open("img/tattoo_ideas/00017-881277398.png", "rb"),
+            open("files\\ai_img\\womam_examples\\3.jpg", "rb"),
             examples_imgs["MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME_EASY"],
         )
-        time(3)
+        time.sleep(3)
         await bot.send_photo(
             message.from_id,
-            open("img/tattoo_ideas/00021-1526834311.png", "rb"),
+            open("files\\ai_img\\womam_examples\\2.jpg", "rb"),
             examples_imgs["MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME_EASY"],
         )
 
         await bot.send_photo(
             message.from_id,
-            open("img/tattoo_ideas/00036-3411177118", "rb"),
+            open("files\\ai_img\\womam_examples\\1.jpg", "rb"),
             examples_imgs["MSG_EXAMPLE_TEXT_BACK_WOMAN_MODEL_IN_HOME_EASY"],
         )
 
-        time(3)
+        time.sleep(3)
         await bot.send_message(
             message.from_id,
             MSG_FILL_TEXT_OR_CHOICE_VARIANT
         )
-
+    # 'Сгенерируй мне модель женщины'
     elif (
         message.text == kb_admin.client_want_to_try_another_later_img[
             "admin_want_to_generate_img_from_ai_woman"
         ]
-    ):  # 'Сгенерируй мне модель женщины'
+    ):  
         text_to_ai = examples_imgs["MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME"]
         await FSM_Admin_generate_ai_woman_model.next()
         await create_ai_img(message, state, text_to_ai)
@@ -209,23 +247,23 @@ async def get_text_from_admin_to_generate_img_ai(
         await bot.send_message(
             message.from_id, f"{MSG_START_INSTRUCTION_OF_GENERATING_AI_IMGS}"
         )
-        time(5)
+        time.sleep(3)
         await bot.send_message(
             message.from_id, f"{MSG_GET_DESCRIPTION_WOMAN_MODEL_FROM_ADMIN_CONCEPTS}"
         )
-        time(5)
+        time.sleep(3)
         await bot.send_message(message.from_id, f"{MSG_STYLES_CHROMATIC_PALETTES}")
-        time(5)
+        time.sleep(3)
         await bot.send_message(message.from_id, f"{MSG_STYLES_MONOCHROMATIC_PALETTES}")
-        time(3)
+        time.sleep(3)
         await bot.send_message(message.from_id, f"{MSG_STYLES_CONTRAST}")
-        time(3)
+        time.sleep(3)
         await bot.send_message(message.from_id, f"{MSG_MOTION_PICTURE_PROCESS}")
-        time(3)
+        time.sleep(3)
         await bot.send_message(
             message.from_id, f"{MSG_ADD_SYMBOLS_FOR_GETTING_STRONGER_WORD}"
         )
-        time(3)
+        time.sleep(3)
         await bot.send_message(message.from_id, f"{MSG_FILL_TEXT_OR_CHOICE_VARIANT}")
 
     elif (
@@ -276,8 +314,8 @@ async def get_text_from_admin_to_generate_img_ai(
     # --------------CHANGE_AI_MODEL--------------------------
     elif (
         message.text == kb_admin.client_want_to_try_another_later_img[
-                "change_model"
-            ]
+            "change_model"
+        ]
     ): 
         
         await state.finish()
@@ -313,7 +351,7 @@ async def get_text_from_admin_to_generate_img_ai(
             Лучшие параметры фото были такими:
             -- Sampling method: DPM++2M SDE Karras
             -- Upscaler SwinIR 4x
-            -- Hires stes 1
+            -- Hires steps 1
             -- Sampling steps 20
             -- Restore faces
             -- CFG Scale 9
@@ -322,27 +360,26 @@ async def get_text_from_admin_to_generate_img_ai(
             -- Seed 2262561837
             -- Negative prompt: (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.3), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation
             
-        Возможно, лучше всего действовать через АПИ https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/API
+        Возможно, лучше всего действовать через АПИ 
+        https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/API
         '''
         await state.finish()
-        msg = f"📃 Список доступных моделей:\n\n"
-        with open(f"files\models_configuration.json") as f:
-            models = json.load(f)
-        # -> expert_mode_generate_ai_img
+        # -> get_steps_expert_mode_generate_ai_img
         await FSM_ai_expert_mode.choice_step_number.set()
-        
+        kb = ReplyKeyboardMarkup(resize_keyboard=True)
+        for i in range(100, 2000, 100):
+            kb.add(KeyboardButton(i))
+        kb.add(kb_admin.back_btn).add(kb_admin.cancel_btn)
         await bot.send_message(
             message.chat.id,
-            f"{msg}\n"
-            f"❔ Сколько стэпов?",
-            reply_markup=kb_client.kb_another_number_details
+            f"❔ Сколько стэпов? Обычно от 200 до 100",
+            reply_markup=kb
         )
         
     else:
         # -> change_ai_img_state
         await FSM_Admin_generate_ai_woman_model.next()
-        text_to_ai = """ WOMAN_BOHO_STYLE_DESC % (f"({message.text}:1.6)") """
-        # Создание модели девушки из этого описания!
+        # Создание модели девушки из этого описания
         await create_ai_img(message, state, message.text)
 
 
@@ -393,7 +430,7 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
         else:
             await FSM_Admin_generate_ai_woman_model.previous()
             await message.reply(
-                f"{MSG_CLIENT_GO_BACK}\n\n{MSG_FILL_TEXT_OR_CHOICE_VARIANT}",
+                f"{MSG_CLIENT_GO_BACK}{MSG_FILL_TEXT_OR_CHOICE_VARIANT}",
                 reply_markup=kb_admin.kb_client_want_to_try_another_later_img,
             )
 
@@ -480,7 +517,15 @@ async def change_ai_img_state(message: types.Message, state: FSMContext):
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
-# --------------CHANGE_AI_MODEL--------------------------
+""" # -----------CHANGE_PARAM------------
+
+async def command_change_ai_parameters(
+    message: types.Message, 
+    state: FSMContext
+    ):
+    if message.text == 'Изменить модель' """
+
+# --------------EXPERT_MODE--------------------------
 async def get_new_ai_model(message: types.Message, state: FSMContext):
     
     tmp_dct = {}    
@@ -498,11 +543,11 @@ async def get_new_ai_model(message: types.Message, state: FSMContext):
             n_steps = models[keys]['n_steps']
             
             if keys == 'work':    
-                tmp_dct[keys] = {"path":message.text,"n_steps":n_steps}
+                tmp_dct[keys] = {"path":message.text}
                 tmp_dct[model['path']] = models[keys]['path']
                 
             else:
-                tmp_dct[keys] = {"path":models[keys]['path'],"n_steps":n_steps}
+                tmp_dct[keys] = {"path":models[keys]['path']}
                 
         with open(config_file, "w", encoding="cp1251") as f:
             json.dump(tmp_dct, f, indent=2, ensure_ascii=True)
@@ -535,7 +580,8 @@ async def get_new_ai_model(message: types.Message, state: FSMContext):
     
 
 # TODO продвинутый режим, где будет выбор количества эпох и других параметров
-"""  
+""" 
+    Summary:
     1) модель stabilityai/stable-diffusion-xl-base-1.0 дает неплохие результаты для начала
     но слишком долго - 9-10 минут на изображение
     https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0
@@ -558,42 +604,97 @@ async def get_new_ai_model(message: types.Message, state: FSMContext):
         4) use_safetensors=True
         5) variant="fp16"
 """
+
+"""
+    Json для /stapi/v1/txt2img
+    
+    {
+        "prompt": "",
+        "negative_prompt": "",
+        "styles": [
+            "string"
+        ],
+        "seed": -1,
+        "subseed": -1,
+        "subseed_strength": 0,
+        "seed_resize_from_h": -1,
+        "seed_resize_from_w": -1,
+        "sampler_name": "string",
+        "batch_size": 1,
+        "n_iter": 1,
+        "steps": 50,
+        "cfg_scale": 7,
+        "width": 512,
+        "height": 512,
+        "restore_faces": true,
+        "tiling": true,
+        "do_not_save_samples": false,
+        "do_not_save_grid": false,
+        "eta": 0,
+        "denoising_strength": 0,
+        "s_min_uncond": 0,
+        "s_churn": 0,
+        "s_tmax": 0,
+        "s_tmin": 0,
+        "s_noise": 0,
+        "override_settings": {},
+        "override_settings_restore_afterwards": true,
+        "refiner_checkpoint": "string",
+        "refiner_switch_at": 0,
+        "disable_extra_networks": false,
+        "comments": {},
+        "enable_hr": false,
+        "firstphase_width": 0,
+        "firstphase_height": 0,
+        "hr_scale": 2,
+        "hr_upscaler": "string",
+        "hr_second_pass_steps": 0,
+        "hr_resize_x": 0,
+        "hr_resize_y": 0,
+        "hr_checkpoint_name": "string",
+        "hr_sampler_name": "string",
+        "hr_prompt": "",
+        "hr_negative_prompt": "",
+        "sampler_index": "Euler",
+        "script_name": "string",
+        "script_args": [],
+        "send_images": true,
+        "save_images": false,
+        "alwayson_scripts": {}
+        }
+"""
+
+
 # Экспертный режим, начало, вопрос о количестве степов
 async def get_steps_expert_mode_generate_ai_img(
     message: types.Message, 
     state: FSMContext
     ):
-    if message.text in kb_client.another_number_details:
-        async with state.proxy() as data:
-            data['step_n'] = message.text
-        
-        await bot.send_message(
-            message.chat.id, 
-            f"Какое значение у high_noise_frac? Введи дробное значение от 0.0 до 1.0",
-            reply_markup=kb_client.kb_cancel
-        )
-        
-    elif message.text in LIST_BACK_COMMANDS:
-        await state.finish()
-        # -> command_generage_woman_model_img
-        await FSM_Admin_generate_ai_woman_model.tattoo_desc.set()
-        await bot.send_message(
-            message.chat.id, 
-            f"{MSG_FILL_TEXT_OR_CHOICE_VARIANT}",
-            reply_markup=kb_admin.kb_client_want_to_try_another_later_img
-        )
-    else:
-        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
-
-
-async def get_noice_frac(message: types.Message, 
-    state: FSMContext
-    ):
     if message.text.isdigit():
         async with state.proxy() as data:
-            data['high_noise_frac'] = message.text
-    
-    
+            data['prompt'] = ''
+            data['negative_prompt'] = "(deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, (mutated hands and fingers:1.3), disconnected limbs, mutation, mutated, ugly, disgusting, blurry, amputation"
+            data["seed"]= -1
+            data["subseed"]= -1
+            data["subseed_strength"]= 0
+            data["seed_resize_from_h"]= -1
+            data["seed_resize_from_w"]= -1
+            data["sampler_name"]= ""
+            data["batch_size"]= 1
+            data["n_iter"] = 1
+            data['steps'] = int(message.text)
+        
+        kb = ReplyKeyboardMarkup(resize_keyboard=True)
+        kb.add(KeyboardButton("-1"))
+        kb.add(kb_admin.back_btn).add(kb_admin.cancel_btn)
+        
+        await bot.send_message(
+            message.chat.id, 
+            f"❔ Какое значение у seed? Введи шестизначное значение или -1 (Случайное)",
+            reply_markup=kb
+        )
+        
+        await FSM_ai_expert_mode.next() # get_seed_number
     elif message.text in LIST_BACK_COMMANDS:
         await state.finish()
         # -> command_generage_woman_model_img
@@ -606,6 +707,215 @@ async def get_noice_frac(message: types.Message,
     else:
         await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
+
+async def get_seed_number(
+    message: types.Message, 
+    state: FSMContext
+    ):
+    
+    if message.text.isdigit() or message.text in ['-1', "Случайное"]:
+        async with state.proxy() as data:
+            if message.text == 'Случайное':
+                data['seed'] = int(await generate_random_order_number(6))
+            else:
+                data['seed'] = int(message.text)
+            
+        kb = ReplyKeyboardMarkup(resize_keyboard=True)
+        for i in range(1, 9):
+            kb.add(KeyboardButton(str(i)))
+        kb.add(kb_admin.back_btn).add(kb_admin.cancel_btn)
+        
+        await bot.send_message(
+            message.chat.id, 
+            f"❔ Какое значение у батча? Введи значение от 1 до 8",
+            reply_markup=kb
+        )
+        
+        await FSM_ai_expert_mode.next() # -> get_batch_size
+    
+    elif message.text in LIST_BACK_COMMANDS:
+        # -> get_steps_expert_mode_generate_ai_img
+        await FSM_ai_expert_mode.previous()
+        kb = ReplyKeyboardMarkup(resize_keyboard=True)
+        for i in range(100, 2000, 100):
+            kb.add(KeyboardButton(i))
+        kb.add(kb_admin.back_btn).add(kb_admin.cancel_btn)
+        await bot.send_message(
+            message.chat.id,
+            f"❔ Сколько стэпов? Обычно от 200 до 100",
+            reply_markup=kb
+        )
+        
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def get_batch_size(
+    message: types.Message, 
+    state: FSMContext
+    ):
+    
+    if message.text.isdigit():
+        async with state.proxy() as data:
+            data['batch_size'] = int(message.text)
+            print(f"data['batch_size'] = {message.text}")
+        await bot.send_message(
+            message.chat.id, 
+            f"❔ Какое значение у cfg scale? Введи значение от 6 до 20. В среднем - диапазон от 7 до 9",
+            reply_markup=kb_client.kb_another_number_details
+        )
+        
+        await FSM_ai_expert_mode.next() # -> get_cfg_scale
+    
+    elif message.text in LIST_BACK_COMMANDS:
+        # -> 
+        await FSM_ai_expert_mode.previous()
+    
+        
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def get_cfg_scale(
+    message: types.Message, 
+    state: FSMContext
+    ):
+    print(await state.get_state())
+    if message.text.isdigit():
+        async with state.proxy() as data:
+            data['cfg_scale'] = int(message.text)
+        await bot.send_message(
+            message.chat.id, 
+            f"❔ Какой размер картинки? Введи значение от 512х512 до 832x832",
+            reply_markup=kb_admin.kb_ai_img_size
+        )
+        # get_ai_img_size
+        await FSM_ai_expert_mode.next()
+    
+    elif message.text in LIST_BACK_COMMANDS:
+        # -> get_seed_number
+        await FSM_ai_expert_mode.previous()
+    
+        await bot.send_message(
+            message.chat.id, 
+            f"Какое значение у seed? Введи шестизначное значение или -1",
+            reply_markup=kb_client.kb_back_cancel
+        )
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def get_ai_img_size(
+    message: types.Message, 
+    state: FSMContext
+    ):
+    if message.text in kb_admin.ai_img_size:
+        async with state.proxy() as data:
+            data['width'] = int(message.text.split('x')[0])
+            data['height'] = int(message.text.split('x')[0])
+            
+        await bot.send_message(
+            message.chat.id, 
+            f"Выставляем восстановление лиц? ",
+            reply_markup=kb_client.kb_yes_no
+        )
+        # get_restore_faces
+        await FSM_ai_expert_mode.next()
+    
+    elif message.text in LIST_BACK_COMMANDS:
+        # -> get_batch_size
+        await FSM_ai_expert_mode.previous()
+    
+        await bot.send_message(
+            message.chat.id, 
+            f"❔ Какое значение у cfg scale? Введи значение от 6 до 20. В среднем - диапазон от 7 до 9",
+            reply_markup=kb_client.kb_another_number_details
+        )
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def get_restore_faces(
+    message: types.Message, 
+    state: FSMContext
+    ):
+    if message.text == kb_client.yes_str:
+        async with state.proxy() as data:
+            data['restore_faces'] = True
+            
+        kb= ReplyKeyboardMarkup(resize_keyboard=True)
+        for i in np.arange(0.0, 1.0, 0.1):
+            kb.add(KeyboardButton(i))
+        kb.add(kb_admin.back_btn).add(kb_admin.cancel_btn)
+        
+        await bot.send_message(
+            message.chat.id, 
+            f"❔ Какое значение у шума (denoising_strength)? Введи от 0.0 до 1.0. Обычно 0.7",
+            reply_markup=kb
+        )
+        await FSM_ai_expert_mode.next() # get_denoising_strength
+    
+    elif message.text in LIST_BACK_COMMANDS:
+        # -> 
+        await FSM_ai_expert_mode.previous()
+    
+        
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def get_denoising_strength(
+    message: types.Message, 
+    state: FSMContext
+    ):
+    if float(message.text) in [i for i in np.arange(0.0, 1.0, 0.1)]:
+        async with state.proxy() as data:
+            data['denoising_strength'] = float(message.text)
+        
+        await bot.send_message(
+            message.chat.id, 
+            f"❔ Какое значение у sampler-а? Выбери сэмплер из списка",
+            reply_markup=kb_admin.kb_sampler_names
+        )
+        await FSM_ai_expert_mode.next() # get_sampler_name
+        
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
+
+
+async def get_sampler_name(
+    message: types.Message, 
+    state: FSMContext
+    ):
+    if message.text in kb_admin.sampler_names:
+        async with state.proxy() as data:
+            data['sampler_name'] = message.text
+            payload_from_data = dict(data)
+            
+        option_file = "files\sd_api_options.json"
+        with open(option_file, encoding="cp1251") as f:
+            option = json.load(f)
+        
+        for keys, value in payload_from_data.items():
+            option[keys] = value
+        
+        with open(option_file, "w", encoding="cp1251") as f:
+            json.dump(option, f, indent=2, ensure_ascii=True)
+            
+        # -> command_generage_woman_model_img
+        await FSM_Admin_generate_ai_woman_model.tattoo_desc.set()
+        await bot.send_message(
+            message.chat.id, 
+            (
+                f"🎉 Готово! Параметры генерации изменились на \n" +
+                "".join([f'{k}:{v}\n' for k, v in dict(data).items()]) + 
+                f"{MSG_FILL_TEXT_OR_CHOICE_VARIANT}"
+            ),
+            reply_markup=kb_admin.kb_client_want_to_try_another_later_img
+        )
+        
+    else:
+        await message.reply(MSG_NOT_CORRECT_INFO_LETS_CHOICE_FROM_LIST)
 
 
 def register_handlers_admin_generate_img(dp: Dispatcher):
@@ -635,5 +945,27 @@ def register_handlers_admin_generate_img(dp: Dispatcher):
 
     dp.register_message_handler(
         get_steps_expert_mode_generate_ai_img,
-        state=FSM_Admin_change_ai_model.choice_model_name
+        state=FSM_ai_expert_mode.choice_step_number
+    )
+    dp.register_message_handler(get_seed_number,
+        state=FSM_ai_expert_mode.get_seed
+    )
+    
+    dp.register_message_handler(get_batch_size,
+        state=FSM_ai_expert_mode.get_batch
+    )
+    dp.register_message_handler(get_cfg_scale,
+        state=FSM_ai_expert_mode.get_cfg_scale
+    )
+    dp.register_message_handler(get_ai_img_size,
+        state=FSM_ai_expert_mode.get_ai_img_size
+    )
+    dp.register_message_handler(get_restore_faces,
+        state=FSM_ai_expert_mode.get_restore_faces
+    )
+    dp.register_message_handler(get_denoising_strength,
+        state=FSM_ai_expert_mode.get_denoising_strength
+    )
+    dp.register_message_handler(get_sampler_name,
+        state=FSM_ai_expert_mode.get_sampler_name
     )

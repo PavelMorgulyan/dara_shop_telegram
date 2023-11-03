@@ -124,6 +124,15 @@ tattoo_items_commands = [
     "изменить тату",
 ]
 
+ai_img_size = [
+    '512x512',
+    '576x576',
+    '640x640',
+    '704x704',
+    '768x768',
+    '832x832'
+]
+
 giftbox_order_commands = [
     "посмотреть гифтбокс заказы",
     "посмотреть гифтбокс заказ",
@@ -212,6 +221,35 @@ price_lst_types = {
 mode_types = [
     "ПК",
     "Мобильный"
+]
+
+sampler_names = [
+    'Euler a',
+    'Euler',
+    'LMS',
+    'Heun',
+    'DPM2',
+    'DPM2 a',
+    'DPM++ 2S a',
+    'DPM++ 2M',
+    'DPM++ SDE',
+    'DPM++ 2M SDE',
+    'DPM++ 2M SDE Heun',
+    'DPM++ 2M SDE Heun Karras',
+    'DPM++ 2M SDE Heun Exponential',
+    'DPM++ 3M SDE',
+    'DPM++ 3M SDE Karras',
+    'DPM++ 3M SDE Exponential',
+    'DPM fast',
+    'DPM adaptive',
+    'LMS Karras',
+    'DPM2 Karras'
+    'DPM2 a Karras',
+    'DPM++ 2S a Karras',
+    'Restart',
+    'DDIM',
+    'PLMS',
+    'UniPC',
 ]
 
 tattoo_order_columns_to_change_lst = {
@@ -537,6 +575,8 @@ kb_set_another_price_from_line = InlineKeyboardMarkup().add(
     InlineKeyboardButton(get_price_from_line_str, callback_data='get_price_from_line')
 )
 
+kb_ai_img_size = create_kb(ai_img_size + back_lst)
+
 kb_another_price_full = create_kb_with_interval(another_price_full_lst, 5).add(
     back_btn)    
 
@@ -551,6 +591,7 @@ kb_new_tattoo_item_state = create_kb(
 )
 
 kb_type_to_view_data = create_kb(list(type_to_view_data.values()) + LIST_BACK_TO_HOME)
+kb_sampler_names = create_kb(sampler_names + LIST_BACK_TO_HOME)
 
 kb_candle_item_columns = create_kb(list(candle_item_columns.values()) + LIST_BACK_TO_HOME)
 kb_correction_commands = create_kb(correction_commands + LIST_BACK_TO_HOME)

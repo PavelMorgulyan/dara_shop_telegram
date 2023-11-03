@@ -251,7 +251,7 @@ choice_get_photo_for_place_tattoo = {
 
 start_dialog_sketch_order = {"client_want_to_see_galery": "Посмотреть галерею 📃"}
 
-want_another_ai_img = {"want_another_ai_img": "Хочу еще раз попробовать создать эскиз"}
+want_another_ai_img = {"want_another_ai_img": "Хочу еще раз попробовать создать изображение"}
 
 phone_number = {
     "client_send_contact": "Отправить свой телефон ☎️",
@@ -290,7 +290,7 @@ kb_back_cancel = ReplyKeyboardMarkup(resize_keyboard=True).add(back_btn).add(can
 
 correct_photo_from_ai_or_get_another = {
     "correct_photo_from_ai": 
-        "Да, отличное изображение, хочу такой эскиз ☘️",
+        "Да, отличное изображение ☘️",
     "client_want_to_change_this_text": 
         "Хочу поменять данный текст и получить другое изображение 🛠",
     "client_want_to_try_again": 

@@ -460,7 +460,7 @@ async def load_tattoo_order_photo(message: types.Message, state: FSMContext):
                 reply_markup=kb_client.kb_back_cancel,
             )
 
-        # Да, отличное изображение, хочу такой эскиз ☘️
+        # Да, отличное изображение ☘️
         elif (
             message.text
             == kb_client.correct_photo_from_ai_or_get_another["correct_photo_from_ai"]
