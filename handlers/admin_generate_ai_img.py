@@ -208,19 +208,19 @@ async def get_text_from_admin_to_generate_img_ai(
         )
         await bot.send_photo(
             message.from_id,
-            open("files\\ai_img\\womam_examples\\3.jpg", "rb"),
+            open("files\\ai_img\\woman_examples\\3.jpg", "rb"),
             examples_imgs["MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME_EASY"],
         )
         time.sleep(3)
         await bot.send_photo(
             message.from_id,
-            open("files\\ai_img\\womam_examples\\2.jpg", "rb"),
+            open("files\\ai_img\\woman_examples\\2.jpg", "rb"),
             examples_imgs["MSG_EXAMPLE_TEXT_PORTRAIT_WOMAN_MODEL_IN_HOME_EASY"],
         )
 
         await bot.send_photo(
             message.from_id,
-            open("files\\ai_img\\womam_examples\\1.jpg", "rb"),
+            open("files\\ai_img\\woman_examples\\1.jpg", "rb"),
             examples_imgs["MSG_EXAMPLE_TEXT_BACK_WOMAN_MODEL_IN_HOME_EASY"],
         )
 

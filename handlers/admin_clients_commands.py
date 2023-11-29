@@ -138,15 +138,14 @@ async def add_new_user_to_db(message: types.Message,state: FSMContext):
 
         await bot.send_message(
             message.from_user.id,
-            f"🎉 Заказ под номером {tattoo_order_number}"
-            f" оформлен на пользователя {username} с телеграмом {telegram}, телефон: {phone}!",
-            reply_markup=kb_admin.kb_tattoo_order_commands,
+            f"🎉 Добавлен новый пользователь {username}, {telegram}, телефон: {phone}\n",
+            reply_markup=kb_admin.kb_clients_commands,
         )
         await state.finish() # полностью очищает данные
 
 
 async def get_user_phone(message: types.Message, state: FSMContext):
-    if message.text in kb_admin.phone_answer + [kb_client.no_str]:
+    if message.text in [kb_admin.phone_answer, kb_client.no_str]:
         async with state.proxy() as data:
             data["number"] = "Нет номера"
         

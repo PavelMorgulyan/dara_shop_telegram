@@ -10,7 +10,6 @@
 /db/__pycache__/
 /msg/__pycache__/
 /handlers/__pycache__/
-/db/__pycache__/
 /stable-diffusion
 /img
 db_dara_store_telegram.db
